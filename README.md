@@ -87,8 +87,8 @@ Estimasi total: **~13 minggu (3 bulan)** dari mulai coding.
 | M3 Trip & History | 2 minggu | Multi-haul, riwayat | ✅ Done |
 | M4 Peta Offline | 1 minggu | Download & cache tile | ✅ Done |
 | M5 Log Book & Marker | 1.5 minggu | Form log, marker | ✅ Done |
-| M6 Dashboard | 1 minggu | Statistik, grafik | 🔜 Next |
-| M7 Ekspor / Impor | 1 minggu | GPX + JSON share | ⏳ |
+| M6 Dashboard | 1 minggu | Statistik, grafik | ✅ Done |
+| M7 Ekspor / Impor | 1 minggu | GPX + JSON share | 🔜 Next |
 | M8 Onboarding & Polish | 1.5 minggu | Tutorial, UI polish | ⏳ |
 | M9 QA & Beta | 2 minggu | Test real-world | ⏳ |
 | M10 Rilis MVP | 0.5 minggu | Play Store | ⏳ |
