@@ -331,12 +331,12 @@ Aplikasi siap rilis ketika:
 
 ---
 
-## 11. Pertanyaan Terbuka
+## 11. Keputusan Desain (Closed Questions)
 
-1. Apakah butuh fitur "nama kapal teman" untuk identifikasi sumber data yang di-import?
-2. Apakah satuan hasil tangkap cukup kg, atau butuh ekor juga?
-3. Branding: perlu logo & warna khas? (usul: biru laut + putih)
-4. Apakah perlu restriksi tombol "Mulai Tebar" jika kecepatan kapal 0 (kapal diam)?
+1. ✅ **Nama kapal pengirim** disertakan saat ekspor → field `exportedBy.name` dan `exportedBy.vessel` di format `.lsea.json`, ditampilkan saat user mengimpor data ("Dikirim oleh: Pak Budi - KM Jaya").
+2. ✅ **Satuan hasil tangkap = kg saja**, dan **field opsional** (boleh dikosongkan). Tidak wajib diisi per haul/trip.
+3. ✅ **Branding:** Biru Laut `#0277BD` (primary) + Oranye Matahari Terbit `#FF6F00` (accent). Tema gaya "Clean Liquid Glass" dengan mode terang & gelap.
+4. ✅ **Tombol "Mulai Tebar" tidak dibatasi** oleh kecepatan kapal — user bisa tekan kapan saja, termasuk saat kapal diam.
 
 ---
 

@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Langgeng Sea - UI/UX Prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.0.3/src/regular/style.css">
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.0.3/src/bold/style.css">
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.0.3/src/fill/style.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-theme="light">
+  <!-- Top Control Bar -->
+  <div class="control-bar">
+    <div class="brand">
+      <div class="brand-logo">
+        <i class="ph-fill ph-anchor-simple"></i>
+      </div>
+      <div>
+        <div class="brand-title">Langgeng Sea</div>
+        <div class="brand-sub">UI/UX Prototype &middot; Clean Liquid Glass</div>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="theme-switch" id="themeSwitch" role="button" aria-label="Toggle theme">
+        <div class="theme-switch-thumb"><i class="ph ph-sun"></i></div>
+        <span class="theme-switch-label">Light</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Screens Gallery -->
+  <main class="gallery">
+
+    <!-- Screen 1: Home / Idle -->
+    <section class="screen-card">
+      <header class="screen-meta">
+        <span class="screen-num">01</span>
+        <div>
+          <h3>Home / Peta (Idle)</h3>
+          <p>Status idle, tombol besar "Mulai Tebar" siap ditekan</p>
+        </div>
+      </header>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <!-- Status bar -->
+          <div class="status-bar">
+            <span>9:41</span>
+            <span class="status-right">
+              <i class="ph-bold ph-broadcast"></i>
+              <i class="ph-bold ph-wifi-high"></i>
+              <i class="ph-fill ph-battery-full"></i>
+            </span>
+          </div>
+
+          <!-- Map background -->
+          <div class="map-bg">
+            <div class="map-blob blob-1"></div>
+            <div class="map-blob blob-2"></div>
+            <div class="map-grid"></div>
+
+            <!-- Top glass app bar -->
+            <div class="app-bar glass-2">
+              <div class="vessel-info">
+                <div class="avatar"><i class="ph-bold ph-sailboat"></i></div>
+                <div>
+                  <div class="vessel-name">KM Jaya Bahari</div>
+                  <div class="vessel-sub">Pak Budi &middot; 8 GT</div>
+                </div>
+              </div>
+              <div class="status-chip neutral">
+                <span class="dot"></span>
+                Belum Trip
+              </div>
+            </div>
+
+            <!-- GPS accuracy chip -->
+            <div class="accuracy-chip glass-1">
+              <i class="ph-bold ph-crosshair"></i>
+              <span>&plusmn;4m</span>
+            </div>
+
+            <!-- Boat marker -->
+            <div class="boat-marker">
+              <div class="pulse"></div>
+              <div class="boat-icon"><i class="ph-fill ph-sailboat"></i></div>
+            </div>
+
+            <!-- Bottom action panel -->
+            <div class="action-panel glass-2">
+              <div class="action-header">
+                <div>
+                  <div class="action-title">Siap Melaut</div>
+                  <div class="action-sub">0 haul hari ini &middot; Trip ke-3</div>
+                </div>
+                <button class="icon-btn" aria-label="Info"><i class="ph ph-info"></i></button>
+              </div>
+              <button class="primary-btn success-btn">
+                <i class="ph-fill ph-play-circle"></i>
+                MULAI TEBAR TRAWL
+              </button>
+            </div>
+
+            <!-- Bottom nav -->
+            <nav class="bottom-nav glass-3">
+              <button class="nav-item active">
+                <i class="ph-fill ph-map-trifold"></i>
+                <span>Peta</span>
+              </button>
+              <button class="nav-item">
+                <i class="ph ph-clock-counter-clockwise"></i>
+                <span>Riwayat</span>
+              </button>
+              <button class="nav-item">
+                <i class="ph ph-chart-pie"></i>
+                <span>Dashboard</span>
+              </button>
+              <button class="nav-item">
+                <i class="ph ph-gear-six"></i>
+                <span>Pengaturan</span>
+              </button>
+            </nav>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Screen 2: Tracking Active -->
+    <section class="screen-card">
+      <header class="screen-meta">
+        <span class="screen-num">02</span>
+        <div>
+          <h3>Tracking Aktif (Haul Recording)</h3>
+          <p>Live stats, polyline bertambah, tombol "Angkat Trawl"</p>
+        </div>
+      </header>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="status-bar">
+            <span>9:41</span>
+            <span class="status-right">
+              <i class="ph-bold ph-broadcast"></i>
+              <i class="ph-fill ph-battery-full"></i>
+            </span>
+          </div>
+          <div class="map-bg">
+            <div class="map-blob blob-1"></div>
+            <div class="map-blob blob-2"></div>
+            <div class="map-grid"></div>
+
+            <!-- Live tracking top bar -->
+            <div class="app-bar glass-2 live">
+              <div class="live-indicator">
+                <span class="live-dot"></span>
+                <span>MEREKAM HAUL #1</span>
+              </div>
+              <div class="accuracy-chip inline success">
+                <i class="ph-bold ph-crosshair"></i>
+                <span>&plusmn;3m</span>
+              </div>
+            </div>
+
+            <!-- Live stats panel -->
+            <div class="live-stats glass-2">
+              <div class="stat-item">
+                <div class="stat-label">Durasi</div>
+                <div class="stat-value">00:12:34</div>
+              </div>
+              <div class="stat-sep"></div>
+              <div class="stat-item">
+                <div class="stat-label">Jarak</div>
+                <div class="stat-value">1.24 <span>km</span></div>
+              </div>
+              <div class="stat-sep"></div>
+              <div class="stat-item">
+                <div class="stat-label">Kecepatan</div>
+                <div class="stat-value">2.8 <span>kn</span></div>
+              </div>
+            </div>
+
+            <!-- Polyline svg -->
+            <svg class="polyline-svg" viewBox="0 0 300 500">
+              <path d="M 60 180 Q 100 220 130 260 T 200 340 Q 220 380 220 400"
+                    stroke="url(#trackGrad)" stroke-width="5" fill="none"
+                    stroke-linecap="round" stroke-dasharray="0"/>
+              <defs>
+                <linearGradient id="trackGrad" x1="0" x2="1">
+                  <stop offset="0" stop-color="#0277BD" stop-opacity="0.5"/>
+                  <stop offset="1" stop-color="#0277BD"/>
+                </linearGradient>
+              </defs>
+              <circle cx="60" cy="180" r="6" fill="#2E7D32"/>
+              <circle cx="60" cy="180" r="10" fill="#2E7D32" opacity="0.3"/>
+            </svg>
+
+            <!-- Boat moving -->
+            <div class="boat-marker tracking">
+              <div class="pulse"></div>
+              <div class="boat-icon danger"><i class="ph-fill ph-sailboat"></i></div>
+            </div>
+
+            <!-- Stop action panel -->
+            <div class="action-panel glass-2">
+              <div class="action-header">
+                <div>
+                  <div class="action-title">Haul #1 berjalan</div>
+                  <div class="action-sub">Arah 045&deg; &middot; Trawl &lt;20m</div>
+                </div>
+                <button class="icon-btn" aria-label="Pause"><i class="ph ph-pause"></i></button>
+              </div>
+              <button class="primary-btn danger-btn">
+                <i class="ph-fill ph-stop-circle"></i>
+                ANGKAT TRAWL
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Screen 3: Haul Summary Bottom Sheet -->
+    <section class="screen-card">
+      <header class="screen-meta">
+        <span class="screen-num">03</span>
+        <div>
+          <h3>Haul Summary</h3>
+          <p>Setelah "Angkat Trawl" ditekan, bottom sheet muncul</p>
+        </div>
+      </header>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="status-bar">
+            <span>9:41</span>
+            <span class="status-right">
+              <i class="ph-bold ph-broadcast"></i>
+              <i class="ph-fill ph-battery-full"></i>
+            </span>
+          </div>
+          <div class="map-bg dimmed">
+            <div class="map-blob blob-1"></div>
+            <div class="map-blob blob-2"></div>
+
+            <!-- Sheet -->
+            <div class="bottom-sheet glass-3">
+              <div class="sheet-handle"></div>
+              <div class="sheet-header">
+                <div class="sheet-chip success">
+                  <i class="ph-bold ph-check-circle"></i>
+                  HAUL SELESAI
+                </div>
+                <button class="icon-btn"><i class="ph ph-x"></i></button>
+              </div>
+              <div class="sheet-title-row">
+                <div>
+                  <div class="sheet-eyebrow">Haul #1 &middot; Selat Madura Utara</div>
+                  <input type="text" class="sheet-title-input" value="Spot Utara Pagi">
+                </div>
+                <button class="icon-btn"><i class="ph ph-pencil-simple"></i></button>
+              </div>
+
+              <div class="metric-grid">
+                <div class="metric-tile glass-1">
+                  <i class="ph-bold ph-ruler metric-icon primary"></i>
+                  <div class="metric-val">2.4 <span>km</span></div>
+                  <div class="metric-lbl">Jarak Tarik</div>
+                </div>
+                <div class="metric-tile glass-1">
+                  <i class="ph-bold ph-timer metric-icon accent"></i>
+                  <div class="metric-val">00:42:18</div>
+                  <div class="metric-lbl">Durasi</div>
+                </div>
+                <div class="metric-tile glass-1">
+                  <i class="ph-bold ph-speedometer metric-icon primary"></i>
+                  <div class="metric-val">3.2 <span>kn</span></div>
+                  <div class="metric-lbl">Kecepatan Rata-rata</div>
+                </div>
+                <div class="metric-tile glass-1">
+                  <i class="ph-bold ph-compass metric-icon accent"></i>
+                  <div class="metric-val">045&deg;</div>
+                  <div class="metric-lbl">Arah Dominan</div>
+                </div>
+                <div class="metric-tile glass-1 wide">
+                  <i class="ph-bold ph-frame-corners metric-icon primary"></i>
+                  <div class="metric-val">48,000 <span>m&sup2;</span></div>
+                  <div class="metric-lbl">Luas Area Sapuan Trawl</div>
+                </div>
+              </div>
+
+              <div class="sheet-actions">
+                <button class="secondary-btn">
+                  <i class="ph ph-notebook"></i>
+                  Isi Log Book
+                </button>
+                <button class="primary-btn">
+                  <i class="ph-bold ph-plus-circle"></i>
+                  Haul Berikutnya
+                </button>
+              </div>
+              <button class="text-btn">Akhiri Trip</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Screen 4: History -->
+    <section class="screen-card">
+      <header class="screen-meta">
+        <span class="screen-num">04</span>
+        <div>
+          <h3>Riwayat Trip</h3>
+          <p>Daftar trip dengan ringkasan & filter tanggal</p>
+        </div>
+      </header>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-screen scrollable">
+          <div class="status-bar">
+            <span>9:41</span>
+            <span class="status-right">
+              <i class="ph-bold ph-broadcast"></i>
+              <i class="ph-fill ph-battery-full"></i>
+            </span>
+          </div>
+          <div class="screen-body">
+            <div class="screen-header">
+              <h1>Riwayat</h1>
+              <button class="icon-btn"><i class="ph ph-funnel"></i></button>
+            </div>
+
+            <div class="search-glass glass-1">
+              <i class="ph ph-magnifying-glass"></i>
+              <input type="text" placeholder="Cari trip atau haul...">
+            </div>
+
+            <div class="period-switch glass-1">
+              <button class="period-item active">7 Hari</button>
+              <button class="period-item">30 Hari</button>
+              <button class="period-item">Semua</button>
+            </div>
+
+            <div class="section-label">KAMIS, 8 MEI 2026</div>
+
+            <div class="trip-card glass-2">
+              <div class="trip-card-top">
+                <div>
+                  <div class="trip-title">Trip Pagi - Probolinggo</div>
+                  <div class="trip-sub">05:30 - 14:20 &middot; 3 haul</div>
+                </div>
+                <div class="trip-catch">
+                  <div class="trip-catch-val">45 <span>kg</span></div>
+                  <div class="trip-catch-lbl">Total</div>
+                </div>
+              </div>
+              <div class="trip-chips">
+                <span class="chip"><i class="ph ph-path"></i> 12.4 km</span>
+                <span class="chip"><i class="ph ph-timer"></i> 8j 50m</span>
+                <span class="chip"><i class="ph ph-gas-pump"></i> 32 L</span>
+              </div>
+              <div class="track-preview">
+                <svg viewBox="0 0 300 60">
+                  <path d="M 10 30 Q 60 10 100 35 T 200 25 T 290 40" stroke="var(--primary)" stroke-width="3" fill="none" stroke-linecap="round"/>
+                  <circle cx="10" cy="30" r="4" fill="var(--success)"/>
+                  <circle cx="290" cy="40" r="4" fill="var(--danger)"/>
+                </svg>
+              </div>
+            </div>
+
+            <div class="section-label">RABU, 7 MEI 2026</div>
+
+            <div class="trip-card glass-2">
+              <div class="trip-card-top">
+                <div>
+                  <div class="trip-title">Trip Sore</div>
+                  <div class="trip-sub">15:00 - 22:15 &middot; 2 haul</div>
+                </div>
+                <div class="trip-catch">
+                  <div class="trip-catch-val">28 <span>kg</span></div>
+                  <div class="trip-catch-lbl">Total</div>
+                </div>
+              </div>
+              <div class="trip-chips">
+                <span class="chip"><i class="ph ph-path"></i> 8.1 km</span>
+                <span class="chip"><i class="ph ph-timer"></i> 7j 15m</span>
+                <span class="chip"><i class="ph ph-gas-pump"></i> 22 L</span>
+              </div>
+            </div>
+
+            <div class="section-label">SELASA, 6 MEI 2026</div>
+
+            <div class="trip-card glass-2">
+              <div class="trip-card-top">
+                <div>
+                  <div class="trip-title">Trip Pagi - Madura</div>
+                  <div class="trip-sub">05:45 - 13:30 &middot; 4 haul</div>
+                </div>
+                <div class="trip-catch">
+                  <div class="trip-catch-val">62 <span>kg</span></div>
+                  <div class="trip-catch-lbl">Total</div>
+                </div>
+              </div>
+              <div class="trip-chips">
+                <span class="chip"><i class="ph ph-path"></i> 15.2 km</span>
+                <span class="chip"><i class="ph ph-timer"></i> 7j 45m</span>
+                <span class="chip"><i class="ph ph-gas-pump"></i> 38 L</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- bottom nav -->
+          <nav class="bottom-nav glass-3">
+            <button class="nav-item"><i class="ph ph-map-trifold"></i><span>Peta</span></button>
+            <button class="nav-item active"><i class="ph-fill ph-clock-counter-clockwise"></i><span>Riwayat</span></button>
+            <button class="nav-item"><i class="ph ph-chart-pie"></i><span>Dashboard</span></button>
+            <button class="nav-item"><i class="ph ph-gear-six"></i><span>Pengaturan</span></button>
+          </nav>
+        </div>
+      </div>
+    </section>
+
+    <!-- Screen 5: Dashboard -->
+    <section class="screen-card">
+      <header class="screen-meta">
+        <span class="screen-num">05</span>
+        <div>
+          <h3>Dashboard Statistik</h3>
+          <p>Grafik tangkapan, metrik periode, top spots</p>
+        </div>
+      </header>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-screen scrollable">
+          <div class="status-bar">
+            <span>9:41</span>
+            <span class="status-right">
+              <i class="ph-bold ph-broadcast"></i>
+              <i class="ph-fill ph-battery-full"></i>
+            </span>
+          </div>
+          <div class="screen-body">
+            <div class="screen-header">
+              <h1>Dashboard</h1>
+              <button class="icon-btn"><i class="ph ph-export"></i></button>
+            </div>
+
+            <div class="period-switch glass-1">
+              <button class="period-item">Hari</button>
+              <button class="period-item active">7 Hari</button>
+              <button class="period-item">30 Hari</button>
+              <button class="period-item">Total</button>
+            </div>
+
+            <div class="hero-metric glass-2">
+              <div class="hero-eyebrow">TOTAL TANGKAPAN 7 HARI</div>
+              <div class="hero-value">287 <span>kg</span></div>
+              <div class="hero-trend success">
+                <i class="ph-bold ph-trend-up"></i>
+                +12% vs minggu lalu
+              </div>
+            </div>
+
+            <div class="metric-row">
+              <div class="metric-tile glass-1">
+                <i class="ph-bold ph-boat metric-icon primary"></i>
+                <div class="metric-val">12</div>
+                <div class="metric-lbl">Trip</div>
+              </div>
+              <div class="metric-tile glass-1">
+                <i class="ph-bold ph-arrows-clockwise metric-icon accent"></i>
+                <div class="metric-val">38</div>
+                <div class="metric-lbl">Haul</div>
+              </div>
+              <div class="metric-tile glass-1">
+                <i class="ph-bold ph-path metric-icon primary"></i>
+                <div class="metric-val">142 <span>km</span></div>
+                <div class="metric-lbl">Jarak</div>
+              </div>
+              <div class="metric-tile glass-1">
+                <i class="ph-bold ph-gas-pump metric-icon accent"></i>
+                <div class="metric-val">284 <span>L</span></div>
+                <div class="metric-lbl">BBM</div>
+              </div>
+            </div>
+
+            <div class="chart-card glass-2">
+              <div class="card-header">
+                <h3>Tangkapan Harian</h3>
+                <span class="caption">kg per hari</span>
+              </div>
+              <div class="bar-chart">
+                <div class="bar" style="--h:55%"><span>Sen</span></div>
+                <div class="bar" style="--h:72%"><span>Sel</span></div>
+                <div class="bar" style="--h:40%"><span>Rab</span></div>
+                <div class="bar highlight" style="--h:95%"><span>Kam</span></div>
+                <div class="bar" style="--h:60%"><span>Jum</span></div>
+                <div class="bar" style="--h:48%"><span>Sab</span></div>
+                <div class="bar" style="--h:78%"><span>Min</span></div>
+              </div>
+            </div>
+
+            <div class="chart-card glass-2">
+              <div class="card-header">
+                <h3>Top Spot Produktif</h3>
+              </div>
+              <div class="top-spots">
+                <div class="top-spot-item">
+                  <div class="rank">1</div>
+                  <div>
+                    <div class="spot-name">Spot Utara Pagi</div>
+                    <div class="spot-sub">3x kunjungan &middot; 78 kg total</div>
+                  </div>
+                  <div class="spot-catch">62 <span>kg</span></div>
+                </div>
+                <div class="top-spot-item">
+                  <div class="rank">2</div>
+                  <div>
+                    <div class="spot-name">Karang Madura</div>
+                    <div class="spot-sub">2x kunjungan &middot; 45 kg total</div>
+                  </div>
+                  <div class="spot-catch">45 <span>kg</span></div>
+                </div>
+                <div class="top-spot-item">
+                  <div class="rank">3</div>
+                  <div>
+                    <div class="spot-name">Selat Tengah</div>
+                    <div class="spot-sub">4x kunjungan &middot; 38 kg total</div>
+                  </div>
+                  <div class="spot-catch">38 <span>kg</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <nav class="bottom-nav glass-3">
+            <button class="nav-item"><i class="ph ph-map-trifold"></i><span>Peta</span></button>
+            <button class="nav-item"><i class="ph ph-clock-counter-clockwise"></i><span>Riwayat</span></button>
+            <button class="nav-item active"><i class="ph-fill ph-chart-pie"></i><span>Dashboard</span></button>
+            <button class="nav-item"><i class="ph ph-gear-six"></i><span>Pengaturan</span></button>
+          </nav>
+        </div>
+      </div>
+    </section>
+
+    <!-- Screen 6: Log Book Form -->
+    <section class="screen-card">
+      <header class="screen-meta">
+        <span class="screen-num">06</span>
+        <div>
+          <h3>Log Book Digital</h3>
+          <p>Form catat tangkapan, cuaca, gelombang &mdash; semua opsional</p>
+        </div>
+      </header>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-screen scrollable">
+          <div class="status-bar">
+            <span>9:41</span>
+            <span class="status-right">
+              <i class="ph-bold ph-broadcast"></i>
+              <i class="ph-fill ph-battery-full"></i>
+            </span>
+          </div>
+          <div class="screen-body">
+            <div class="screen-header">
+              <button class="icon-btn"><i class="ph ph-arrow-left"></i></button>
+              <h1>Log Book</h1>
+              <button class="icon-btn"><i class="ph ph-floppy-disk"></i></button>
+            </div>
+
+            <div class="info-banner glass-1">
+              <i class="ph-bold ph-info"></i>
+              <span>Semua kolom opsional. Isi sesukanya saja.</span>
+            </div>
+
+            <div class="form-card glass-2">
+              <div class="form-label">Haul #1 &middot; Spot Utara Pagi</div>
+
+              <div class="form-section">
+                <div class="form-sub-label">
+                  <span>Hasil Tangkap</span>
+                  <span class="optional-tag">opsional</span>
+                </div>
+                <div class="catch-row glass-1">
+                  <select class="form-input">
+                    <option>Tongkol</option>
+                    <option>Kembung</option>
+                    <option>Layang</option>
+                  </select>
+                  <input type="number" class="form-input small" value="18" placeholder="kg">
+                  <span class="unit">kg</span>
+                  <button class="icon-btn-sm"><i class="ph ph-trash"></i></button>
+                </div>
+                <div class="catch-row glass-1">
+                  <select class="form-input">
+                    <option>Cumi</option>
+                  </select>
+                  <input type="number" class="form-input small" value="6" placeholder="kg">
+                  <span class="unit">kg</span>
+                  <button class="icon-btn-sm"><i class="ph ph-trash"></i></button>
+                </div>
+                <button class="add-row-btn">
+                  <i class="ph-bold ph-plus-circle"></i> Tambah jenis ikan
+                </button>
+              </div>
+
+              <div class="form-section">
+                <div class="form-sub-label">
+                  <span>Cuaca</span>
+                  <span class="optional-tag">opsional</span>
+                </div>
+                <div class="segmented glass-1">
+                  <button class="seg-item active"><i class="ph-fill ph-sun"></i> Cerah</button>
+                  <button class="seg-item"><i class="ph ph-cloud"></i> Mendung</button>
+                  <button class="seg-item"><i class="ph ph-cloud-rain"></i> Hujan</button>
+                </div>
+              </div>
+
+              <div class="form-section">
+                <div class="form-sub-label">
+                  <span>Gelombang</span>
+                  <span class="optional-tag">opsional</span>
+                </div>
+                <div class="segmented glass-1">
+                  <button class="seg-item active">Tenang</button>
+                  <button class="seg-item">Sedang</button>
+                  <button class="seg-item">Tinggi</button>
+                </div>
+              </div>
+
+              <div class="form-section">
+                <div class="form-sub-label">
+                  <span>Catatan</span>
+                  <span class="optional-tag">opsional</span>
+                </div>
+                <textarea class="form-input textarea" placeholder="Catatan bebas..."></textarea>
+              </div>
+            </div>
+
+            <button class="primary-btn wide">
+              <i class="ph-bold ph-floppy-disk"></i>
+              Simpan Log Book
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Screen 7: Settings -->
+    <section class="screen-card">
+      <header class="screen-meta">
+        <span class="screen-num">07</span>
+        <div>
+          <h3>Pengaturan</h3>
+          <p>Profil kapal, preferensi, peta offline, tema</p>
+        </div>
+      </header>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-screen scrollable">
+          <div class="status-bar">
+            <span>9:41</span>
+            <span class="status-right">
+              <i class="ph-bold ph-broadcast"></i>
+              <i class="ph-fill ph-battery-full"></i>
+            </span>
+          </div>
+          <div class="screen-body">
+            <div class="screen-header">
+              <h1>Pengaturan</h1>
+            </div>
+
+            <div class="profile-card glass-2">
+              <div class="avatar-xl"><i class="ph-fill ph-sailboat"></i></div>
+              <div class="profile-info">
+                <div class="profile-name">KM Jaya Bahari</div>
+                <div class="profile-sub">Pak Budi &middot; 8 GT &middot; Probolinggo</div>
+              </div>
+              <button class="icon-btn"><i class="ph ph-pencil-simple"></i></button>
+            </div>
+
+            <div class="settings-section glass-2">
+              <div class="settings-row">
+                <div class="settings-icon primary"><i class="ph-bold ph-crosshair"></i></div>
+                <div class="settings-label">
+                  <div>Interval GPS</div>
+                  <div class="settings-sub">Setiap 10 detik</div>
+                </div>
+                <i class="ph ph-caret-right"></i>
+              </div>
+              <div class="settings-divider"></div>
+              <div class="settings-row">
+                <div class="settings-icon accent"><i class="ph-bold ph-ruler"></i></div>
+                <div class="settings-label">
+                  <div>Lebar Bukaan Trawl</div>
+                  <div class="settings-sub">20 meter</div>
+                </div>
+                <i class="ph ph-caret-right"></i>
+              </div>
+              <div class="settings-divider"></div>
+              <div class="settings-row">
+                <div class="settings-icon primary"><i class="ph-bold ph-gauge"></i></div>
+                <div class="settings-label">
+                  <div>Satuan Kecepatan</div>
+                  <div class="settings-sub">Knot (kn)</div>
+                </div>
+                <i class="ph ph-caret-right"></i>
+              </div>
+            </div>
+
+            <div class="settings-section glass-2">
+              <div class="settings-row">
+                <div class="settings-icon primary"><i class="ph-bold ph-download-simple"></i></div>
+                <div class="settings-label">
+                  <div>Peta Offline</div>
+                  <div class="settings-sub">2 area &middot; 348 MB</div>
+                </div>
+                <i class="ph ph-caret-right"></i>
+              </div>
+              <div class="settings-divider"></div>
+              <div class="settings-row">
+                <div class="settings-icon accent"><i class="ph-bold ph-moon"></i></div>
+                <div class="settings-label">
+                  <div>Tema Aplikasi</div>
+                  <div class="settings-sub">Ikuti Sistem</div>
+                </div>
+                <div class="theme-mini">
+                  <span class="theme-mini-item active">A</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-section glass-2">
+              <div class="settings-row">
+                <div class="settings-icon primary"><i class="ph-bold ph-upload-simple"></i></div>
+                <div class="settings-label">
+                  <div>Ekspor Semua Data</div>
+                  <div class="settings-sub">Format .lsea.json</div>
+                </div>
+                <i class="ph ph-caret-right"></i>
+              </div>
+              <div class="settings-divider"></div>
+              <div class="settings-row">
+                <div class="settings-icon danger"><i class="ph-bold ph-trash"></i></div>
+                <div class="settings-label">
+                  <div class="danger-text">Hapus Semua Data</div>
+                  <div class="settings-sub">Tidak dapat dikembalikan</div>
+                </div>
+                <i class="ph ph-caret-right"></i>
+              </div>
+            </div>
+
+            <div class="app-footer">
+              <div class="footer-logo"><i class="ph-fill ph-anchor-simple"></i></div>
+              <div class="footer-text">Langgeng Sea v1.0.0</div>
+              <div class="footer-sub">Jejak Setia di Lautan</div>
+            </div>
+          </div>
+
+          <nav class="bottom-nav glass-3">
+            <button class="nav-item"><i class="ph ph-map-trifold"></i><span>Peta</span></button>
+            <button class="nav-item"><i class="ph ph-clock-counter-clockwise"></i><span>Riwayat</span></button>
+            <button class="nav-item"><i class="ph ph-chart-pie"></i><span>Dashboard</span></button>
+            <button class="nav-item active"><i class="ph-fill ph-gear-six"></i><span>Pengaturan</span></button>
+          </nav>
+        </div>
+      </div>
+    </section>
+
+    <!-- Screen 8: Onboarding -->
+    <section class="screen-card">
+      <header class="screen-meta">
+        <span class="screen-num">08</span>
+        <div>
+          <h3>Onboarding</h3>
+          <p>Layar sambutan pertama kali membuka aplikasi</p>
+        </div>
+      </header>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="status-bar">
+            <span>9:41</span>
+            <span class="status-right">
+              <i class="ph-bold ph-broadcast"></i>
+              <i class="ph-fill ph-battery-full"></i>
+            </span>
+          </div>
+          <div class="onboarding">
+            <div class="ob-blob blob-1"></div>
+            <div class="ob-blob blob-2"></div>
+            <div class="ob-blob blob-3"></div>
+
+            <div class="ob-illustration">
+              <div class="ob-wave"></div>
+              <div class="ob-boat">
+                <i class="ph-fill ph-sailboat"></i>
+              </div>
+              <svg class="ob-track" viewBox="0 0 240 120">
+                <path d="M 20 80 Q 70 20 120 60 T 220 40" stroke="var(--primary)" stroke-width="3" fill="none" stroke-dasharray="6 6" stroke-linecap="round"/>
+                <circle cx="220" cy="40" r="6" fill="var(--accent)"/>
+              </svg>
+            </div>
+
+            <div class="ob-content">
+              <div class="ob-eyebrow">
+                <i class="ph-bold ph-anchor-simple"></i>
+                Langgeng Sea
+              </div>
+              <h1 class="ob-title">Jejak Setia di Lautan</h1>
+              <p class="ob-desc">
+                Rekam jejak trawl Anda secara <b>offline</b>, bahkan di tengah laut tanpa sinyal. Tanpa alat tambahan &mdash; cukup HP Anda.
+              </p>
+
+              <div class="ob-dots">
+                <span class="dot active"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+              </div>
+            </div>
+
+            <div class="ob-actions">
+              <button class="text-btn">Lewati</button>
+              <button class="primary-btn">
+                Lanjut
+                <i class="ph-bold ph-arrow-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Screen 9: Ekspor / Share -->
+    <section class="screen-card">
+      <header class="screen-meta">
+        <span class="screen-num">09</span>
+        <div>
+          <h3>Ekspor &amp; Bagikan</h3>
+          <p>Share trip/haul ke sesama pengguna</p>
+        </div>
+      </header>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="status-bar">
+            <span>9:41</span>
+            <span class="status-right">
+              <i class="ph-bold ph-broadcast"></i>
+              <i class="ph-fill ph-battery-full"></i>
+            </span>
+          </div>
+          <div class="map-bg dimmed">
+            <div class="map-blob blob-1"></div>
+
+            <div class="bottom-sheet glass-3 auto-height">
+              <div class="sheet-handle"></div>
+              <h2 class="sheet-h2">Ekspor Trip</h2>
+
+              <div class="share-preview glass-1">
+                <div class="share-info">
+                  <div class="share-title">Trip Pagi - Probolinggo</div>
+                  <div class="share-sub">3 haul &middot; 45 kg &middot; 8 Mei 2026</div>
+                </div>
+                <div class="share-by">
+                  <i class="ph-bold ph-user-circle"></i>
+                  <span>Pak Budi &middot; KM Jaya</span>
+                </div>
+              </div>
+
+              <div class="sheet-sub-h">Pilih Format</div>
+              <div class="format-options">
+                <button class="format-item glass-1 active">
+                  <div class="format-icon primary"><i class="ph-bold ph-waves"></i></div>
+                  <div>
+                    <div class="format-title">Langgeng Sea</div>
+                    <div class="format-desc">.lsea.json &middot; lengkap dengan log book</div>
+                  </div>
+                  <i class="ph-fill ph-check-circle format-check"></i>
+                </button>
+                <button class="format-item glass-1">
+                  <div class="format-icon accent"><i class="ph-bold ph-map-pin-line"></i></div>
+                  <div>
+                    <div class="format-title">GPX</div>
+                    <div class="format-desc">.gpx &middot; universal, track saja</div>
+                  </div>
+                </button>
+              </div>
+
+              <div class="sheet-sub-h">Aplikasi</div>
+              <div class="share-apps">
+                <div class="share-app">
+                  <div class="share-app-icon wa"><i class="ph-fill ph-whatsapp-logo"></i></div>
+                  <span>WhatsApp</span>
+                </div>
+                <div class="share-app">
+                  <div class="share-app-icon tg"><i class="ph-fill ph-telegram-logo"></i></div>
+                  <span>Telegram</span>
+                </div>
+                <div class="share-app">
+                  <div class="share-app-icon em"><i class="ph-fill ph-envelope"></i></div>
+                  <span>Email</span>
+                </div>
+                <div class="share-app">
+                  <div class="share-app-icon dr"><i class="ph-fill ph-floppy-disk"></i></div>
+                  <span>Simpan</span>
+                </div>
+              </div>
+
+              <button class="primary-btn wide">
+                <i class="ph-bold ph-share-fat"></i>
+                Bagikan Sekarang
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer-note">
+    <p><strong>Langgeng Sea</strong> UI/UX Prototype &middot; Clean Liquid Glass Design System</p>
+    <p class="small">Gunakan tombol <kbd>Light / Dark</kbd> di pojok kanan atas untuk switch mode.</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
