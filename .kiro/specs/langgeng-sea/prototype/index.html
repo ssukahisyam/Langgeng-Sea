@@ -922,6 +922,630 @@
       </div>
     </section>
 
+    <!-- Screen 10: Trip Detail -->
+    <section class="screen-card">
+      <header class="screen-meta">
+        <span class="screen-num">10</span>
+        <div>
+          <h3>Trip Detail</h3>
+          <p>Ringkasan trip + peta gabungan + list haul</p>
+        </div>
+      </header>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-screen scrollable">
+          <div class="status-bar">
+            <span>9:41</span>
+            <span class="status-right">
+              <i class="ph-bold ph-broadcast"></i>
+              <i class="ph-fill ph-battery-full"></i>
+            </span>
+          </div>
+          <div class="screen-body">
+            <div class="screen-header">
+              <button class="icon-btn"><i class="ph ph-arrow-left"></i></button>
+              <h1 style="font-size:18px;">Trip Detail</h1>
+              <button class="icon-btn"><i class="ph ph-share-fat"></i></button>
+            </div>
+
+            <div class="trip-hero glass-2">
+              <div class="trip-hero-top">
+                <div>
+                  <div class="trip-hero-date">Kamis, 8 Mei 2026</div>
+                  <div class="trip-hero-title">Trip Pagi - Probolinggo</div>
+                </div>
+                <div class="trip-hero-status success">
+                  <i class="ph-bold ph-check-circle"></i> Selesai
+                </div>
+              </div>
+              <div class="trip-hero-map glass-1">
+                <svg viewBox="0 0 300 140" preserveAspectRatio="none">
+                  <defs>
+                    <pattern id="tgrid" width="30" height="30" patternUnits="userSpaceOnUse">
+                      <path d="M 30 0 L 0 0 0 30" fill="none" stroke="var(--map-line)" stroke-width="1"/>
+                    </pattern>
+                  </defs>
+                  <rect width="300" height="140" fill="url(#tgrid)"/>
+                  <!-- haul 1 -->
+                  <path d="M 30 90 Q 60 70 100 80 T 180 50" stroke="#0277BD" stroke-width="4" fill="none" stroke-linecap="round"/>
+                  <!-- haul 2 -->
+                  <path d="M 180 50 Q 200 30 220 45 T 270 35" stroke="#FF6F00" stroke-width="4" fill="none" stroke-linecap="round"/>
+                  <!-- haul 3 -->
+                  <path d="M 270 35 Q 250 80 200 100 T 120 120" stroke="#2E7D32" stroke-width="4" fill="none" stroke-linecap="round"/>
+                  <circle cx="30" cy="90" r="5" fill="#2E7D32"/>
+                  <circle cx="120" cy="120" r="5" fill="#D32F2F"/>
+                </svg>
+              </div>
+              <div class="trip-hero-stats">
+                <div class="trip-hero-stat">
+                  <div class="stat-value">45 <span>kg</span></div>
+                  <div class="stat-label">Tangkap</div>
+                </div>
+                <div class="stat-sep"></div>
+                <div class="trip-hero-stat">
+                  <div class="stat-value">12.4 <span>km</span></div>
+                  <div class="stat-label">Jarak</div>
+                </div>
+                <div class="stat-sep"></div>
+                <div class="trip-hero-stat">
+                  <div class="stat-value">8j 50m</div>
+                  <div class="stat-label">Durasi</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="section-label">3 HAUL</div>
+
+            <div class="haul-item glass-2">
+              <div class="haul-color" style="background:#0277BD;"></div>
+              <div class="haul-info">
+                <div class="haul-name">#1 Spot Utara Pagi</div>
+                <div class="haul-sub">06:15 - 06:58 &middot; 2.4 km &middot; 18 kg</div>
+              </div>
+              <i class="ph ph-caret-right"></i>
+            </div>
+
+            <div class="haul-item glass-2">
+              <div class="haul-color" style="background:#FF6F00;"></div>
+              <div class="haul-info">
+                <div class="haul-name">#2 Spot Tengah</div>
+                <div class="haul-sub">08:20 - 09:15 &middot; 3.1 km &middot; 12 kg</div>
+              </div>
+              <i class="ph ph-caret-right"></i>
+            </div>
+
+            <div class="haul-item glass-2">
+              <div class="haul-color" style="background:#2E7D32;"></div>
+              <div class="haul-info">
+                <div class="haul-name">#3 Karang Timur</div>
+                <div class="haul-sub">11:05 - 11:52 &middot; 2.8 km &middot; 15 kg</div>
+              </div>
+              <i class="ph ph-caret-right"></i>
+            </div>
+
+            <div class="trip-log glass-2">
+              <div class="card-header">
+                <h3>Log Book Trip</h3>
+                <button class="icon-btn-sm" style="color:var(--primary);"><i class="ph ph-pencil-simple"></i></button>
+              </div>
+              <div class="log-row">
+                <i class="ph-bold ph-gas-pump"></i>
+                <span>BBM</span>
+                <strong>32 L</strong>
+              </div>
+              <div class="log-row">
+                <i class="ph-bold ph-currency-circle-dollar"></i>
+                <span>Biaya</span>
+                <strong>Rp 320.000</strong>
+              </div>
+              <div class="log-row">
+                <i class="ph-bold ph-users-three"></i>
+                <span>Kru</span>
+                <strong>3 orang</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Screen 11: Haul Detail -->
+    <section class="screen-card">
+      <header class="screen-meta">
+        <span class="screen-num">11</span>
+        <div>
+          <h3>Haul Detail</h3>
+          <p>Detail satu haul &mdash; peta, metrik, log tangkap</p>
+        </div>
+      </header>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-screen scrollable">
+          <div class="status-bar">
+            <span>9:41</span>
+            <span class="status-right">
+              <i class="ph-bold ph-broadcast"></i>
+              <i class="ph-fill ph-battery-full"></i>
+            </span>
+          </div>
+          <div class="screen-body">
+            <div class="screen-header">
+              <button class="icon-btn"><i class="ph ph-arrow-left"></i></button>
+              <h1 style="font-size:18px;">Haul #1</h1>
+              <button class="icon-btn"><i class="ph ph-dots-three"></i></button>
+            </div>
+
+            <div class="haul-hero glass-2">
+              <div class="haul-hero-label">HAUL #1 &middot; 8 MEI 2026 &middot; 06:15 - 06:58</div>
+              <div class="haul-hero-name">Spot Utara Pagi</div>
+              <div class="haul-hero-map glass-1">
+                <svg viewBox="0 0 280 120" preserveAspectRatio="none">
+                  <path d="M 30 80 Q 80 30 140 60 T 250 40" stroke="#0277BD" stroke-width="4" fill="none" stroke-linecap="round"/>
+                  <circle cx="30" cy="80" r="6" fill="#2E7D32"/>
+                  <circle cx="250" cy="40" r="6" fill="#D32F2F"/>
+                </svg>
+              </div>
+            </div>
+
+            <div class="metric-grid">
+              <div class="metric-tile glass-1">
+                <i class="ph-bold ph-ruler metric-icon primary"></i>
+                <div class="metric-val">2.4 <span>km</span></div>
+                <div class="metric-lbl">Jarak Tarik</div>
+              </div>
+              <div class="metric-tile glass-1">
+                <i class="ph-bold ph-timer metric-icon accent"></i>
+                <div class="metric-val">42:18</div>
+                <div class="metric-lbl">Durasi</div>
+              </div>
+              <div class="metric-tile glass-1">
+                <i class="ph-bold ph-speedometer metric-icon primary"></i>
+                <div class="metric-val">3.2 <span>kn</span></div>
+                <div class="metric-lbl">Kecepatan avg</div>
+              </div>
+              <div class="metric-tile glass-1">
+                <i class="ph-bold ph-compass metric-icon accent"></i>
+                <div class="metric-val">045&deg;</div>
+                <div class="metric-lbl">Arah dominan</div>
+              </div>
+              <div class="metric-tile glass-1 wide">
+                <i class="ph-bold ph-frame-corners metric-icon primary"></i>
+                <div class="metric-val">48.000 <span>m&sup2;</span></div>
+                <div class="metric-lbl">Luas area sapuan</div>
+              </div>
+            </div>
+
+            <div class="chart-card glass-2">
+              <div class="card-header">
+                <h3>Hasil Tangkap</h3>
+                <span class="caption">18 kg total</span>
+              </div>
+              <div class="catch-list">
+                <div class="catch-bar-item">
+                  <span class="catch-name">Tongkol</span>
+                  <div class="catch-bar-track">
+                    <div class="catch-bar" style="width:70%;background:var(--primary);"></div>
+                  </div>
+                  <span class="catch-val">12 <span>kg</span></span>
+                </div>
+                <div class="catch-bar-item">
+                  <span class="catch-name">Cumi</span>
+                  <div class="catch-bar-track">
+                    <div class="catch-bar" style="width:33%;background:var(--accent);"></div>
+                  </div>
+                  <span class="catch-val">6 <span>kg</span></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="chart-card glass-2">
+              <div class="card-header">
+                <h3>Kondisi</h3>
+              </div>
+              <div class="cond-grid">
+                <div class="cond-item">
+                  <i class="ph-fill ph-sun cond-icon accent"></i>
+                  <span>Cerah</span>
+                </div>
+                <div class="cond-item">
+                  <i class="ph-bold ph-waves cond-icon primary"></i>
+                  <span>Gelombang Tenang</span>
+                </div>
+              </div>
+              <div class="cond-note">
+                "Tangkapan lumayan. Arus agak ke utara. Kembali ke spot ini lagi besok."
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Screen 12: Marker List -->
+    <section class="screen-card">
+      <header class="screen-meta">
+        <span class="screen-num">12</span>
+        <div>
+          <h3>Marker / Lokasi Saya</h3>
+          <p>Daftar titik yang ditandai user di peta</p>
+        </div>
+      </header>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-screen scrollable">
+          <div class="status-bar">
+            <span>9:41</span>
+            <span class="status-right">
+              <i class="ph-bold ph-broadcast"></i>
+              <i class="ph-fill ph-battery-full"></i>
+            </span>
+          </div>
+          <div class="screen-body">
+            <div class="screen-header">
+              <button class="icon-btn"><i class="ph ph-arrow-left"></i></button>
+              <h1 style="font-size:22px;">Lokasi Saya</h1>
+              <button class="icon-btn"><i class="ph ph-funnel"></i></button>
+            </div>
+
+            <div class="marker-cat-row">
+              <button class="marker-cat-chip glass-1 active">
+                <i class="ph-fill ph-map-pin-line"></i>
+                Semua <span class="count">7</span>
+              </button>
+              <button class="marker-cat-chip glass-1">
+                <span class="dot success"></span>
+                Produktif <span class="count">4</span>
+              </button>
+              <button class="marker-cat-chip glass-1">
+                <span class="dot danger"></span>
+                Karang <span class="count">2</span>
+              </button>
+              <button class="marker-cat-chip glass-1">
+                <span class="dot accent"></span>
+                Pelabuhan <span class="count">1</span>
+              </button>
+            </div>
+
+            <div class="marker-item glass-2">
+              <div class="marker-icon-big success"><i class="ph-fill ph-star"></i></div>
+              <div class="marker-body">
+                <div class="marker-name">Spot Utara Pagi</div>
+                <div class="marker-coord">-7.2103, 113.4521</div>
+                <div class="marker-tags">
+                  <span class="mtag">Produktif</span>
+                  <span class="mtag">3x kunjungan</span>
+                </div>
+              </div>
+              <button class="icon-btn"><i class="ph ph-caret-right"></i></button>
+            </div>
+
+            <div class="marker-item glass-2">
+              <div class="marker-icon-big danger"><i class="ph-fill ph-warning"></i></div>
+              <div class="marker-body">
+                <div class="marker-name">Karang Madura</div>
+                <div class="marker-coord">-7.1845, 113.3902</div>
+                <div class="marker-tags">
+                  <span class="mtag">Karang</span>
+                  <span class="mtag warning">Hati-hati</span>
+                </div>
+              </div>
+              <button class="icon-btn"><i class="ph ph-caret-right"></i></button>
+            </div>
+
+            <div class="marker-item glass-2">
+              <div class="marker-icon-big success"><i class="ph-fill ph-star"></i></div>
+              <div class="marker-body">
+                <div class="marker-name">Selat Tengah</div>
+                <div class="marker-coord">-7.2240, 113.4102</div>
+                <div class="marker-tags">
+                  <span class="mtag">Produktif</span>
+                </div>
+              </div>
+              <button class="icon-btn"><i class="ph ph-caret-right"></i></button>
+            </div>
+
+            <div class="marker-item glass-2">
+              <div class="marker-icon-big accent"><i class="ph-fill ph-anchor-simple"></i></div>
+              <div class="marker-body">
+                <div class="marker-name">Pelabuhan Probolinggo</div>
+                <div class="marker-coord">-7.7501, 113.2178</div>
+                <div class="marker-tags">
+                  <span class="mtag">Pelabuhan</span>
+                  <span class="mtag">Rumah</span>
+                </div>
+              </div>
+              <button class="icon-btn"><i class="ph ph-caret-right"></i></button>
+            </div>
+          </div>
+
+          <!-- FAB -->
+          <button class="liquid-fab">
+            <i class="ph-bold ph-plus"></i>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Screen 13: Map Offline Download -->
+    <section class="screen-card">
+      <header class="screen-meta">
+        <span class="screen-num">13</span>
+        <div>
+          <h3>Peta Offline - Download</h3>
+          <p>Pilih area &amp; estimasi ukuran sebelum download</p>
+        </div>
+      </header>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="status-bar">
+            <span>9:41</span>
+            <span class="status-right">
+              <i class="ph-bold ph-broadcast"></i>
+              <i class="ph-fill ph-wifi-high"></i>
+              <i class="ph-fill ph-battery-full"></i>
+            </span>
+          </div>
+          <div class="map-bg">
+            <div class="map-blob blob-1"></div>
+            <div class="map-blob blob-2"></div>
+            <div class="map-grid"></div>
+
+            <!-- Header top -->
+            <div class="app-bar glass-2">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <button class="icon-btn"><i class="ph ph-arrow-left"></i></button>
+                <div>
+                  <div class="vessel-name">Tambah Peta Offline</div>
+                  <div class="vessel-sub">Geser & zoom untuk pilih area</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Selection box -->
+            <div class="map-selection">
+              <div class="corner tl"></div>
+              <div class="corner tr"></div>
+              <div class="corner bl"></div>
+              <div class="corner br"></div>
+            </div>
+
+            <!-- Download config -->
+            <div class="dl-panel glass-2">
+              <div class="dl-title-row">
+                <div>
+                  <div class="action-title">Selat Madura</div>
+                  <div class="action-sub">Zoom 8 - 16 &middot; 14.210 tiles</div>
+                </div>
+                <button class="icon-btn"><i class="ph ph-pencil-simple"></i></button>
+              </div>
+
+              <div class="dl-meta-grid">
+                <div class="dl-meta">
+                  <i class="ph-bold ph-database"></i>
+                  <div>
+                    <div class="dl-meta-val">~248 MB</div>
+                    <div class="dl-meta-lbl">Estimasi</div>
+                  </div>
+                </div>
+                <div class="dl-meta">
+                  <i class="ph-bold ph-clock-clockwise"></i>
+                  <div>
+                    <div class="dl-meta-val">~8 menit</div>
+                    <div class="dl-meta-lbl">Durasi</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="dl-hint">
+                <i class="ph ph-info"></i>
+                <span>Sebaiknya download via wifi</span>
+              </div>
+
+              <button class="primary-btn">
+                <i class="ph-bold ph-download-simple"></i>
+                Download Sekarang
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Screen 14: Import Data -->
+    <section class="screen-card">
+      <header class="screen-meta">
+        <span class="screen-num">14</span>
+        <div>
+          <h3>Impor Data</h3>
+          <p>Terima trip/haul dari sesama nelayan via .lsea.json</p>
+        </div>
+      </header>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-screen scrollable">
+          <div class="status-bar">
+            <span>9:41</span>
+            <span class="status-right">
+              <i class="ph-bold ph-broadcast"></i>
+              <i class="ph-fill ph-battery-full"></i>
+            </span>
+          </div>
+          <div class="screen-body">
+            <div class="screen-header">
+              <button class="icon-btn"><i class="ph ph-arrow-left"></i></button>
+              <h1 style="font-size:22px;">Impor Data</h1>
+              <span style="width:36px;"></span>
+            </div>
+
+            <div class="info-banner glass-1">
+              <i class="ph-bold ph-info"></i>
+              <span>Data yang diimpor masuk ke "Data Bersama", terpisah dari data milik Anda.</span>
+            </div>
+
+            <div class="import-preview glass-2">
+              <div class="import-from">
+                <div class="avatar"><i class="ph-fill ph-user-circle"></i></div>
+                <div>
+                  <div class="import-from-label">Dikirim oleh</div>
+                  <div class="import-from-name">Pak Samsul &middot; KM Mina Samudra</div>
+                </div>
+              </div>
+
+              <div class="import-file glass-1">
+                <i class="ph-bold ph-file-arrow-down"></i>
+                <div style="flex:1;">
+                  <div class="file-name">trip_8mei_samsul.lsea.json</div>
+                  <div class="file-size">82 KB &middot; Langgeng Sea v1</div>
+                </div>
+                <i class="ph-fill ph-check-circle" style="color:var(--success);font-size:22px;"></i>
+              </div>
+
+              <div class="import-stats">
+                <div class="import-stat">
+                  <div class="import-stat-val">1</div>
+                  <div class="import-stat-lbl">Trip</div>
+                </div>
+                <div class="stat-sep"></div>
+                <div class="import-stat">
+                  <div class="import-stat-val">4</div>
+                  <div class="import-stat-lbl">Haul</div>
+                </div>
+                <div class="stat-sep"></div>
+                <div class="import-stat">
+                  <div class="import-stat-val">18.2 <span>km</span></div>
+                  <div class="import-stat-lbl">Jarak</div>
+                </div>
+              </div>
+
+              <div class="import-tracks-preview glass-1">
+                <svg viewBox="0 0 280 70" preserveAspectRatio="none">
+                  <path d="M 20 40 Q 60 15 100 45 T 180 30" stroke="#0277BD" stroke-width="3" fill="none" stroke-linecap="round" stroke-dasharray="4 4"/>
+                  <path d="M 180 30 Q 220 50 260 25" stroke="#FF6F00" stroke-width="3" fill="none" stroke-linecap="round" stroke-dasharray="4 4"/>
+                  <circle cx="20" cy="40" r="4" fill="#2E7D32"/>
+                  <circle cx="260" cy="25" r="4" fill="#D32F2F"/>
+                </svg>
+              </div>
+
+              <div class="import-tags">
+                <span class="chip"><i class="ph ph-calendar"></i> 8 Mei 2026</span>
+                <span class="chip"><i class="ph ph-fish"></i> 38 kg</span>
+                <span class="chip"><i class="ph ph-map-pin"></i> Selat Madura</span>
+              </div>
+            </div>
+
+            <button class="primary-btn wide">
+              <i class="ph-bold ph-download-simple"></i>
+              Impor ke Data Bersama
+            </button>
+            <button class="text-btn">Batal</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Screen 15: Profile Form (Onboarding step 4) -->
+    <section class="screen-card">
+      <header class="screen-meta">
+        <span class="screen-num">15</span>
+        <div>
+          <h3>Profil Kapal</h3>
+          <p>Pengisian profil pertama kali (atau edit di Settings)</p>
+        </div>
+      </header>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-screen scrollable">
+          <div class="status-bar">
+            <span>9:41</span>
+            <span class="status-right">
+              <i class="ph-bold ph-broadcast"></i>
+              <i class="ph-fill ph-battery-full"></i>
+            </span>
+          </div>
+          <div class="screen-body">
+            <div class="ob-blob blob-1" style="position:absolute;top:-60px;right:-40px;width:240px;height:240px;"></div>
+
+            <div class="screen-header">
+              <button class="icon-btn"><i class="ph ph-arrow-left"></i></button>
+              <div class="step-indicator">Langkah 3 dari 3</div>
+              <span style="width:36px;"></span>
+            </div>
+
+            <div class="profile-form-hero">
+              <h1 class="profile-form-title">Profil Kapal Anda</h1>
+              <p class="profile-form-desc">Informasi ini membantu aplikasi menghitung luas sapuan trawl secara akurat.</p>
+            </div>
+
+            <div class="form-card glass-2">
+              <div class="field-group">
+                <label class="field-label">
+                  <i class="ph-bold ph-user"></i>
+                  Nama Anda
+                </label>
+                <div class="field-input glass-1">
+                  <input type="text" value="Pak Budi" placeholder="Contoh: Pak Budi">
+                </div>
+              </div>
+
+              <div class="field-group">
+                <label class="field-label">
+                  <i class="ph-bold ph-sailboat"></i>
+                  Nama Kapal
+                </label>
+                <div class="field-input glass-1">
+                  <input type="text" value="KM Jaya Bahari" placeholder="Contoh: KM Jaya">
+                </div>
+              </div>
+
+              <div class="field-row">
+                <div class="field-group">
+                  <label class="field-label">
+                    <i class="ph-bold ph-scales"></i>
+                    Ukuran (GT)
+                  </label>
+                  <div class="field-input glass-1">
+                    <input type="number" value="8" placeholder="0">
+                    <span class="field-unit">GT</span>
+                  </div>
+                </div>
+                <div class="field-group">
+                  <label class="field-label">
+                    <i class="ph-bold ph-ruler"></i>
+                    Lebar Trawl
+                  </label>
+                  <div class="field-input glass-1">
+                    <input type="number" value="20" placeholder="20">
+                    <span class="field-unit">m</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="field-group">
+                <label class="field-label">
+                  <i class="ph-bold ph-anchor-simple"></i>
+                  Pelabuhan Asal
+                </label>
+                <div class="field-input glass-1">
+                  <input type="text" value="Probolinggo" placeholder="Contoh: Probolinggo">
+                </div>
+              </div>
+
+              <div class="field-hint">
+                <i class="ph ph-info"></i>
+                <span>Semua data disimpan lokal di HP Anda. Tidak dikirim ke mana pun.</span>
+              </div>
+            </div>
+
+            <button class="primary-btn wide">
+              <i class="ph-bold ph-check"></i>
+              Simpan & Mulai
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <footer class="footer-note">
