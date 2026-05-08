@@ -3,10 +3,11 @@ import 'package:uuid/uuid.dart';
 
 import '../../../data/database/app_database.dart';
 import '../domain/entities/trip.dart';
+import '../domain/entities/trip_summary.dart';
 import 'mappers.dart';
 
-/// CRUD & lifecycle for [Trip]s. Thin wrapper around [TripDao] that
-/// returns domain entities rather than Drift rows.
+/// CRUD, lifecycle, and summary reads for [Trip]s. Thin wrapper around
+/// [TripDao] that returns domain entities rather than Drift rows.
 class TripRepository {
   TripRepository(this._db) : _dao = _db.tripDao;
 
@@ -15,13 +16,19 @@ class TripRepository {
 
   final _uuid = const Uuid();
 
+  // =========================================================================
+  // Lifecycle / CRUD
+  // =========================================================================
+
   Future<Trip?> getActiveTrip() async {
     final row = await _dao.findActive();
     return row == null ? null : TripMapper.fromRow(row);
   }
 
   Stream<Trip?> watchActiveTrip() {
-    return _dao.watchActive().map((row) => row == null ? null : TripMapper.fromRow(row));
+    return _dao.watchActive().map(
+          (row) => row == null ? null : TripMapper.fromRow(row),
+        );
   }
 
   Future<Trip?> getById(String id) async {
@@ -76,6 +83,52 @@ class TripRepository {
     if (existing != null) return existing;
     return createTrip();
   }
+
+  // =========================================================================
+  // Summaries (History list)
+  // =========================================================================
+
+  /// Load all trips plus their aggregated metrics in one pass.
+  ///
+  /// Sorted newest-first. One query for trips, one per trip for hauls —
+  /// the join is done in-memory, which is fine up to O(thousands of
+  /// trips) and avoids a hand-written raw SQL GROUP BY.
+  Future<List<TripSummary>> listSummaries() async {
+    final tripRows = await _dao.findAll();
+    if (tripRows.isEmpty) return const [];
+
+    final haulDao = _db.haulDao;
+    final result = <TripSummary>[];
+    for (final t in tripRows) {
+      final hauls = await haulDao.findByTripId(t.id);
+      result.add(
+        TripSummary(
+          trip: TripMapper.fromRow(t),
+          haulCount: hauls.length,
+          totalDistanceMeters: hauls.fold<double>(
+            0,
+            (sum, h) => sum + h.distanceMeters,
+          ),
+          totalDurationSeconds: hauls.fold<int>(
+            0,
+            (sum, h) => sum + h.durationSeconds,
+          ),
+          totalSweptAreaM2: hauls.fold<double>(
+            0,
+            (sum, h) => sum + h.sweptAreaM2,
+          ),
+        ),
+      );
+    }
+    return result;
+  }
+
+  /// Reactive stream that re-fires whenever the trips table changes.
+  /// Haul-only edits won't re-fire this — the haul list screen shows the
+  /// fresh haul summary directly via [watchByTrip].
+  Stream<List<TripSummary>> watchSummaries() {
+    return _dao.watchAll().asyncMap((_) => listSummaries());
+  }
 }
 
 final tripRepositoryProvider = Provider<TripRepository>((ref) {
@@ -85,4 +138,15 @@ final tripRepositoryProvider = Provider<TripRepository>((ref) {
 
 final activeTripProvider = StreamProvider<Trip?>((ref) {
   return ref.watch(tripRepositoryProvider).watchActiveTrip();
+});
+
+/// Reactive list of [TripSummary] for the History screen.
+final tripSummariesProvider = StreamProvider<List<TripSummary>>((ref) {
+  return ref.watch(tripRepositoryProvider).watchSummaries();
+});
+
+/// Single-trip watcher used by the detail screen.
+final tripByIdProvider =
+    FutureProvider.family.autoDispose<Trip?, String>((ref, id) {
+  return ref.watch(tripRepositoryProvider).getById(id);
 });
