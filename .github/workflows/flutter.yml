@@ -41,8 +41,11 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Generate code (drift, riverpod, freezed)
+        run: dart run build_runner build --delete-conflicting-outputs
+
       - name: Verify formatting
-        run: dart format --set-exit-if-changed --output=none .
+        run: dart format --set-exit-if-changed --output=none --exclude=lib/**/*.g.dart,lib/**/*.freezed.dart .
 
       - name: Analyze code
         run: flutter analyze --no-fatal-infos
@@ -77,6 +80,9 @@ jobs:
 
       - name: Get dependencies
         run: flutter pub get
+
+      - name: Generate code (drift, riverpod, freezed)
+        run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Build debug APK
         run: flutter build apk --debug
