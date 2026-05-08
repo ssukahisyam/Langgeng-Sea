@@ -28,9 +28,16 @@ cd app
 # Install dependencies
 flutter pub get
 
+# Generate code untuk Drift (M2+), Freezed (M3+), dll.
+dart run build_runner build --delete-conflicting-outputs
+
 # Jalankan di device/emulator yang terhubung
 flutter run
 ```
+
+> ⚠️ **Penting mulai M2:** Karena Drift butuh code-gen, selalu jalankan
+> `build_runner` setelah `flutter pub get` atau setelah mengubah file
+> `*_dao.dart` / `tables.dart`.
 
 Aplikasi akan terbuka dengan layar Map sebagai tab utama. Semua tombol
 utama sudah clickable dan menampilkan bottom sheet "Sedang Dibangun"
