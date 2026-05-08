@@ -1,0 +1,59 @@
+import 'dart:async';
+
+import 'package:geolocator/geolocator.dart';
+import 'package:langgeng_sea/core/services/gps_reading.dart';
+import 'package:langgeng_sea/core/services/gps_service.dart';
+
+/// In-memory GpsService for widget and unit tests.
+/// Lets tests drive GPS state without hitting the OS.
+class FakeGpsService implements GpsService {
+  FakeGpsService({
+    this.serviceEnabled = true,
+    this.permission = LocationPermission.always,
+  });
+
+  bool serviceEnabled;
+  LocationPermission permission;
+
+  final StreamController<GpsReading> _controller =
+      StreamController<GpsReading>.broadcast();
+
+  GpsReading? _lastReading;
+
+  /// Push a synthetic reading to all listeners.
+  void emit(GpsReading reading) {
+    _lastReading = reading;
+    _controller.add(reading);
+  }
+
+  @override
+  Future<LocationPermission> checkPermission() async => permission;
+
+  @override
+  Future<LocationPermission> requestPermission() async => permission;
+
+  @override
+  Future<bool> isLocationServiceEnabled() async => serviceEnabled;
+
+  @override
+  Future<GpsReading> getCurrentReading() async {
+    if (_lastReading == null) {
+      throw StateError('No reading emitted yet');
+    }
+    return _lastReading!;
+  }
+
+  @override
+  Stream<GpsReading> watchPosition({double distanceFilterMeters = 0}) =>
+      _controller.stream;
+
+  @override
+  Future<bool> openAppSettingsScreen() async => true;
+
+  @override
+  Future<bool> openLocationSettings() async => true;
+
+  void dispose() {
+    _controller.close();
+  }
+}
