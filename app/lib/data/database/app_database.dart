@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3_flutter_libs/sqlite3_flutter_libs.dart';
 
 import 'daos/haul_dao.dart';
+import 'daos/offline_region_dao.dart';
 import 'daos/track_point_dao.dart';
 import 'daos/trip_dao.dart';
 import 'tables.dart';
@@ -20,8 +21,8 @@ part 'app_database.g.dart';
 /// app's documents directory. Schema version bumps must ship a migration
 /// in [MigrationStrategy.onUpgrade].
 @DriftDatabase(
-  tables: [Trips, Hauls, TrackPoints],
-  daos: [TripDao, HaulDao, TrackPointDao],
+  tables: [Trips, Hauls, TrackPoints, OfflineRegions],
+  daos: [TripDao, HaulDao, TrackPointDao, OfflineRegionDao],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
@@ -30,7 +31,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -45,6 +46,13 @@ class AppDatabase extends _$AppDatabase {
             'CREATE INDEX IF NOT EXISTS idx_hauls_trip_order '
             'ON hauls (trip_id, order_index)',
           );
+        },
+        onUpgrade: (m, from, to) async {
+          // v1 → v2 adds the offline_regions table (M4). No data in the
+          // old schema needs transformation.
+          if (from < 2) {
+            await m.createTable(offlineRegions);
+          }
         },
       );
 }

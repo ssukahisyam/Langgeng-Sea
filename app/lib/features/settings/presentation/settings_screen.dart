@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../core/constants/app_strings.dart';
+import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/theme_controller.dart';
@@ -153,8 +155,8 @@ class SettingsScreen extends ConsumerWidget {
                     iconBg: tokens.primarySoft,
                     icon: PhosphorIconsBold.downloadSimple,
                     title: 'Peta Offline',
-                    subtitle: 'Tersedia di M4',
-                    enabled: false,
+                    subtitle: 'Download tile agar peta jalan tanpa sinyal',
+                    onTap: () => context.push(AppRoutes.offlineMap),
                   ),
                 ],
               ),
