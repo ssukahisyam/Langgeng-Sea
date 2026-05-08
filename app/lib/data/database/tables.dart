@@ -116,3 +116,55 @@ class OfflineRegions extends Table {
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
+
+
+/// Log book entry — satu catatan hasil tangkap, cuaca, BBM, dll.
+/// Bisa per trip atau per haul (ditentukan oleh field scope).
+@DataClassName('LogBookEntryRow')
+class LogBookEntries extends Table {
+  TextColumn get id => text()();
+  TextColumn get scope => text()();
+  TextColumn get tripId => text().nullable()();
+  TextColumn get haulId => text().nullable()();
+  TextColumn get weather => text().nullable()();
+  TextColumn get wave => text().nullable()();
+  RealColumn get fuelLiters => real().nullable()();
+  IntColumn get costRupiah => integer().nullable()();
+  IntColumn get crewCount => integer().nullable()();
+  TextColumn get notes => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// Item tangkapan dalam satu log book entry.
+@DataClassName('CatchItemRow')
+class CatchItems extends Table {
+  TextColumn get id => text()();
+
+  TextColumn get logBookEntryId => text().references(LogBookEntries, #id,
+      onUpdate: KeyAction.cascade, onDelete: KeyAction.cascade)();
+
+  TextColumn get species => text()();
+  RealColumn get weightKg => real().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// Marker kustom di peta — spot produktif, karang, pelabuhan, dll.
+@DataClassName('MarkerRow')
+class Markers extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get category => text()();
+  RealColumn get latitude => real()();
+  RealColumn get longitude => real()();
+  TextColumn get notes => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
