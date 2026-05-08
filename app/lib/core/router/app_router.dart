@@ -6,6 +6,8 @@ import '../../features/history/presentation/haul_detail_screen.dart';
 import '../../features/history/presentation/history_screen.dart';
 import '../../features/history/presentation/trip_detail_screen.dart';
 import '../../features/map/presentation/map_screen.dart';
+import '../../features/offline_map/presentation/offline_regions_screen.dart';
+import '../../features/offline_map/presentation/region_picker_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../widgets/app_shell.dart';
 
@@ -25,9 +27,12 @@ abstract class AppRoutes {
   static const String tripDetailPath = '/trip/:id';
   static const String haulDetailPath = '/haul/:id';
 
+  // Offline maps
+  static const String offlineMap = '/settings/offline-map';
+  static const String offlineMapPicker = '/settings/offline-map/new';
+
   // Coming in later milestones
   static const String markerList = '/markers';
-  static const String mapOffline = '/settings/offline-map';
   static const String profile = '/settings/profile';
   static const String logBook = '/log-book/:haulId';
 
@@ -86,6 +91,16 @@ final GoRouter appRouter = GoRouter(
         final id = state.pathParameters['id'] ?? '';
         return _slideUp(HaulDetailScreen(haulId: id));
       },
+    ),
+    GoRoute(
+      path: AppRoutes.offlineMap,
+      parentNavigatorKey: _rootNavigatorKey,
+      pageBuilder: (_, __) => _slideUp(const OfflineRegionsScreen()),
+    ),
+    GoRoute(
+      path: AppRoutes.offlineMapPicker,
+      parentNavigatorKey: _rootNavigatorKey,
+      pageBuilder: (_, __) => _slideUp(const RegionPickerScreen()),
     ),
   ],
 );
