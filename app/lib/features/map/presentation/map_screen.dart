@@ -1,39 +1,162 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../core/constants/app_strings.dart';
+import '../../../core/services/gps_reading.dart';
+import '../../../core/services/gps_service.dart';
 import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ambient_background.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../../../core/widgets/status_chip.dart';
+import 'providers/location_permission_provider.dart';
+import 'widgets/boat_marker.dart';
+import 'widgets/gps_accuracy_chip.dart';
+import 'widgets/gps_error_banner.dart';
+import 'widgets/location_permission_sheet.dart';
+import 'widgets/map_attribution.dart';
+import 'widgets/map_controls.dart';
 
-/// Home tab — map + GPS tracking controls.
-/// Full map integration (flutter_map + FMTC) arrives in M1.
-/// For M0, this is a design-accurate placeholder.
-class MapScreen extends StatelessWidget {
+/// Home tab — map + live GPS position.
+///
+/// In M1 we wire flutter_map (OSM + OpenSeaMap) and the geolocator stream.
+/// Tile caching & offline support arrives in M4; haul recording in M2.
+class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
+
+  @override
+  ConsumerState<MapScreen> createState() => _MapScreenState();
+}
+
+class _MapScreenState extends ConsumerState<MapScreen> {
+  static const _initialCenter = LatLng(-7.25, 113.42); // Selat Madura
+  static const _initialZoom = 9.0;
+
+  final MapController _mapController = MapController();
+  bool _followingUser = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await ref.read(locationPermissionProvider.notifier).check();
+      if (!mounted) return;
+      final state = ref.read(locationPermissionProvider);
+      if (state != LocationPermissionState.ready &&
+          state != LocationPermissionState.unknown) {
+        // Surface the permission sheet on first load so user is guided.
+        // We wait a frame so the bottom nav etc. are laid out.
+        await Future<void>.delayed(const Duration(milliseconds: 600));
+        if (!mounted) return;
+        await LocationPermissionSheet.show(context);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _mapController.dispose();
+    super.dispose();
+  }
+
+  /// Keep the camera over the user's position while [_followingUser] is on.
+  void _maybeFollow(GpsReading reading) {
+    if (!_followingUser) return;
+    _mapController.move(reading.latLng, _mapController.camera.zoom);
+  }
+
+  void _centerOnMe() {
+    final reading = ref.read(currentReadingProvider).asData?.value;
+    if (reading == null) {
+      // No fix yet — prompt permission flow if needed.
+      final state = ref.read(locationPermissionProvider);
+      if (state != LocationPermissionState.ready) {
+        LocationPermissionSheet.show(context);
+      }
+      return;
+    }
+    setState(() => _followingUser = true);
+    _mapController.move(reading.latLng, 15);
+  }
 
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final text = context.text;
-    final colors = context.colors;
+
+    // Watch the stream so UI rebuilds with each fix, and follow camera.
+    ref.listen<AsyncValue<GpsReading>>(currentReadingProvider, (_, next) {
+      next.whenData(_maybeFollow);
+    });
+
+    final reading = ref.watch(currentReadingProvider).asData?.value;
+    final permState = ref.watch(locationPermissionProvider);
+    final hasPermission = permState == LocationPermissionState.ready;
 
     return AmbientBackground(
+      showBlobs: false,
       child: SafeArea(
         bottom: false,
         child: Stack(
           children: [
-            // Placeholder "map" area - will be flutter_map in M1
+            // --- Map ---
             Positioned.fill(
-              child: CustomPaint(
-                painter: _GridPainter(color: tokens.border),
+              child: FlutterMap(
+                mapController: _mapController,
+                options: MapOptions(
+                  initialCenter: reading?.latLng ?? _initialCenter,
+                  initialZoom: _initialZoom,
+                  minZoom: 3,
+                  maxZoom: 18,
+                  onPositionChanged: (pos, hasGesture) {
+                    // User dragged — stop auto-following.
+                    if (hasGesture && _followingUser) {
+                      setState(() => _followingUser = false);
+                    }
+                  },
+                  interactionOptions: const InteractionOptions(
+                    flags: InteractiveFlag.all &
+                        ~InteractiveFlag.rotate, // disable rotate for MVP
+                  ),
+                ),
+                children: [
+                  // OpenStreetMap base layer. Per OSMF tile usage policy we
+                  // declare a User-Agent identifying this app.
+                  TileLayer(
+                    urlTemplate:
+                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'id.co.langgengsea',
+                    maxNativeZoom: 19,
+                    retinaMode: RetinaMode.isHighDensity(context),
+                  ),
+                  // OpenSeaMap nautical overlay.
+                  TileLayer(
+                    urlTemplate:
+                        'https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'id.co.langgengsea',
+                    backgroundColor: Colors.transparent,
+                  ),
+                  if (reading != null)
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: reading.latLng,
+                          width: 64,
+                          height: 64,
+                          alignment: Alignment.center,
+                          child: BoatMarker(reading: reading),
+                        ),
+                      ],
+                    ),
+                ],
               ),
             ),
 
-            // Top app bar
+            // --- Top app bar ---
             Positioned(
               top: AppSizes.sp3,
               left: AppSizes.sp4,
@@ -96,90 +219,86 @@ class MapScreen extends StatelessWidget {
               ),
             ),
 
-            // GPS accuracy chip (fake for M0)
-            Positioned(
+            // --- GPS accuracy chip ---
+            const Positioned(
               top: 100,
               right: AppSizes.sp5,
-              child: GlassCard(
-                level: GlassLevel.level1,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSizes.sp3,
-                  vertical: AppSizes.sp2,
-                ),
-                borderRadius: BorderRadius.circular(AppSizes.radiusPill),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      PhosphorIconsBold.crosshair,
-                      size: 14,
-                      color: tokens.success,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '±—m',
-                      style: text.labelSmall?.copyWith(
-                        color: tokens.textTertiary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
+              child: GpsAccuracyChip(),
+            ),
+
+            // --- Map controls (center on me) ---
+            Positioned(
+              right: AppSizes.sp4,
+              bottom: 260,
+              child: MapControls(
+                onCenterOnMe: _centerOnMe,
+                centerEnabled: hasPermission,
               ),
             ),
 
-            // Center boat icon placeholder
-            Center(
-              child: _BoatMarker(tokens: tokens, colors: colors),
+            // --- Attribution ---
+            const Positioned(
+              left: AppSizes.sp4,
+              bottom: 260,
+              child: MapAttribution(),
             ),
 
-            // Bottom action panel
+            // --- Bottom action panel ---
             Positioned(
               left: AppSizes.sp4,
               right: AppSizes.sp4,
-              bottom: 100, // above bottom nav
-              child: GlassCard(
-                level: GlassLevel.level2,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
+              bottom: 100,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const GpsErrorBanner(),
+                  const SizedBox(height: AppSizes.sp2),
+                  GlassCard(
+                    level: GlassLevel.level2,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                AppStrings.readyToSail,
-                                style: text.titleMedium,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    AppStrings.readyToSail,
+                                    style: text.titleMedium,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    hasPermission && reading != null
+                                        ? 'GPS aktif • Siap melaut'
+                                        : 'Perekaman haul akan tersedia di M2',
+                                    style: text.bodySmall?.copyWith(
+                                      color: tokens.textTertiary,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'GPS tracking & peta siap di M1',
-                                style: text.bodySmall?.copyWith(
-                                  color: tokens.textTertiary,
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                            IconButton(
+                              onPressed: () => _showMvpInfo(context),
+                              icon: const Icon(PhosphorIconsRegular.info),
+                            ),
+                          ],
                         ),
-                        IconButton(
+                        const SizedBox(height: AppSizes.sp3),
+                        PrimaryActionButton(
+                          label: AppStrings.startTrawl,
+                          icon: PhosphorIconsFill.playCircle,
+                          variant: ActionButtonVariant.success,
+                          critical: true,
                           onPressed: () => _showMvpInfo(context),
-                          icon: const Icon(PhosphorIconsRegular.info),
                         ),
                       ],
                     ),
-                    const SizedBox(height: AppSizes.sp3),
-                    PrimaryActionButton(
-                      label: AppStrings.startTrawl,
-                      icon: PhosphorIconsFill.playCircle,
-                      variant: ActionButtonVariant.success,
-                      critical: true,
-                      onPressed: () => _showMvpInfo(context),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -207,9 +326,7 @@ class _MvpInfoSheet extends StatelessWidget {
       padding: const EdgeInsets.all(AppSizes.sp4),
       child: GlassCard(
         level: GlassLevel.level3,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(AppSizes.radius2xl),
-        ),
+        borderRadius: BorderRadius.circular(AppSizes.radius2xl),
         padding: const EdgeInsets.all(AppSizes.sp6),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -232,7 +349,8 @@ class _MvpInfoSheet extends StatelessWidget {
             Text('Sedang Dibangun', style: text.headlineSmall),
             const SizedBox(height: AppSizes.sp2),
             Text(
-              'Ini adalah M0 Foundation. Integrasi GPS, peta offline, dan tracking haul akan tersedia di milestone berikutnya.',
+              'Perekaman haul (tombol Mulai/Angkat Trawl) akan tersedia di '
+              'milestone M2. M1 ini mengaktifkan peta & posisi GPS real-time.',
               textAlign: TextAlign.center,
               style: text.bodyMedium?.copyWith(color: tokens.textSecondary),
             ),
@@ -246,79 +364,4 @@ class _MvpInfoSheet extends StatelessWidget {
       ),
     );
   }
-}
-
-class _BoatMarker extends StatelessWidget {
-  const _BoatMarker({required this.tokens, required this.colors});
-  final LangTokens tokens;
-  final ColorScheme colors;
-
-  @override
-  Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.9, end: 1.1),
-      duration: const Duration(seconds: 2),
-      curve: Curves.easeInOut,
-      builder: (_, scale, __) => Stack(
-        alignment: Alignment.center,
-        children: [
-          Transform.scale(
-            scale: scale,
-            child: Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: colors.primary.withValues(alpha: 0.25),
-              ),
-            ),
-          ),
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              gradient: tokens.primaryGradient,
-              shape: BoxShape.circle,
-              border: Border.all(color: colors.surface, width: 2),
-              boxShadow: [
-                BoxShadow(
-                  color: tokens.glowPrimary,
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: const Icon(
-              PhosphorIconsFill.sailboat,
-              color: Colors.white,
-              size: 18,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Simple grid painter as a map placeholder until flutter_map is wired up in M1.
-class _GridPainter extends CustomPainter {
-  _GridPainter({required this.color});
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1;
-    const spacing = 40.0;
-    for (double x = 0; x < size.width; x += spacing) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-    for (double y = 0; y < size.height; y += spacing) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _GridPainter old) => old.color != color;
 }
