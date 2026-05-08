@@ -87,3 +87,15 @@ final haulRepositoryProvider = Provider<HaulRepository>((ref) {
 final recordingHaulProvider = StreamProvider<Haul?>((ref) {
   return ref.watch(haulRepositoryProvider).watchRecording();
 });
+
+/// Watches all hauls belonging to a given trip, in order.
+final haulsByTripProvider =
+    StreamProvider.family.autoDispose<List<Haul>, String>((ref, tripId) {
+  return ref.watch(haulRepositoryProvider).watchByTrip(tripId);
+});
+
+/// Fetches a single haul by id.
+final haulByIdProvider =
+    FutureProvider.family.autoDispose<Haul?, String>((ref, id) {
+  return ref.watch(haulRepositoryProvider).getById(id);
+});

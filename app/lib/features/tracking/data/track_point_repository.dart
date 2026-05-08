@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/gps_reading.dart';
 import '../../../data/database/app_database.dart';
 import '../domain/entities/track_point.dart';
+import 'haul_repository.dart';
 import 'mappers.dart';
 
 /// High-write-volume persistence for GPS points belonging to a haul.
@@ -53,4 +54,37 @@ final trackPointRepositoryProvider =
     Provider<TrackPointRepository>((ref) {
   final db = ref.watch(appDatabaseProvider);
   return TrackPointRepository(db);
+});
+
+/// Watches the points of a specific haul. Used by the haul detail screen
+/// to render the polyline even while a haul is still recording.
+final trackPointsByHaulProvider = StreamProvider.family
+    .autoDispose<List<TrackPoint>, String>((ref, haulId) {
+  return ref.watch(trackPointRepositoryProvider).watchByHaul(haulId);
+});
+
+
+
+/// Loads every point of every haul belonging to [tripId].
+///
+/// The returned map is keyed by haul id so the trip-detail map can render
+/// each haul as its own colored polyline without redistributing the
+/// points itself.
+final pointsByHaulForTripProvider = FutureProvider.family
+    .autoDispose<Map<String, List<TrackPoint>>, String>((ref, tripId) async {
+  final haulRepo = ref.watch(haulRepositoryProvider);
+  final pointRepo = ref.watch(trackPointRepositoryProvider);
+
+  final hauls = await haulRepo.listByTrip(tripId);
+  if (hauls.isEmpty) return const {};
+
+  // N queries (one per haul) is fine at MVP scale (≤10 hauls/trip).
+  // Parallelize with Future.wait for a small but free speed-up.
+  final results = await Future.wait(
+    hauls.map((h) async {
+      final points = await pointRepo.getByHaul(h.id);
+      return MapEntry(h.id, points);
+    }),
+  );
+  return Map.fromEntries(results);
 });

@@ -57,4 +57,39 @@ class Formatters {
 
   static String shortDate(DateTime d) =>
       '${d.day} ${_months[d.month]} ${d.year}';
+
+  /// "Kamis, 8 Mei 2026" — section header for history list.
+  static String sectionDate(DateTime d) {
+    final local = d.toLocal();
+    return '${_weekdays[local.weekday]}, ${local.day} ${_months[local.month]} ${local.year}';
+  }
+
+  static const _weekdays = [
+    '',
+    'Senin',
+    'Selasa',
+    'Rabu',
+    'Kamis',
+    'Jumat',
+    'Sabtu',
+    'Minggu',
+  ];
+
+  /// "8j 50m" — compact duration used in trip cards. Drops seconds for
+  /// durations ≥ 1 minute; shows seconds otherwise.
+  static String compactDuration(Duration d) {
+    if (d.inHours > 0) {
+      return '${d.inHours}j ${(d.inMinutes % 60).toString().padLeft(2, '0')}m';
+    }
+    if (d.inMinutes > 0) {
+      return '${d.inMinutes}m ${(d.inSeconds % 60).toString().padLeft(2, '0')}d';
+    }
+    return '${d.inSeconds}d';
+  }
+
+  /// "05:30" — 24h wall-clock.
+  static String wallClock(DateTime d) {
+    final local = d.toLocal();
+    return '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+  }
 }
