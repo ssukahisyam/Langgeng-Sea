@@ -79,3 +79,40 @@ class TrackPoints extends Table {
   RealColumn get accuracyMeters => real().nullable()();
   RealColumn get altitudeMeters => real().nullable()();
 }
+
+/// Metadata for a downloaded (or in-progress) offline map region.
+///
+/// FMTC owns the actual tile bytes in its own store; this table just
+/// lets us render the user's "Peta Offline" list without walking the
+/// tile cache. Mirrors the domain [OfflineRegion] entity 1-to-1.
+@DataClassName('OfflineRegionRow')
+class OfflineRegions extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+
+  // Bounds stored as four reals so we don't have to serialize/parse.
+  RealColumn get north => real()();
+  RealColumn get south => real()();
+  RealColumn get east => real()();
+  RealColumn get west => real()();
+
+  IntColumn get minZoom => integer()();
+  IntColumn get maxZoom => integer()();
+
+  /// 'pending' | 'downloading' | 'completed' | 'failed'.
+  TextColumn get status => text().withLength(min: 1, max: 16)();
+
+  IntColumn get estimatedTileCount =>
+      integer().withDefault(const Constant(0))();
+  IntColumn get actualTileCount =>
+      integer().withDefault(const Constant(0))();
+  IntColumn get sizeBytes => integer().withDefault(const Constant(0))();
+
+  TextColumn get lastError => text().nullable()();
+
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}

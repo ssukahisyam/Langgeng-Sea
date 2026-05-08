@@ -20,6 +20,7 @@ import '../../tracking/presentation/widgets/active_haul_polyline.dart';
 import '../../tracking/presentation/widgets/haul_summary_sheet.dart';
 import '../../tracking/presentation/widgets/live_stats_panel.dart';
 import '../../tracking/presentation/widgets/recording_banner.dart';
+import '../../offline_map/data/tile_cache_service.dart';
 import 'providers/location_permission_provider.dart';
 import 'widgets/boat_marker.dart';
 import 'widgets/gps_accuracy_chip.dart';
@@ -244,6 +245,15 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     userAgentPackageName: 'id.co.langgengsea',
                     maxNativeZoom: 19,
                     retinaMode: RetinaMode.isHighDensity(context),
+                    // Cache-first tile provider. Tiles the user has
+                    // downloaded for offline use are served from disk;
+                    // new tiles fall back to the network and also get
+                    // cached for next time the user browses this area.
+                    tileProvider: ref
+                        .read(tileCacheServiceProvider)
+                        .cachedTileProvider(
+                          userAgentPackageName: 'id.co.langgengsea',
+                        ),
                   ),
                   TileLayer(
                     urlTemplate:

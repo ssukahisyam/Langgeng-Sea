@@ -85,8 +85,8 @@ Estimasi total: **~13 minggu (3 bulan)** dari mulai coding.
 | M1 Core Map & GPS | 2 minggu | Peta + posisi realtime | ✅ Done |
 | M2 Haul Tracking | 2 minggu | Start/stop + rekam + metrik | ✅ Done |
 | M3 Trip & History | 2 minggu | Multi-haul, riwayat | ✅ Done |
-| M4 Peta Offline | 1 minggu | Download & cache tile | 🔜 Next |
-| M5 Log Book & Marker | 1.5 minggu | Form log, marker | ⏳ |
+| M4 Peta Offline | 1 minggu | Download & cache tile | ✅ Done |
+| M5 Log Book & Marker | 1.5 minggu | Form log, marker | 🔜 Next |
 | M6 Dashboard | 1 minggu | Statistik, grafik | ⏳ |
 | M7 Ekspor / Impor | 1 minggu | GPX + JSON share | ⏳ |
 | M8 Onboarding & Polish | 1.5 minggu | Tutorial, UI polish | ⏳ |
