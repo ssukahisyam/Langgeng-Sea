@@ -5,7 +5,9 @@ import '../../features/dashboard/presentation/dashboard_screen.dart';
 import '../../features/history/presentation/haul_detail_screen.dart';
 import '../../features/history/presentation/history_screen.dart';
 import '../../features/history/presentation/trip_detail_screen.dart';
+import '../../features/logbook/presentation/log_book_form_screen.dart';
 import '../../features/map/presentation/map_screen.dart';
+import '../../features/marker/presentation/markers_list_screen.dart';
 import '../../features/offline_map/presentation/offline_regions_screen.dart';
 import '../../features/offline_map/presentation/region_picker_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
@@ -34,12 +36,17 @@ abstract class AppRoutes {
   // Coming in later milestones
   static const String markerList = '/markers';
   static const String profile = '/settings/profile';
+  static const String logBookHaul = '/log-book/haul/:id';
+  static const String logBookTrip = '/log-book/trip/:id';
+  // Legacy alias (kept for backward compat)
   static const String logBook = '/log-book/:haulId';
 
   /// Builds the concrete path for a trip detail. Keeps callers from
   /// string-concatenating route fragments.
   static String tripDetail(String id) => '/trip/$id';
   static String haulDetail(String id) => '/haul/$id';
+  static String logBookForHaul(String id) => '/log-book/haul/$id';
+  static String logBookForTrip(String id) => '/log-book/trip/$id';
 }
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -101,6 +108,27 @@ final GoRouter appRouter = GoRouter(
       path: AppRoutes.offlineMapPicker,
       parentNavigatorKey: _rootNavigatorKey,
       pageBuilder: (_, __) => _slideUp(const RegionPickerScreen()),
+    ),
+    GoRoute(
+      path: AppRoutes.logBookHaul,
+      parentNavigatorKey: _rootNavigatorKey,
+      pageBuilder: (context, state) {
+        final id = state.pathParameters['id'] ?? '';
+        return _slideUp(LogBookFormScreen(haulId: id));
+      },
+    ),
+    GoRoute(
+      path: AppRoutes.logBookTrip,
+      parentNavigatorKey: _rootNavigatorKey,
+      pageBuilder: (context, state) {
+        final id = state.pathParameters['id'] ?? '';
+        return _slideUp(LogBookFormScreen(tripId: id));
+      },
+    ),
+    GoRoute(
+      path: AppRoutes.markerList,
+      parentNavigatorKey: _rootNavigatorKey,
+      pageBuilder: (_, __) => _slideUp(const MarkersListScreen()),
     ),
   ],
 );

@@ -8,6 +8,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3_flutter_libs/sqlite3_flutter_libs.dart';
 
 import 'daos/haul_dao.dart';
+import 'daos/log_book_dao.dart';
+import 'daos/marker_dao.dart';
 import 'daos/offline_region_dao.dart';
 import 'daos/track_point_dao.dart';
 import 'daos/trip_dao.dart';
@@ -21,8 +23,8 @@ part 'app_database.g.dart';
 /// app's documents directory. Schema version bumps must ship a migration
 /// in [MigrationStrategy.onUpgrade].
 @DriftDatabase(
-  tables: [Trips, Hauls, TrackPoints, OfflineRegions],
-  daos: [TripDao, HaulDao, TrackPointDao, OfflineRegionDao],
+  tables: [Trips, Hauls, TrackPoints, OfflineRegions, LogBookEntries, CatchItems, Markers],
+  daos: [TripDao, HaulDao, TrackPointDao, OfflineRegionDao, LogBookDao, MarkerDao],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
@@ -31,7 +33,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -52,6 +54,12 @@ class AppDatabase extends _$AppDatabase {
           // old schema needs transformation.
           if (from < 2) {
             await m.createTable(offlineRegions);
+          }
+          // v2 → v3 adds log_book_entries, catch_items, markers (M5).
+          if (from < 3) {
+            await m.createTable(logBookEntries);
+            await m.createTable(catchItems);
+            await m.createTable(markers);
           }
         },
       );
