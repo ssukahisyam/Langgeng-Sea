@@ -7,54 +7,56 @@ import '../router/app_router.dart';
 import '../theme/app_sizes.dart';
 import '../theme/app_theme.dart';
 
-/// Shell with bottom navigation. Hosts the 4 main destinations.
+/// Shell with bottom navigation + 4-tab IndexedStack.
 ///
 /// PERFORMANCE NOTES:
 ///
-/// 1) No BackdropFilter: the floating bottom-nav used to wrap its
-///    container in `BackdropFilter(ImageFilter.blur(...))`. That forces
-///    Flutter to rasterise the full viewport every frame — on
-///    SD720G-class hardware that's a visible frame drop when scrolling
-///    the tab content beneath. Replaced with a solid-tinted container
-///    (semi-transparent via alpha) which keeps the "glass look" at
-///    zero runtime cost.
+/// 1) StatefulShellRoute.indexedStack (configured in app_router.dart)
+///    keeps all 4 tab screens alive in memory. Tapping a tab only
+///    flips which one is visible — no widget rebuild, no provider
+///    re-subscription, no drift re-query. The `navigationShell` we
+///    receive here IS the IndexedStack (wrapped in a StatefulNavigationShell).
 ///
-/// 2) MediaQuery padding injection: every tab child screen is wrapped
-///    in a MediaQuery that inflates `viewPadding.bottom` by the
-///    measured nav height. So any screen that uses `SafeArea` or
-///    respects `MediaQuery.padding.bottom` (Scaffold, ListView,
-///    SliverList) automatically leaves breathing room for the floating
-///    nav — without editing each screen individually.
+/// 2) No BackdropFilter on the bottom nav. Previous design blurred
+///    the viewport behind it every frame (~10-20ms main-thread hit
+///    on SD720G). Replaced with a solid semi-transparent surface that
+///    reads as "above content" without the raster cost.
 ///
-/// 3) AnimatedSwitcher transition: tapping a tab cross-fades + slides
-///    the new screen in over ~180ms. Pure GPU compositor work, no
-///    extra raster. Does NOT allow swipe — strictly tap-driven.
-class AppShell extends StatelessWidget {
-  const AppShell({super.key, required this.child});
+/// 3) MediaQuery padding injection: every tab child is wrapped in a
+///    MediaQuery that inflates `viewPadding.bottom` by the measured
+///    nav height. Any SafeArea / Scaffold / Sliver in a child screen
+///    then automatically reserves room for the floating nav — no
+///    per-screen edits needed.
+///
+/// 4) Horizontal slide overlay: tapping a tab triggers a one-shot
+///    animation that slides the outgoing screen OFF screen in the
+///    direction you'd expect (tap right tab = new screen comes in
+///    from the right, outgoing screen exits to the left, and vice
+///    versa). Because the IndexedStack keeps both alive, the
+///    animation is pure compositor work — no rebuild cost.
+class AppShell extends StatefulWidget {
+  const AppShell({super.key, required this.navigationShell});
 
-  final Widget child;
+  /// The shell route's branch switcher. See StatefulShellRoute.indexedStack.
+  final StatefulNavigationShell navigationShell;
 
   static const _tabs = <_NavTab>[
     _NavTab(
-      path: AppRoutes.map,
       label: AppStrings.tabMap,
       icon: PhosphorIconsRegular.mapTrifold,
       activeIcon: PhosphorIconsFill.mapTrifold,
     ),
     _NavTab(
-      path: AppRoutes.history,
       label: AppStrings.tabHistory,
       icon: PhosphorIconsRegular.clockCounterClockwise,
       activeIcon: PhosphorIconsFill.clockCounterClockwise,
     ),
     _NavTab(
-      path: AppRoutes.dashboard,
       label: AppStrings.tabDashboard,
       icon: PhosphorIconsRegular.chartPie,
       activeIcon: PhosphorIconsFill.chartPie,
     ),
     _NavTab(
-      path: AppRoutes.settings,
       label: AppStrings.tabSettings,
       icon: PhosphorIconsRegular.gearSix,
       activeIcon: PhosphorIconsFill.gearSix,
@@ -62,56 +64,126 @@ class AppShell extends StatelessWidget {
   ];
 
   /// Measured footprint of the floating bottom nav (content + vertical
-  /// padding inside, excluding the outer margin). Kept in sync with
-  /// [_NavButton]'s sizing + the decoration padding below. Used to
-  /// inject viewPadding so child screens can place bottom content just
-  /// above it.
+  /// padding inside, excluding the outer margin). Used to inject
+  /// viewPadding so child screens can place bottom content just above
+  /// it.
   static const double _navBarContentHeight = 56;
 
-  /// Small gap between the bottom of the nav bar's visual edge and the
-  /// next-highest UI element in a child screen (e.g. action panel).
-  /// User requested "jangan jauh-jauh" — 8px is tight but still visually
-  /// separated.
+  /// Small gap between the bottom of the nav bar's visual edge and
+  /// the next-highest UI element in a child screen. User requested
+  /// "jangan jauh-jauh" — 8px is tight but still visually separated.
   static const double _gapAboveNav = 8;
 
-  int _indexFromLocation(String location) {
-    for (var i = 0; i < _tabs.length; i++) {
-      if (location == _tabs[i].path ||
-          (location != '/' &&
-              location.startsWith(_tabs[i].path) &&
-              _tabs[i].path != '/')) {
-        return i;
+  @override
+  State<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends State<AppShell>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _animController;
+  late Animation<Offset> _oldOffset;
+  late Animation<Offset> _newOffset;
+
+  /// Tracks the PREVIOUS index so we can detect direction when the
+  /// navigationShell's index changes. Initialised to current so the
+  /// first frame doesn't accidentally animate.
+  late int _lastIndex = widget.navigationShell.currentIndex;
+
+  /// Snapshot of the outgoing screen captured just before the new tab
+  /// takes over. Rendered as an overlay that slides off-screen while
+  /// the new tab content slides in behind it.
+  Widget? _outgoingSnapshot;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 240),
+    );
+    _animController.addStatusListener((status) {
+      if (status == AnimationStatus.completed && mounted) {
+        setState(() => _outgoingSnapshot = null);
       }
+    });
+    // Set initial (no-op) offsets.
+    _setOffsets(toRight: true);
+  }
+
+  @override
+  void didUpdateWidget(covariant AppShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final newIndex = widget.navigationShell.currentIndex;
+    if (newIndex != _lastIndex) {
+      // Capture a freeze-frame of the outgoing tab. Using the
+      // oldWidget's navigationShell ensures we draw the PREVIOUS
+      // tab's state, not the new one.
+      final toRight = newIndex > _lastIndex;
+      _outgoingSnapshot = _buildOutgoingSnapshot(oldWidget.navigationShell);
+      _setOffsets(toRight: toRight);
+      _animController.forward(from: 0);
+      _lastIndex = newIndex;
     }
-    return 0;
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  /// Configure tween offsets depending on direction.
+  /// [toRight] = user tapped a tab to the right of the current one:
+  ///   - Outgoing slides OUT to the LEFT  (Offset(-1, 0))
+  ///   - Incoming slides IN  from the RIGHT (already in place, just reveal)
+  /// [toRight] = false:
+  ///   - Outgoing slides OUT to the RIGHT (Offset(1, 0))
+  ///   - Incoming slides IN  from the LEFT
+  ///
+  /// Incoming content is the IndexedStack itself, rendered in place.
+  /// To simulate "slide in", we briefly translate IT in the opposite
+  /// direction from its start pos, then animate back to (0,0).
+  void _setOffsets({required bool toRight}) {
+    final outEnd = toRight ? const Offset(-1, 0) : const Offset(1, 0);
+    final inStart = toRight ? const Offset(1, 0) : const Offset(-1, 0);
+
+    _oldOffset = Tween<Offset>(begin: Offset.zero, end: outEnd).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeInCubic),
+    );
+    _newOffset = Tween<Offset>(begin: inStart, end: Offset.zero).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
+    );
+  }
+
+  /// Build a snapshot of the outgoing tab as a paused widget tree.
+  /// We pass the previous navigationShell so we render whatever was
+  /// visible BEFORE the index change.
+  Widget _buildOutgoingSnapshot(StatefulNavigationShell oldShell) {
+    return IgnorePointer(
+      // Ignore so user can't tap on the sliding-away content.
+      child: RepaintBoundary(child: oldShell),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final location = GoRouterState.of(context).uri.toString();
-    final currentIndex = _indexFromLocation(location);
     final tokens = context.tokens;
+    final currentIndex = widget.navigationShell.currentIndex;
 
-    // System-gesture-bar inset (Android gesture nav = ~20dp; button
-    // nav = 0). This is already part of the default viewPadding.bottom
-    // that SafeArea respects — we just reuse the value to add nav-bar
-    // height on top of it.
+    // System-gesture-bar inset (Android gesture nav ~20dp; button = 0).
     final systemInsetBottom = MediaQuery.of(context).padding.bottom;
 
-    // Total bottom inset child screens should treat as "don't paint
-    // content below this" for anchored UI. Equals:
-    //   gesture bar (already in padding.bottom)
+    // Total bottom inset that child screens should treat as "don't
+    // paint anchored UI below this". Equals:
+    //   gesture bar (already part of padding.bottom)
     // + nav-bar content height
     // + small gap above nav
     // + outer margin of the nav bar's wrapper
     final totalBottomInset = systemInsetBottom +
-        _navBarContentHeight +
-        _gapAboveNav +
-        AppSizes.sp3; // outer nav margin
+        AppShell._navBarContentHeight +
+        AppShell._gapAboveNav +
+        AppSizes.sp3;
 
-    // Inject this value as viewPadding.bottom into every child. Any
-    // SafeArea or sliver inside the screen automatically adds this
-    // much space — no per-screen edits needed.
     final mq = MediaQuery.of(context);
     final injectedMq = mq.copyWith(
       padding: mq.padding.copyWith(bottom: totalBottomInset),
@@ -122,35 +194,41 @@ class AppShell extends StatelessWidget {
       extendBody: true,
       body: MediaQuery(
         data: injectedMq,
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 180),
-          switchInCurve: Curves.easeOutCubic,
-          switchOutCurve: Curves.easeInCubic,
-          // Unique key per tab so AnimatedSwitcher detects the change.
-          // GoRouter rebuilds `child` when the route changes; we just
-          // need a stable key per route to trigger the transition.
-          transitionBuilder: (child, animation) {
-            // Slide + fade from 6% screen height below. Feels like the
-            // content "lifts up" into place — a small touch that
-            // matches the Liquid Glass visual language.
-            final slide = Tween<Offset>(
-              begin: const Offset(0, 0.06),
-              end: Offset.zero,
-            ).animate(animation);
-            return FadeTransition(
-              opacity: animation,
-              child: SlideTransition(position: slide, child: child),
-            );
-          },
-          child: KeyedSubtree(
-            key: ValueKey<int>(currentIndex),
-            child: child,
-          ),
+        // The IndexedStack (navigationShell) is the real base layer.
+        // On top we slide the old-snapshot overlay OUT, and the
+        // shell itself slides IN from the opposite side. When the
+        // animation completes, the snapshot is removed.
+        child: Stack(
+          children: [
+            AnimatedBuilder(
+              animation: _animController,
+              builder: (context, child) {
+                return FractionalTranslation(
+                  translation: _animController.isAnimating
+                      ? _newOffset.value
+                      : Offset.zero,
+                  child: child,
+                );
+              },
+              child: widget.navigationShell,
+            ),
+            if (_outgoingSnapshot != null)
+              AnimatedBuilder(
+                animation: _animController,
+                builder: (context, child) {
+                  return FractionalTranslation(
+                    translation: _oldOffset.value,
+                    child: child,
+                  );
+                },
+                child: _outgoingSnapshot,
+              ),
+          ],
         ),
       ),
       bottomNavigationBar: SafeArea(
         top: false,
-        minimum: const EdgeInsets.only(bottom: _gapAboveNav),
+        minimum: const EdgeInsets.only(bottom: AppShell._gapAboveNav),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
             AppSizes.sp3,
@@ -160,9 +238,6 @@ class AppShell extends StatelessWidget {
           ),
           child: Container(
             decoration: BoxDecoration(
-              // Slightly opaque surface — no blur, but still reads as
-              // "above the content". Alpha tuned to feel glass-like
-              // without the BackdropFilter cost.
               color: tokens.surface3.withValues(alpha: 0.96),
               borderRadius: BorderRadius.circular(AppSizes.radiusXl),
               border: Border.all(color: tokens.borderStrong),
@@ -181,12 +256,19 @@ class AppShell extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                for (var i = 0; i < _tabs.length; i++)
+                for (var i = 0; i < AppShell._tabs.length; i++)
                   Expanded(
                     child: _NavButton(
-                      tab: _tabs[i],
+                      tab: AppShell._tabs[i],
                       selected: i == currentIndex,
-                      onTap: () => context.go(_tabs[i].path),
+                      onTap: () => widget.navigationShell.goBranch(
+                        i,
+                        // initialLocation: true = reset the branch's
+                        // navigator stack when re-tapping the SAME tab.
+                        // Off when switching tabs so the user comes back
+                        // to the same scroll position etc.
+                        initialLocation: i == currentIndex,
+                      ),
                     ),
                   ),
               ],
@@ -200,13 +282,11 @@ class AppShell extends StatelessWidget {
 
 class _NavTab {
   const _NavTab({
-    required this.path,
     required this.label,
     required this.icon,
     required this.activeIcon,
   });
 
-  final String path;
   final String label;
   final IconData icon;
   final IconData activeIcon;

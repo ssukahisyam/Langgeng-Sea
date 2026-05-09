@@ -66,11 +66,20 @@ class LocationPermissionSheet extends ConsumerWidget {
         ),
     };
 
+    // Bottom sheets appear via Navigator's root overlay — they do NOT
+    // inherit the MediaQuery padding AppShell injects for its tab
+    // children. So we have to add the nav-bar clearance manually
+    // here (gesture bar + nav content + gap + outer margin).
+    // Values kept in sync with AppShell's _navBarContentHeight etc.
+    const navClearance = 56 + 8 + AppSizes.sp3;
     return Padding(
       padding: EdgeInsets.only(
         left: AppSizes.sp4,
         right: AppSizes.sp4,
-        bottom: MediaQuery.of(context).viewInsets.bottom + AppSizes.sp4,
+        bottom: MediaQuery.of(context).viewInsets.bottom +
+            MediaQuery.of(context).padding.bottom +
+            navClearance +
+            AppSizes.sp4,
         top: AppSizes.sp4,
       ),
       child: GlassCard(

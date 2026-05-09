@@ -22,9 +22,14 @@ import '../widgets/app_shell.dart';
 
 /// Route paths (centralized for type-safe navigation).
 ///
-/// Tab routes live inside the [ShellRoute] so the bottom nav persists.
-/// Detail routes sit at the root-navigator level so they cover the shell
-/// (bottom nav hides) and users get a natural "back" gesture.
+/// Tab routes live inside [StatefulShellRoute.indexedStack] so all four
+/// tab screens stay alive in memory simultaneously. Switching tabs
+/// becomes an instant index flip — no widget tree reconstruction, no
+/// provider re-subscription, no drift re-query. That's the key lever
+/// for "app feels smooth when tapping nav" on mid-range Android.
+///
+/// Detail routes sit at the root-navigator level so they cover the
+/// shell (bottom nav hides) and users get a natural "back" gesture.
 abstract class AppRoutes {
   // Tabs
   static const String map = '/';
@@ -63,7 +68,6 @@ abstract class AppRoutes {
 }
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
-final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
 
 /// Provider-backed router so redirect logic can watch the user profile.
 ///
@@ -86,7 +90,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     refreshListenable: refresh,
     redirect: (context, state) {
       final profileAsync = ref.read(userProfileProvider);
-      // During initial load, stay where you are.
       if (!profileAsync.hasValue) return null;
 
       final profile = profileAsync.value;
@@ -103,26 +106,49 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      // Shell-bound tab routes. Bottom nav stays visible.
-      ShellRoute(
-        navigatorKey: _shellNavigatorKey,
-        builder: (context, state, child) => AppShell(child: child),
-        routes: [
-          GoRoute(
-            path: AppRoutes.map,
-            pageBuilder: (_, __) => _noTransition(const MapScreen()),
+      // StatefulShellRoute.indexedStack: all 4 tab screens are kept
+      // alive in an IndexedStack. Switching tabs = navigationShell
+      // .goBranch(index) = just flip which child is visible. Zero
+      // rebuild/requery cost.
+      //
+      // AppShell wraps the navigationShell with our bottom nav and the
+      // horizontal slide overlay animation.
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return AppShell(navigationShell: navigationShell);
+        },
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.map,
+                pageBuilder: (_, __) => _noTransition(const MapScreen()),
+              ),
+            ],
           ),
-          GoRoute(
-            path: AppRoutes.history,
-            pageBuilder: (_, __) => _noTransition(const HistoryScreen()),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.history,
+                pageBuilder: (_, __) => _noTransition(const HistoryScreen()),
+              ),
+            ],
           ),
-          GoRoute(
-            path: AppRoutes.dashboard,
-            pageBuilder: (_, __) => _noTransition(const DashboardScreen()),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.dashboard,
+                pageBuilder: (_, __) => _noTransition(const DashboardScreen()),
+              ),
+            ],
           ),
-          GoRoute(
-            path: AppRoutes.settings,
-            pageBuilder: (_, __) => _noTransition(const SettingsScreen()),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.settings,
+                pageBuilder: (_, __) => _noTransition(const SettingsScreen()),
+              ),
+            ],
           ),
         ],
       ),
