@@ -215,9 +215,14 @@ class TrackingController extends Notifier<TrackingState> {
     if (haul == null) return;
 
     // Drop low-quality fixes from metric aggregation (still persisted so
-    // the raw trace is preserved for later review).
+    // the raw trace is preserved for later review). The 50m threshold
+    // matches real-world performance on a Redmi Note 10 Pro: on land
+    // a calibrated GNSS typically reports 5-15m, at sea 10-30m, and
+    // only truly degraded fixes (indoor startup, canopy occlusion)
+    // come back >50m. A tighter gate (25m) discarded perfectly usable
+    // offshore fixes and made the live metrics freeze.
     final acc = reading.accuracyMeters;
-    final accept = acc == null || acc <= 25.0;
+    final accept = acc == null || acc <= 50.0;
 
     await _points.appendReading(haulId: haul.id, reading: reading);
 

@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart' show ServiceStatus;
 import 'package:latlong2/latlong.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
@@ -46,7 +49,8 @@ class MapScreen extends ConsumerStatefulWidget {
   ConsumerState<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends ConsumerState<MapScreen> {
+class _MapScreenState extends ConsumerState<MapScreen>
+    with WidgetsBindingObserver {
   static const _initialCenter = LatLng(-7.25, 113.42); // Selat Madura
   static const _initialZoom = 9.0;
 
@@ -58,9 +62,50 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   // pulling to refresh doesn't keep snapping the user's view.
   Object? _fittedOverlayKey;
 
+  // Subscribes to the OS-level location service toggle. When the user
+  // flips GPS on from the system shade / Settings and returns to the
+  // app, Geolocator emits a `ServiceStatus.enabled` event — we use that
+  // as a hint to silently re-check permission state and dismiss any
+  // stale "activate GPS" sheet. Without this the user would see the
+  // sheet hang around until they touched the app manually.
+  StreamSubscription<ServiceStatus>? _serviceStatusSub;
+
+  /// Tracks whether our location permission sheet is currently on
+  /// screen so the auto-dismiss on service-on / app-resume only ever
+  /// closes THAT route (not, say, a haul summary sheet or a crash
+  /// recovery dialog that might also be open).
+  bool _permissionSheetOpen = false;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+
+    // Service-status stream runs for the lifetime of the map tab —
+    // it's cheap (one platform-channel callback) and lets us react
+    // immediately to GPS-toggle changes even while the app is
+    // foregrounded.
+    try {
+      _serviceStatusSub = ref
+          .read(gpsServiceProvider)
+          .watchServiceStatus()
+          .listen((status) {
+        if (!mounted) return;
+        // Re-check permission on every transition so the sheet text
+        // updates in place ("Aktifkan Lokasi" → "Lokasi Aktif") without
+        // the user having to dismiss and reopen.
+        unawaited(ref.read(locationPermissionProvider.notifier).check());
+        if (status == ServiceStatus.enabled) {
+          _maybeAutoDismissPermissionSheet();
+        }
+      });
+    } catch (_) {
+      // Widget tests and other environments without a platform channel
+      // just won't get auto-dismiss on GPS toggle — the resume-based
+      // path in didChangeAppLifecycleState still covers them.
+      _serviceStatusSub = null;
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ref.read(locationPermissionProvider.notifier).check();
       if (!mounted) return;
@@ -69,7 +114,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           permState != LocationPermissionState.unknown) {
         await Future<void>.delayed(const Duration(milliseconds: 600));
         if (!mounted) return;
-        await LocationPermissionSheet.show(context);
+        await _showPermissionSheet();
       }
 
       // Crash recovery: do this once per app session.
@@ -86,8 +131,54 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _serviceStatusSub?.cancel();
     _mapController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // User often toggles GPS from system Settings and returns via the
+    // task switcher. Refresh permission state on every resume so the
+    // permission sheet is in sync with reality.
+    if (state == AppLifecycleState.resumed) {
+      ref.read(locationPermissionProvider.notifier).check().then((_) {
+        if (!mounted) return;
+        _maybeAutoDismissPermissionSheet();
+      });
+    }
+  }
+
+  /// Wraps [LocationPermissionSheet.show] with the bookkeeping that
+  /// lets the auto-dismiss paths know whether the sheet is currently
+  /// on screen. Everything goes through this helper; never call
+  /// LocationPermissionSheet.show directly from this screen.
+  Future<void> _showPermissionSheet() async {
+    if (_permissionSheetOpen) return;
+    _permissionSheetOpen = true;
+    try {
+      await LocationPermissionSheet.show(context);
+    } finally {
+      if (mounted) _permissionSheetOpen = false;
+    }
+  }
+
+  /// If the permission sheet is still on top but the state is now
+  /// `ready`, pop it automatically so the user doesn't have to tap
+  /// "Tutup" after enabling GPS from system Settings.
+  ///
+  /// Guarded by [_permissionSheetOpen] so we don't accidentally pop a
+  /// haul summary sheet or a recovery dialog that happens to be
+  /// sitting above the map.
+  void _maybeAutoDismissPermissionSheet() {
+    if (!_permissionSheetOpen) return;
+    final permState = ref.read(locationPermissionProvider);
+    if (permState != LocationPermissionState.ready) return;
+    final nav = Navigator.of(context, rootNavigator: true);
+    if (nav.canPop()) {
+      nav.pop();
+    }
   }
 
   void _maybeFollow(GpsReading reading) {
@@ -100,7 +191,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     if (reading == null) {
       final state = ref.read(locationPermissionProvider);
       if (state != LocationPermissionState.ready) {
-        LocationPermissionSheet.show(context);
+        unawaited(_showPermissionSheet());
       }
       return;
     }
@@ -115,7 +206,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   Future<void> _onStartHaulPressed() async {
     final permState = ref.read(locationPermissionProvider);
     if (permState != LocationPermissionState.ready) {
-      await LocationPermissionSheet.show(context);
+      await _showPermissionSheet();
       return;
     }
 
@@ -310,7 +401,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     return AmbientBackground(
       showBlobs: false,
       child: SafeArea(
-        bottom: false,
+        // `bottom: true` uses the padding injected by AppShell
+        // (MediaQuery.padding.bottom = navClearance). Every positioned
+        // child below therefore measures `bottom: 0` as "flush with
+        // the top of the floating nav", not "under it". That's why
+        // the action panel can say `bottom: AppSizes.sp4` below
+        // instead of the old brittle `bottom: 100`.
+        bottom: true,
         child: Stack(
           children: [
             // --- Map ---
@@ -425,7 +522,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             // --- Map controls ---
             Positioned(
               right: AppSizes.sp4,
-              bottom: 260,
+              bottom: 180,
               child: MapControls(
                 onCenterOnMe: _centerOnMe,
                 centerEnabled: hasPermission,
@@ -435,7 +532,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             // --- Attribution ---
             const Positioned(
               left: AppSizes.sp4,
-              bottom: 260,
+              bottom: 180,
               child: MapAttribution(),
             ),
 
@@ -443,7 +540,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             Positioned(
               left: AppSizes.sp4,
               right: AppSizes.sp4,
-              bottom: 100,
+              bottom: AppSizes.sp4,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [

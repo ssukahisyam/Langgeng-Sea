@@ -2,13 +2,20 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-/// Atmospheric backdrop with gradient + soft blur blobs.
-/// Creates the "underwater depth" feeling across all screens.
+/// Atmospheric backdrop — just a gradient fill.
+///
+/// In the original design the blobs were rendered via `BackdropFilter`
+/// to create a soft "depth of field" effect. On our target device
+/// (Redmi Note 10 Pro, SD720G) that layer costs us ~30 ms per frame,
+/// which drops the whole app from 120 Hz into stutter-land. We keep
+/// the `showBlobs` flag around so future high-end builds can re-enable
+/// cheap RadialGradient blobs, but the default is OFF — and the blur
+/// filter that used to back them is gone entirely.
 class AmbientBackground extends StatelessWidget {
   const AmbientBackground({
     super.key,
     required this.child,
-    this.showBlobs = true,
+    this.showBlobs = false,
   });
 
   final Widget child;
@@ -21,7 +28,6 @@ class AmbientBackground extends StatelessWidget {
 
     return Stack(
       children: [
-        // Ambient gradient
         Positioned.fill(
           child: DecoratedBox(
             decoration: BoxDecoration(gradient: tokens.ambientGradient),
@@ -33,7 +39,8 @@ class AmbientBackground extends StatelessWidget {
             right: -60,
             child: _Blob(
               size: 260,
-              color: colors.secondary.withValues(alpha: context.isDark ? 0.18 : 0.15),
+              color: colors.secondary
+                  .withValues(alpha: context.isDark ? 0.18 : 0.15),
             ),
           ),
           Positioned(
@@ -41,7 +48,8 @@ class AmbientBackground extends StatelessWidget {
             left: -80,
             child: _Blob(
               size: 280,
-              color: colors.primary.withValues(alpha: context.isDark ? 0.22 : 0.2),
+              color: colors.primary
+                  .withValues(alpha: context.isDark ? 0.22 : 0.2),
             ),
           ),
         ],

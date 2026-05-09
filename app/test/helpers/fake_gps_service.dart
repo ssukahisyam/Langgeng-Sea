@@ -44,8 +44,20 @@ class FakeGpsService implements GpsService {
   }
 
   @override
-  Stream<GpsReading> watchPosition({double distanceFilterMeters = 0}) =>
+  Stream<GpsReading> watchPosition({double distanceFilterMeters = 2}) =>
       _controller.stream;
+
+  @override
+  Stream<ServiceStatus> watchServiceStatus() =>
+      _serviceStatusController.stream;
+
+  /// Test hook: simulate the OS GPS toggle flipping on/off.
+  void emitServiceStatus(ServiceStatus status) {
+    _serviceStatusController.add(status);
+  }
+
+  final StreamController<ServiceStatus> _serviceStatusController =
+      StreamController<ServiceStatus>.broadcast();
 
   @override
   Future<bool> openAppSettingsScreen() async => true;
@@ -55,5 +67,6 @@ class FakeGpsService implements GpsService {
 
   void dispose() {
     _controller.close();
+    _serviceStatusController.close();
   }
 }
