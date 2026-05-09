@@ -1,0 +1,103 @@
+name: Release
+
+# Triggered when a version tag (v1.0.0, v1.1.0, …) is pushed.
+# Builds APK (split-per-abi) + AAB and uploads them to a GitHub Release.
+#
+# IMPORTANT: This workflow does NOT sign the artefacts with the Play Store
+# upload key. The release keystore is held offline per
+# RELEASE_CHECKLIST.md. CI output therefore ships with debug signing (when
+# key.properties is absent the build.gradle.kts falls back to debug) and is
+# suitable for sideload smoke testing only. The Play-Store-ready AAB is
+# produced manually on the signing workstation.
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write  # required to create releases & upload assets
+
+jobs:
+  build-and-release:
+    name: Build & Publish
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./app
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.24.x'
+          cache: true
+
+      - name: Flutter version
+        run: flutter --version
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Generate code (drift, riverpod, freezed)
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Run tests
+        run: flutter test --reporter expanded
+
+      - name: Build APK (split-per-abi)
+        run: flutter build apk --release --split-per-abi
+
+      - name: Build AAB
+        run: flutter build appbundle --release
+
+      - name: Collect artefacts
+        working-directory: ./app
+        run: |
+          mkdir -p release-artefacts
+          cp build/app/outputs/flutter-apk/*.apk release-artefacts/
+          cp build/app/outputs/bundle/release/*.aab release-artefacts/
+          ls -lh release-artefacts
+
+      - name: Upload artefacts (for workflow inspection)
+        uses: actions/upload-artifact@v4
+        with:
+          name: langgeng-sea-${{ github.ref_name }}
+          path: app/release-artefacts/*
+          retention-days: 30
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Langgeng Sea ${{ github.ref_name }}
+          body: |
+            Langgeng Sea release `${{ github.ref_name }}`.
+
+            See [CHANGELOG.md](../blob/main/CHANGELOG.md) for what's new.
+
+            > **Catatan signing:** artefak yang di-attach di sini dibuild
+            > oleh CI tanpa keystore Play Store (lihat
+            > `RELEASE_CHECKLIST.md`). APK ini bisa di-sideload untuk
+            > smoke testing, tapi **bukan** yang diupload ke Play Store.
+            > AAB Play-Store-ready dibuild ulang manual di workstation
+            > signing lalu diupload via Play Console.
+          files: |
+            app/release-artefacts/*.apk
+            app/release-artefacts/*.aab
+          draft: false
+          prerelease: false
+          generate_release_notes: true

@@ -1,5 +1,8 @@
 # Langgeng Sea 🎣🛰️
 
+> 🎉 **v1.0 Released** — MVP siap diuji di lapangan. Lihat
+> [`CHANGELOG.md`](./CHANGELOG.md) untuk daftar fitur rilis.
+
 > **Jejak Setia di Lautan** — Aplikasi tracking GPS khusus nelayan trawl Indonesia.
 
 Langgeng Sea adalah aplikasi mobile Android (Flutter) yang membantu nelayan
@@ -57,7 +60,54 @@ flutter pub get
 flutter run
 ```
 
-App saat ini di **M0 Foundation**. GPS tracking & peta offline diimplementasikan di M1.
+App saat ini rilis **v1.0.0 (MVP)** — semua 10 milestone selesai. Detail
+fitur di [`CHANGELOG.md`](./CHANGELOG.md).
+
+---
+
+## 📦 Install APK
+
+Ada 3 cara install Langgeng Sea — pilih yang paling sesuai.
+
+### 1. Google Play Store (direkomendasikan)
+
+🔜 **TBD** — link Play Store akan dipasang di sini setelah submission
+production approved. Sementara gunakan opsi 2 atau 3.
+
+### 2. Google Play Internal Testing (beta testers)
+
+Beta tester terpilih dapat join program internal testing:
+
+1. Hubungi kami lewat WhatsApp +62-xxx-xxx-xxxx _(placeholder)_ dengan
+   email Gmail yang kamu pakai di Play Store.
+2. Kami invite kamu ke Play Console internal testing track.
+3. Install dari Play Store — auto update ikut release baru.
+
+Lihat [`.kiro/specs/langgeng-sea/beta-test-plan.md`](./.kiro/specs/langgeng-sea/beta-test-plan.md)
+untuk detail kriteria beta tester.
+
+### 3. APK Langsung dari GitHub Releases
+
+Untuk power user / tester yang tidak punya Gmail / tidak mau lewat Play
+Store:
+
+1. Buka [Releases](https://github.com/ssukahisyam/Langgeng-Sea/releases)
+   di repo ini.
+2. Download APK sesuai arsitektur HP kamu:
+   - `app-arm64-v8a-release.apk` — 64-bit ARM (HP modern 2019+).
+   - `app-armeabi-v7a-release.apk` — 32-bit ARM (HP lama).
+   - `app-x86_64-release.apk` — emulator / Chromebook.
+3. Enable **Install unknown apps** di Settings → Keamanan → izinkan
+   browser / file manager kamu.
+4. Tap APK file, install.
+
+> **⚠️ Catatan signing:** APK yang di-publish di GitHub Releases
+> adalah hasil CI build (lihat
+> [`.github/workflows/release.yml`](./.github/workflows/release.yml))
+> dan **tidak di-sign dengan Play Store upload key**. Ini cukup untuk
+> sideload testing tapi bukan build yang sama dengan di Play Store.
+> Lihat [`RELEASE_CHECKLIST.md`](./RELEASE_CHECKLIST.md) pasal 4 untuk
+> detail signing model.
 
 ---
 
@@ -91,7 +141,7 @@ Estimasi total: **~13 minggu (3 bulan)** dari mulai coding.
 | M7 Ekspor / Impor | 1 minggu | GPX + JSON share | ✅ Done |
 | M8 Onboarding & Polish | 1.5 minggu | Tutorial, UI polish | ✅ Done |
 | M9 QA & Beta | 2 minggu | Test real-world | ✅ Done |
-| M10 Rilis MVP | 0.5 minggu | Play Store | 🔜 Next |
+| M10 Rilis MVP | 0.5 minggu | Play Store | ✅ Done |
 
 Detail lengkap: [`tasks.md`](./.kiro/specs/langgeng-sea/tasks.md)
 

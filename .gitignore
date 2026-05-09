@@ -1,0 +1,28 @@
+# Root-level ignores (repo-wide, in addition to app/.gitignore).
+
+# macOS / Windows / Linux junk
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Editor / IDE
+.idea/
+.vscode/
+*.iml
+
+# Release signing — NEVER commit these files.
+# Generated during release prep (see RELEASE_CHECKLIST.md).
+key.properties
+**/key.properties
+*.keystore
+*.jks
+
+# Play Store upload artefacts (kept locally only).
+store-listing/screenshots/*.png
+store-listing/screenshots/*.jpg
+!store-listing/screenshots/README.md
+
+# Local env / secrets
+.env
+.env.local
