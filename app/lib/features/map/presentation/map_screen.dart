@@ -273,7 +273,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   urlTemplate:
                       'https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png',
                   userAgentPackageName: 'id.co.langgengsea',
-                  backgroundColor: Colors.transparent,
                 ),
                 // Isolated consumer: rebuild only when livePoints grows.
                 const _ActivePolylineIsolated(),
