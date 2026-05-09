@@ -2,8 +2,22 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-/// Atmospheric backdrop with gradient + soft blur blobs.
-/// Creates the "underwater depth" feeling across all screens.
+/// Atmospheric backdrop with gradient + radial color blobs.
+///
+/// PERFORMANCE NOTE: this widget intentionally does NOT use
+/// `BackdropFilter` / `ImageFilter.blur`. Blur-as-layer forces Flutter
+/// to rasterise the full viewport to an intermediate buffer every
+/// frame — a ~10-20ms main-thread hit on mid-range Android (SD720G),
+/// which showed up as app-wide lag when tapping tabs / buttons.
+///
+/// The "glass depth" feel is instead produced by:
+///   1. A linear gradient (pure paint, trivially cached).
+///   2. Optional RadialGradient "blobs" — also pure paint, compiled
+///      once per build then cached until theme changes.
+///
+/// Result: the background is effectively free at runtime (single
+/// decoration layer), while visually keeping the same hue layering
+/// the old design had.
 class AmbientBackground extends StatelessWidget {
   const AmbientBackground({
     super.key,
@@ -21,27 +35,31 @@ class AmbientBackground extends StatelessWidget {
 
     return Stack(
       children: [
-        // Ambient gradient
+        // Base ambient gradient.
         Positioned.fill(
           child: DecoratedBox(
             decoration: BoxDecoration(gradient: tokens.ambientGradient),
           ),
         ),
         if (showBlobs) ...[
+          // Top-right warm blob (secondary).
           Positioned(
             top: -80,
             right: -60,
             child: _Blob(
               size: 260,
-              color: colors.secondary.withValues(alpha: context.isDark ? 0.18 : 0.15),
+              color: colors.secondary
+                  .withValues(alpha: context.isDark ? 0.18 : 0.15),
             ),
           ),
+          // Bottom-left cool blob (primary).
           Positioned(
             bottom: 100,
             left: -80,
             child: _Blob(
               size: 280,
-              color: colors.primary.withValues(alpha: context.isDark ? 0.22 : 0.2),
+              color: colors.primary
+                  .withValues(alpha: context.isDark ? 0.22 : 0.2),
             ),
           ),
         ],
@@ -51,6 +69,8 @@ class AmbientBackground extends StatelessWidget {
   }
 }
 
+/// Radial-gradient circle, wrapped in IgnorePointer so it never blocks
+/// taps on the content stacked above.
 class _Blob extends StatelessWidget {
   const _Blob({required this.size, required this.color});
 

@@ -8,6 +8,11 @@ import '../../application/tracking_controller.dart';
 /// flutter_map layer that renders the currently-recording haul as a glowing
 /// polyline. Uses the live points held in [TrackingState] so it doesn't
 /// have to re-query Drift on every GPS tick.
+///
+/// Wrapped in RepaintBoundary to isolate the polyline repaint from the
+/// tile layer underneath. Without the boundary, a new GPS fix forces
+/// the entire FlutterMap stack to repaint — including the tile cache,
+/// which is expensive.
 class ActiveHaulPolyline extends ConsumerWidget {
   const ActiveHaulPolyline({super.key});
 

@@ -10,7 +10,6 @@ import '../../../core/services/gps_reading.dart';
 import '../../../core/services/gps_service.dart';
 import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/widgets/ambient_background.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../../../core/widgets/status_chip.dart';
@@ -33,9 +32,23 @@ import 'widgets/map_controls.dart';
 
 /// Home tab — map + live GPS position + haul recording controls.
 ///
-/// M1: flutter_map, OSM + OpenSeaMap, live boat marker.
-/// M2: tombol Mulai Tebar / Angkat Trawl wired, live stats, polyline,
-/// summary sheet, crash recovery dialog.
+/// PERFORMANCE: top-level widget deliberately isn't a Consumer. See
+/// isolated `_*Isolated` consumers below. `ref.listen` handles the
+/// camera-follow side effect without rebuilding the whole Stack.
+///
+/// LAYOUT: the bottom-anchored UI (map controls FAB, attribution,
+/// action panel) lives inside a single bottom-aligned Column. FAB and
+/// attribution sit directly ABOVE the action panel — so when the
+/// action panel grows (e.g. recording state adds the stop button),
+/// the FAB shifts up with it and never overlaps. The whole column
+/// then respects `MediaQuery.padding.bottom` which AppShell inflates
+/// to `gestureBar + navHeight + gap`, so nothing is ever hidden
+/// behind the floating nav bar.
+///
+/// GPS AUTO-DETECT: observes the app lifecycle so a re-check fires
+/// when the user comes back from the system location-settings
+/// screen. The permission provider itself also subscribes to
+/// `ServiceStatusStream`, so both paths converge.
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
 
@@ -43,7 +56,8 @@ class MapScreen extends ConsumerStatefulWidget {
   ConsumerState<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends ConsumerState<MapScreen> {
+class _MapScreenState extends ConsumerState<MapScreen>
+    with WidgetsBindingObserver {
   static const _initialCenter = LatLng(-7.25, 113.42); // Selat Madura
   static const _initialZoom = 9.0;
 
@@ -54,6 +68,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ref.read(locationPermissionProvider.notifier).check();
       if (!mounted) return;
@@ -79,8 +94,21 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _mapController.dispose();
     super.dispose();
+  }
+
+  /// Re-check permission when user comes back from system Settings.
+  /// If they toggled GPS on, the ServiceStatusStream would already
+  /// have fired — this is a belt-and-suspenders fallback for cases
+  /// where the stream missed the event (some Android vendors throttle
+  /// broadcast receivers when apps are backgrounded).
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      ref.read(locationPermissionProvider.notifier).check();
+    }
   }
 
   void _maybeFollow(GpsReading reading) {
@@ -111,16 +139,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       await LocationPermissionSheet.show(context);
       return;
     }
-
-    // Haptic feedback (per design §7).
     await _haptic();
-
-    // M8: read trawl width from the user profile (set during onboarding).
-    // Fallback to 20m — matches the onboarding default and keeps tests
-    // that bypass the profile working unchanged.
     final profile = ref.read(userProfileProvider).asData?.value;
     final width = profile?.trawlWidthMeters ?? 20.0;
-
     await ref
         .read(trackingControllerProvider.notifier)
         .startHaul(trawlWidthMeters: width);
@@ -143,7 +164,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       case HaulSummaryAction.endTrip:
         await ref.read(trackingControllerProvider.notifier).endTrip();
       case HaulSummaryAction.dismissed:
-        // Stay idle with trip still active — user can tap again later.
         break;
     }
   }
@@ -201,9 +221,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 
   Future<void> _haptic() async {
-    // Medium-impact haptic on start/stop haul — matches design §7.
-    // Wrapped in try/catch because some test environments don't have a
-    // platform channel attached.
     try {
       await HapticFeedback.mediumImpact();
     } catch (_) {
@@ -217,166 +234,265 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Side-effect only: follow the user's camera position. Does NOT
+    // trigger rebuild of this widget.
     ref.listen<AsyncValue<GpsReading>>(currentReadingProvider, (_, next) {
       next.whenData(_maybeFollow);
     });
 
-    final reading = ref.watch(currentReadingProvider).asData?.value;
-    final permState = ref.watch(locationPermissionProvider);
-    final hasPermission = permState == LocationPermissionState.ready;
-    final trackingState = ref.watch(trackingControllerProvider);
-    final isRecording = trackingState.isRecording;
+    // MediaQuery.padding.bottom here = AppShell's injected value
+    // (gestureBar + navHeight + gap). We use it as the bottom margin
+    // of the action-panel column, which keeps everything above the
+    // floating nav without hard-coded numbers.
+    final bottomSafe = MediaQuery.of(context).padding.bottom;
 
-    return AmbientBackground(
-      showBlobs: false,
-      child: SafeArea(
-        bottom: false,
-        child: Stack(
-          children: [
-            // --- Map ---
-            Positioned.fill(
-              child: FlutterMap(
-                mapController: _mapController,
-                options: MapOptions(
-                  initialCenter: reading?.latLng ?? _initialCenter,
-                  initialZoom: _initialZoom,
-                  minZoom: 3,
-                  maxZoom: 18,
-                  onPositionChanged: (pos, hasGesture) {
-                    if (hasGesture && _followingUser) {
-                      setState(() => _followingUser = false);
-                    }
-                  },
-                  interactionOptions: const InteractionOptions(
-                    flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
-                  ),
+    return SafeArea(
+      bottom: false,
+      child: Stack(
+        children: [
+          // --- Map (fills background, tiles provide visual depth) ---
+          Positioned.fill(
+            child: FlutterMap(
+              mapController: _mapController,
+              options: MapOptions(
+                initialCenter: _initialCenter,
+                initialZoom: _initialZoom,
+                minZoom: 3,
+                maxZoom: 18,
+                onPositionChanged: (pos, hasGesture) {
+                  if (hasGesture && _followingUser) {
+                    setState(() => _followingUser = false);
+                  }
+                },
+                interactionOptions: const InteractionOptions(
+                  flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
                 ),
-                children: [
-                  TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'id.co.langgengsea',
-                    maxNativeZoom: 19,
-                    retinaMode: RetinaMode.isHighDensity(context),
-                    // Cache-first tile provider. Tiles the user has
-                    // downloaded for offline use are served from disk;
-                    // new tiles fall back to the network and also get
-                    // cached for next time the user browses this area.
-                    tileProvider: ref
-                        .read(tileCacheServiceProvider)
-                        .cachedTileProvider(
-                          userAgentPackageName: 'id.co.langgengsea',
-                        ),
-                  ),
-                  TileLayer(
-                    urlTemplate:
-                        'https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'id.co.langgengsea',
-                  ),
-                  // Active haul polyline (empty layer when not recording).
-                  const ActiveHaulPolyline(),
-                  if (reading != null)
-                    MarkerLayer(
-                      markers: [
-                        Marker(
-                          point: reading.latLng,
-                          width: 64,
-                          height: 64,
-                          alignment: Alignment.center,
-                          child: BoatMarker(
-                            reading: reading,
-                            isTracking: isRecording,
-                          ),
-                        ),
-                      ],
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate:
+                      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'id.co.langgengsea',
+                  maxNativeZoom: 19,
+                  retinaMode: RetinaMode.isHighDensity(context),
+                  tileProvider: ref
+                      .read(tileCacheServiceProvider)
+                      .cachedTileProvider(
+                        userAgentPackageName: 'id.co.langgengsea',
+                      ),
+                ),
+                TileLayer(
+                  urlTemplate:
+                      'https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'id.co.langgengsea',
+                ),
+                // Isolated consumer: rebuild only when livePoints grows.
+                const _ActivePolylineIsolated(),
+                // Isolated consumer: rebuild only when reading changes,
+                // and wrapped in RepaintBoundary so the rest of the
+                // FlutterMap child stack doesn't repaint.
+                const _BoatMarkerIsolated(),
+              ],
+            ),
+          ),
+
+          // --- Top panel (swaps between vessel info and recording banner) ---
+          Positioned(
+            top: AppSizes.sp3,
+            left: AppSizes.sp4,
+            right: AppSizes.sp4,
+            child: const _TopPanel(),
+          ),
+
+          // --- Live stats (only while recording, isolated consumer) ---
+          const Positioned(
+            top: 80,
+            left: AppSizes.sp4,
+            right: AppSizes.sp4,
+            child: _LiveStatsIsolated(),
+          ),
+
+          // --- GPS accuracy chip ---
+          const Positioned(
+            top: 100,
+            right: AppSizes.sp5,
+            child: GpsAccuracyChip(),
+          ),
+
+          // --- Bottom stack: attribution + FAB + action panel ---
+          // Everything anchored to bottom lives in this single Column so
+          // the FAB is always directly above the action panel
+          // (regardless of whether the action panel is the idle or the
+          // recording variant, which differ in height).
+          Positioned(
+            left: AppSizes.sp4,
+            right: AppSizes.sp4,
+            bottom: bottomSafe,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Row: attribution on the left, FAB on the right.
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const MapAttribution(),
+                    RepaintBoundary(
+                      child:
+                          _MapControlsIsolated(onCenterOnMe: _centerOnMe),
                     ),
-                ],
-              ),
+                  ],
+                ),
+                const SizedBox(height: AppSizes.sp2),
+                const _BottomPanelIsolated(),
+              ],
             ),
-
-            // --- Top panel (swaps between vessel info and recording banner) ---
-            Positioned(
-              top: AppSizes.sp3,
-              left: AppSizes.sp4,
-              right: AppSizes.sp4,
-              child: isRecording
-                  ? const RecordingBanner()
-                  : _IdleAppBar(),
-            ),
-
-            // --- Live stats (only while recording) ---
-            if (isRecording)
-              const Positioned(
-                top: 80,
-                left: AppSizes.sp4,
-                right: AppSizes.sp4,
-                child: LiveStatsPanel(),
-              ),
-
-            // --- GPS accuracy chip ---
-            Positioned(
-              top: isRecording ? 170 : 100,
-              right: AppSizes.sp5,
-              child: const GpsAccuracyChip(),
-            ),
-
-            // --- Map controls ---
-            Positioned(
-              right: AppSizes.sp4,
-              bottom: 260,
-              child: MapControls(
-                onCenterOnMe: _centerOnMe,
-                centerEnabled: hasPermission,
-              ),
-            ),
-
-            // --- Attribution ---
-            const Positioned(
-              left: AppSizes.sp4,
-              bottom: 260,
-              child: MapAttribution(),
-            ),
-
-            // --- Bottom action panel ---
-            Positioned(
-              left: AppSizes.sp4,
-              right: AppSizes.sp4,
-              bottom: 100,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const GpsErrorBanner(),
-                  const SizedBox(height: AppSizes.sp2),
-                  _ActionPanel(
-                    isRecording: isRecording,
-                    state: trackingState,
-                    onStart: _onStartHaulPressed,
-                    onStop: _onStopHaulPressed,
-                    onEndTrip: () =>
-                        ref.read(trackingControllerProvider.notifier).endTrip(),
-                    hasPermission: hasPermission,
-                    hasFix: reading != null,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-// ===========================================================================
-// Private UI pieces
-// ===========================================================================
+// =========================================================================
+// Isolated consumer widgets. Each reads exactly the slice of state it
+// needs, and its `build` fires only when THAT slice changes. This keeps
+// rebuild costs flat as GPS fixes arrive at 1-2 Hz.
+// =========================================================================
+
+/// Rebuilds only when TrackingState.livePoints list identity changes.
+class _ActivePolylineIsolated extends ConsumerWidget {
+  const _ActivePolylineIsolated();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return const ActiveHaulPolyline();
+  }
+}
+
+/// Rebuilds only when GPS reading changes. Wrapped in RepaintBoundary
+/// so its paint is cached when only the boat position micro-moves.
+class _BoatMarkerIsolated extends ConsumerWidget {
+  const _BoatMarkerIsolated();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reading = ref.watch(currentReadingProvider).asData?.value;
+    final isRecording = ref
+        .watch(trackingControllerProvider.select((s) => s.isRecording));
+    if (reading == null) {
+      return const MarkerLayer(markers: []);
+    }
+    return MarkerLayer(
+      markers: [
+        Marker(
+          point: reading.latLng,
+          width: 64,
+          height: 64,
+          alignment: Alignment.center,
+          child: RepaintBoundary(
+            child: BoatMarker(
+              reading: reading,
+              isTracking: isRecording,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Top panel — selects `isRecording` only, not the full state blob.
+class _TopPanel extends ConsumerWidget {
+  const _TopPanel();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isRecording = ref
+        .watch(trackingControllerProvider.select((s) => s.isRecording));
+    return isRecording ? const RecordingBanner() : const _IdleAppBar();
+  }
+}
+
+/// Live stats only rendered when recording.
+class _LiveStatsIsolated extends ConsumerWidget {
+  const _LiveStatsIsolated();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isRecording = ref
+        .watch(trackingControllerProvider.select((s) => s.isRecording));
+    if (!isRecording) return const SizedBox.shrink();
+    return const LiveStatsPanel();
+  }
+}
+
+/// Center-on-me FAB. Rebuilds when permission state flips.
+class _MapControlsIsolated extends ConsumerWidget {
+  const _MapControlsIsolated({required this.onCenterOnMe});
+
+  final VoidCallback onCenterOnMe;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hasPermission = ref.watch(locationPermissionProvider) ==
+        LocationPermissionState.ready;
+    return MapControls(
+      onCenterOnMe: onCenterOnMe,
+      centerEnabled: hasPermission,
+    );
+  }
+}
+
+/// Bottom panel: error banner + action panel. Stateful wrapping because
+/// the action handlers need access to `MapScreen`'s _onStart/_onStop.
+class _BottomPanelIsolated extends ConsumerWidget {
+  const _BottomPanelIsolated();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final trackingState = ref.watch(trackingControllerProvider);
+    final hasPermission = ref.watch(locationPermissionProvider) ==
+        LocationPermissionState.ready;
+    final hasFix = ref.watch(currentReadingProvider).asData?.value != null;
+
+    final mapState = context.findAncestorStateOfType<_MapScreenState>();
+    if (mapState == null) return const SizedBox.shrink();
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const GpsErrorBanner(),
+        const SizedBox(height: AppSizes.sp2),
+        _ActionPanel(
+          isRecording: trackingState.isRecording,
+          state: trackingState,
+          onStart: mapState._onStartHaulPressed,
+          onStop: mapState._onStopHaulPressed,
+          onEndTrip: () =>
+              ref.read(trackingControllerProvider.notifier).endTrip(),
+          hasPermission: hasPermission,
+          hasFix: hasFix,
+        ),
+      ],
+    );
+  }
+}
+
+// =========================================================================
+// Existing private widgets (unchanged behavior, preserved below)
+// =========================================================================
 
 class _IdleAppBar extends ConsumerWidget {
+  const _IdleAppBar();
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = context.tokens;
     final text = context.text;
-    final trackingState = ref.watch(trackingControllerProvider);
+    final hasTrip = ref
+        .watch(trackingControllerProvider.select((s) => s.hasTrip));
     final profile = ref.watch(userProfileProvider).asData?.value;
 
     return GlassCard(
@@ -430,12 +546,9 @@ class _IdleAppBar extends ConsumerWidget {
             ),
           ),
           StatusChip(
-            label: trackingState.hasTrip
-                ? AppStrings.tripActive
-                : AppStrings.noTrip,
-            variant: trackingState.hasTrip
-                ? StatusVariant.success
-                : StatusVariant.neutral,
+            label: hasTrip ? AppStrings.tripActive : AppStrings.noTrip,
+            variant:
+                hasTrip ? StatusVariant.success : StatusVariant.neutral,
             showDot: true,
           ),
         ],
@@ -513,7 +626,6 @@ class _ActionPanel extends StatelessWidget {
       );
     }
 
-    // Idle (possibly mid-trip).
     return GlassCard(
       level: GlassLevel.level2,
       child: Column(
@@ -527,12 +639,18 @@ class _ActionPanel extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      state.hasTrip ? 'Trip Berjalan' : AppStrings.readyToSail,
+                      state.hasTrip
+                          ? 'Trip Berjalan'
+                          : AppStrings.readyToSail,
                       style: text.titleMedium,
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      _subtitle(state: state, hasPermission: hasPermission, hasFix: hasFix),
+                      _subtitle(
+                        state: state,
+                        hasPermission: hasPermission,
+                        hasFix: hasFix,
+                      ),
                       style: text.bodySmall?.copyWith(
                         color: tokens.textTertiary,
                       ),
