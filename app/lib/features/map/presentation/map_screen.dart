@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
@@ -21,6 +22,7 @@ import '../../tracking/presentation/widgets/haul_summary_sheet.dart';
 import '../../tracking/presentation/widgets/live_stats_panel.dart';
 import '../../tracking/presentation/widgets/recording_banner.dart';
 import '../../offline_map/data/tile_cache_service.dart';
+import '../../onboarding/data/user_profile_repository.dart';
 import 'providers/location_permission_provider.dart';
 import 'widgets/boat_marker.dart';
 import 'widgets/gps_accuracy_chip.dart';
@@ -113,10 +115,15 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     // Haptic feedback (per design §7).
     await _haptic();
 
-    // Width from profile comes in M8; for now use the design default (20 m).
+    // M8: read trawl width from the user profile (set during onboarding).
+    // Fallback to 20m — matches the onboarding default and keeps tests
+    // that bypass the profile working unchanged.
+    final profile = ref.read(userProfileProvider).asData?.value;
+    final width = profile?.trawlWidthMeters ?? 20.0;
+
     await ref
         .read(trackingControllerProvider.notifier)
-        .startHaul(trawlWidthMeters: 20.0);
+        .startHaul(trawlWidthMeters: width);
     if (!mounted) return;
     setState(() => _followingUser = true);
   }
@@ -194,8 +201,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 
   Future<void> _haptic() async {
-    // Kept minimal to avoid pulling HapticFeedback dependency chain into
-    // widget tests. Material's Feedback hooks tactile response via theme.
+    // Medium-impact haptic on start/stop haul — matches design §7.
+    // Wrapped in try/catch because some test environments don't have a
+    // platform channel attached.
+    try {
+      await HapticFeedback.mediumImpact();
+    } catch (_) {
+      // no-op
+    }
   }
 
   // ---------------------------------------------------------------------
@@ -365,6 +378,7 @@ class _IdleAppBar extends ConsumerWidget {
     final tokens = context.tokens;
     final text = context.text;
     final trackingState = ref.watch(trackingControllerProvider);
+    final profile = ref.watch(userProfileProvider).asData?.value;
 
     return GlassCard(
       level: GlassLevel.level2,
@@ -400,9 +414,14 @@ class _IdleAppBar extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('KM Belum Diisi', style: text.titleSmall),
                 Text(
-                  'Isi profil di Pengaturan',
+                  profile?.vesselName ?? 'KM Belum Diisi',
+                  style: text.titleSmall,
+                ),
+                Text(
+                  profile == null
+                      ? 'Isi profil di Pengaturan'
+                      : profile.friendlyGreeting,
                   style: text.bodySmall?.copyWith(
                     color: tokens.textTertiary,
                     fontSize: 11,
@@ -479,12 +498,16 @@ class _ActionPanel extends StatelessWidget {
               ],
             ),
             const SizedBox(height: AppSizes.sp3),
-            PrimaryActionButton(
-              label: AppStrings.stopTrawl,
-              icon: PhosphorIconsFill.stopCircle,
-              variant: ActionButtonVariant.danger,
-              critical: true,
-              onPressed: onStop,
+            Semantics(
+              label: 'Angkat trawl, selesaikan rekam haul',
+              button: true,
+              child: PrimaryActionButton(
+                label: AppStrings.stopTrawl,
+                icon: PhosphorIconsFill.stopCircle,
+                variant: ActionButtonVariant.danger,
+                critical: true,
+                onPressed: onStop,
+              ),
             ),
           ],
         ),
@@ -530,12 +553,16 @@ class _ActionPanel extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSizes.sp3),
-          PrimaryActionButton(
-            label: AppStrings.startTrawl,
-            icon: PhosphorIconsFill.playCircle,
-            variant: ActionButtonVariant.success,
-            critical: true,
-            onPressed: onStart,
+          Semantics(
+            label: 'Mulai tebar trawl, rekam haul baru',
+            button: true,
+            child: PrimaryActionButton(
+              label: AppStrings.startTrawl,
+              icon: PhosphorIconsFill.playCircle,
+              variant: ActionButtonVariant.success,
+              critical: true,
+              onPressed: onStart,
+            ),
           ),
         ],
       ),

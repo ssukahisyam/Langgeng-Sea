@@ -89,8 +89,8 @@ Estimasi total: **~13 minggu (3 bulan)** dari mulai coding.
 | M5 Log Book & Marker | 1.5 minggu | Form log, marker | ✅ Done |
 | M6 Dashboard | 1 minggu | Statistik, grafik | ✅ Done |
 | M7 Ekspor / Impor | 1 minggu | GPX + JSON share | ✅ Done |
-| M8 Onboarding & Polish | 1.5 minggu | Tutorial, UI polish | 🔜 Next |
-| M9 QA & Beta | 2 minggu | Test real-world | ⏳ |
+| M8 Onboarding & Polish | 1.5 minggu | Tutorial, UI polish | ✅ Done |
+| M9 QA & Beta | 2 minggu | Test real-world | 🔜 Next |
 | M10 Rilis MVP | 0.5 minggu | Play Store | ⏳ |
 
 Detail lengkap: [`tasks.md`](./.kiro/specs/langgeng-sea/tasks.md)

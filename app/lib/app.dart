@@ -14,6 +14,7 @@ class LangengSeaApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
+    final router = ref.watch(appRouterProvider);
 
     // Transparent system bars - content extends under them for full-bleed look.
     SystemChrome.setSystemUIOverlayStyle(
@@ -29,7 +30,7 @@ class LangengSeaApp extends ConsumerWidget {
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: themeMode,
-      routerConfig: appRouter,
+      routerConfig: router,
       supportedLocales: const [Locale('id')],
       locale: const Locale('id'),
       localizationsDelegates: const [

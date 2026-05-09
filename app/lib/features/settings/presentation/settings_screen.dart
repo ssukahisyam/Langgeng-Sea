@@ -10,6 +10,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/theme_controller.dart';
 import '../../../core/widgets/ambient_background.dart';
 import '../../../core/widgets/glass_card.dart';
+import '../../onboarding/data/user_profile_repository.dart';
+import '../../onboarding/domain/entities/user_profile.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -19,6 +21,7 @@ class SettingsScreen extends ConsumerWidget {
     final text = context.text;
     final tokens = context.tokens;
     final mode = ref.watch(themeModeProvider);
+    final profile = ref.watch(userProfileProvider).asData?.value;
 
     return AmbientBackground(
       child: SafeArea(
@@ -34,54 +37,66 @@ class SettingsScreen extends ConsumerWidget {
             Text(AppStrings.tabSettings, style: text.headlineLarge),
             const SizedBox(height: AppSizes.sp5),
 
-            // Profile placeholder
-            GlassCard(
-              level: GlassLevel.level2,
-              padding: const EdgeInsets.all(AppSizes.sp4),
-              child: Row(
-                children: [
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      gradient: tokens.primaryGradient,
-                      borderRadius: BorderRadius.circular(18),
-                      boxShadow: [
-                        BoxShadow(
-                          color: tokens.glowPrimary,
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      PhosphorIconsFill.sailboat,
-                      color: Colors.white,
-                      size: 28,
-                    ),
-                  ),
-                  const SizedBox(width: AppSizes.sp4),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('Profil Belum Diisi', style: text.titleMedium),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Tekan untuk mengisi profil kapal',
-                          style: text.bodySmall?.copyWith(
-                            color: tokens.textTertiary,
+            // Profile card — tap to edit
+            Semantics(
+              label: profile == null
+                  ? 'Profil belum diisi, ketuk untuk mengisi'
+                  : 'Profil ${profile.name}, kapal ${profile.vesselName}, '
+                      'ketuk untuk mengedit',
+              button: true,
+              child: GlassCard(
+                level: GlassLevel.level2,
+                padding: const EdgeInsets.all(AppSizes.sp4),
+                onTap: () => context.push(AppRoutes.profileEdit),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        gradient: tokens.primaryGradient,
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: tokens.glowPrimary,
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                      child: const Icon(
+                        PhosphorIconsFill.sailboat,
+                        color: Colors.white,
+                        size: 28,
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(PhosphorIconsRegular.pencilSimple),
-                    onPressed: () {},
-                  ),
-                ],
+                    const SizedBox(width: AppSizes.sp4),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            profile?.vesselName ?? 'Profil Belum Diisi',
+                            style: text.titleMedium,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _profileSubtitle(profile),
+                            style: text.bodySmall?.copyWith(
+                              color: tokens.textTertiary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      PhosphorIconsRegular.pencilSimple,
+                      size: 20,
+                      color: tokens.textSecondary,
+                    ),
+                  ],
+                ),
               ),
             ),
 
@@ -126,28 +141,23 @@ class SettingsScreen extends ConsumerWidget {
 
             const SizedBox(height: AppSizes.sp3),
 
-            // Coming soon placeholders
+            // Trawl width quick-glance + offline map entry
             GlassCard(
               level: GlassLevel.level2,
               padding: const EdgeInsets.all(AppSizes.sp1),
               child: Column(
                 children: [
                   _SettingsTile(
-                    iconColor: context.colors.primary,
-                    iconBg: tokens.primarySoft,
-                    icon: PhosphorIconsBold.crosshair,
-                    title: 'Interval GPS',
-                    subtitle: 'Setiap 10 detik — tersedia di M2',
-                    enabled: false,
-                  ),
-                  Divider(color: tokens.border, height: 1, indent: 16, endIndent: 16),
-                  _SettingsTile(
                     iconColor: context.colors.secondary,
                     iconBg: tokens.accentSoft,
                     icon: PhosphorIconsBold.ruler,
                     title: 'Lebar Bukaan Trawl',
-                    subtitle: '20 meter — tersedia di M2',
-                    enabled: false,
+                    subtitle: profile == null
+                        ? 'Isi profil untuk mengatur'
+                        : '${_fmtWidth(profile.trawlWidthMeters)} meter',
+                    onTap: profile == null
+                        ? null
+                        : () => context.push(AppRoutes.profileEdit),
                   ),
                   Divider(color: tokens.border, height: 1, indent: 16, endIndent: 16),
                   _SettingsTile(
@@ -181,7 +191,7 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: AppSizes.sp2),
                   Text(
-                    'Langgeng Sea v0.1.0 (M0)',
+                    'Langgeng Sea v0.1.0 (M8)',
                     style: text.labelSmall?.copyWith(
                       color: tokens.textSecondary,
                       fontWeight: FontWeight.w700,
@@ -199,6 +209,21 @@ class SettingsScreen extends ConsumerWidget {
       ),
     );
   }
+
+  String _profileSubtitle(UserProfile? p) {
+    if (p == null) return 'Tekan untuk mengisi profil kapal';
+    final parts = <String>[p.friendlyGreeting];
+    if (p.vesselGtOptional != null) {
+      parts.add('GT ${_fmtWidth(p.vesselGtOptional!)}');
+    }
+    if (p.homePortOptional != null && p.homePortOptional!.isNotEmpty) {
+      parts.add(p.homePortOptional!);
+    }
+    return parts.join(' • ');
+  }
+
+  String _fmtWidth(double v) =>
+      v % 1 == 0 ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
 
   String _themeLabel(ThemeMode m) => switch (m) {
         ThemeMode.light => 'Mode Terang',

@@ -13,6 +13,7 @@ import 'daos/marker_dao.dart';
 import 'daos/offline_region_dao.dart';
 import 'daos/track_point_dao.dart';
 import 'daos/trip_dao.dart';
+import 'daos/user_profile_dao.dart';
 import 'tables.dart';
 
 part 'app_database.g.dart';
@@ -23,8 +24,25 @@ part 'app_database.g.dart';
 /// app's documents directory. Schema version bumps must ship a migration
 /// in [MigrationStrategy.onUpgrade].
 @DriftDatabase(
-  tables: [Trips, Hauls, TrackPoints, OfflineRegions, LogBookEntries, CatchItems, Markers],
-  daos: [TripDao, HaulDao, TrackPointDao, OfflineRegionDao, LogBookDao, MarkerDao],
+  tables: [
+    Trips,
+    Hauls,
+    TrackPoints,
+    OfflineRegions,
+    LogBookEntries,
+    CatchItems,
+    Markers,
+    UserProfiles,
+  ],
+  daos: [
+    TripDao,
+    HaulDao,
+    TrackPointDao,
+    OfflineRegionDao,
+    LogBookDao,
+    MarkerDao,
+    UserProfileDao,
+  ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
@@ -33,7 +51,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -60,6 +78,10 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(logBookEntries);
             await m.createTable(catchItems);
             await m.createTable(markers);
+          }
+          // v3 → v4 adds user_profiles (M8 onboarding).
+          if (from < 4) {
+            await m.createTable(userProfiles);
           }
         },
       );

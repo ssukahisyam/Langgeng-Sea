@@ -168,3 +168,24 @@ class Markers extends Table {
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
+
+
+/// Profil pengguna — single-row table (MVP hanya mendukung satu profil).
+///
+/// Ditulis oleh onboarding (M8) dan bisa diedit dari layar Pengaturan.
+/// `id` di-fix ke 1 agar ada invariant "paling banyak satu baris".
+@DataClassName('UserProfileRow')
+class UserProfiles extends Table {
+  IntColumn get id => integer()();
+  TextColumn get name => text()();
+  TextColumn get vesselName => text()();
+  RealColumn get vesselGt => real().nullable()();
+  TextColumn get homePort => text().nullable()();
+  RealColumn get trawlWidthMeters =>
+      real().withDefault(const Constant(20.0))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
