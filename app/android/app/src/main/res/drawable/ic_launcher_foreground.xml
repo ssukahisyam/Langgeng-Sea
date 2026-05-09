@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Temporary placeholder launcher icon foreground.
+  Stylised compass / wave mark on a 108x108dp adaptive icon canvas.
+  The safe zone is the central 66x66dp area (Android crops the rest).
+  Replace before Play Store submission (RELEASE_CHECKLIST.md §3).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Wave strokes (stylised ocean) -->
+    <path
+        android:pathData="M28,62 C38,56 46,68 54,62 C62,56 70,68 80,62"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="4"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M28,72 C38,66 46,78 54,72 C62,66 70,78 80,72"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:strokeAlpha="0.6" />
+
+    <!-- Compass rose -->
+    <path
+        android:pathData="M54,36 L58,52 L54,48 L50,52 Z"
+        android:fillColor="#FFFFFF" />
+    <path
+        android:pathData="M54,36 L54,52"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1" />
+</vector>
