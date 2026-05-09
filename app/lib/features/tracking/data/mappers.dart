@@ -74,6 +74,7 @@ class HaulMapper {
         avgHeadingDegrees: r.avgHeadingDegrees,
         sweptAreaM2: r.sweptAreaM2,
         notes: r.notes,
+        colorValue: r.colorValue,
       );
 
   static HaulsCompanion toInsertCompanion(Haul h) => HaulsCompanion.insert(
@@ -91,6 +92,7 @@ class HaulMapper {
         avgHeadingDegrees: Value(h.avgHeadingDegrees),
         sweptAreaM2: Value(h.sweptAreaM2),
         notes: Value(h.notes),
+        colorValue: Value(h.colorValue),
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
@@ -105,6 +107,7 @@ class HaulMapper {
         avgHeadingDegrees: Value(h.avgHeadingDegrees),
         sweptAreaM2: Value(h.sweptAreaM2),
         notes: Value(h.notes),
+        colorValue: Value(h.colorValue),
         updatedAt: Value(DateTime.now()),
       );
 }

@@ -28,6 +28,7 @@ class Haul {
     this.avgHeadingDegrees,
     this.sweptAreaM2 = 0,
     this.notes,
+    this.colorValue,
   });
 
   final String id;
@@ -55,6 +56,11 @@ class Haul {
 
   final String? notes;
 
+  /// User-picked polyline colour stored as ARGB32. `null` = use palette
+  /// fallback (AppColors.resolveHaulColor picks from the deterministic
+  /// order-index palette).
+  final int? colorValue;
+
   Duration get duration => Duration(seconds: durationSeconds);
 
   /// Display name: user-given or "Haul #N" fallback.
@@ -72,6 +78,12 @@ class Haul {
     double? avgHeadingDegrees,
     double? sweptAreaM2,
     String? notes,
+    int? colorValue,
+
+    /// When true, explicitly reset [colorValue] to null (fall back to
+    /// the palette auto-assignment). Takes precedence over
+    /// [colorValue] if both are supplied.
+    bool clearColor = false,
   }) {
     return Haul(
       id: id,
@@ -88,6 +100,7 @@ class Haul {
       avgHeadingDegrees: avgHeadingDegrees ?? this.avgHeadingDegrees,
       sweptAreaM2: sweptAreaM2 ?? this.sweptAreaM2,
       notes: notes ?? this.notes,
+      colorValue: clearColor ? null : (colorValue ?? this.colorValue),
     );
   }
 }

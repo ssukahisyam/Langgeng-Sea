@@ -91,6 +91,50 @@ class AppColors {
   static Color colorForHaul(int orderIndex) {
     return haulColors[(orderIndex - 1) % haulColors.length];
   }
+
+  // =========================================================
+  // User-pickable haul colors (color picker in HaulSummarySheet)
+  // =========================================================
+
+  /// Palette surfaced to the user in the haul summary colour picker.
+  ///
+  /// Keeping these distinct from [haulColors] means the palette can be
+  /// friendlier / higher-contrast than the auto-assignment list without
+  /// breaking legacy hauls that were coloured deterministically.
+  static const List<PickableColor> pickablePalette = [
+    PickableColor(label: 'Biru', color: Color(0xFF0277BD)),
+    PickableColor(label: 'Hijau', color: Color(0xFF2E7D32)),
+    PickableColor(label: 'Oranye', color: Color(0xFFFF6F00)),
+    PickableColor(label: 'Merah', color: Color(0xFFC62828)),
+    PickableColor(label: 'Ungu', color: Color(0xFF6A1B9A)),
+    PickableColor(label: 'Cyan', color: Color(0xFF00838F)),
+    PickableColor(label: 'Pink', color: Color(0xFFAD1457)),
+    PickableColor(label: 'Abu', color: Color(0xFF546E7A)),
+  ];
+
+  /// Resolve the polyline colour for a haul.
+  ///
+  /// If the user explicitly picked a colour ([colorValue] is non-null)
+  /// we materialise that int back into a [Color]. Otherwise we fall
+  /// back to the deterministic per-order palette so existing hauls
+  /// keep their distinct mini-track colours without any DB backfill.
+  static Color resolveHaulColor({
+    required int? colorValue,
+    required int orderIndex,
+  }) {
+    if (colorValue != null) {
+      return Color(colorValue);
+    }
+    return colorForHaul(orderIndex);
+  }
+}
+
+/// A single entry in the user-facing haul colour picker — label + swatch.
+class PickableColor {
+  const PickableColor({required this.label, required this.color});
+
+  final String label;
+  final Color color;
 }
 
 /// Linear gradients used throughout the app.

@@ -8,21 +8,28 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/services/gps_reading.dart';
 import '../../../core/services/gps_service.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/ambient_background.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../../../core/widgets/status_chip.dart';
 import '../../tracking/application/tracking_controller.dart';
 import '../../tracking/application/tracking_state.dart';
+import '../../tracking/data/haul_repository.dart';
+import '../../tracking/data/trip_repository.dart';
 import '../../tracking/domain/entities/haul.dart';
+import '../../tracking/domain/entities/trip.dart';
 import '../../tracking/presentation/widgets/active_haul_polyline.dart';
 import '../../tracking/presentation/widgets/haul_summary_sheet.dart';
 import '../../tracking/presentation/widgets/live_stats_panel.dart';
 import '../../tracking/presentation/widgets/recording_banner.dart';
 import '../../offline_map/data/tile_cache_service.dart';
 import '../../onboarding/data/user_profile_repository.dart';
+import '../application/history_overlay_providers.dart';
+import '../application/map_overlay_state.dart';
 import 'providers/location_permission_provider.dart';
 import 'widgets/boat_marker.dart';
 import 'widgets/gps_accuracy_chip.dart';
@@ -32,10 +39,6 @@ import 'widgets/map_attribution.dart';
 import 'widgets/map_controls.dart';
 
 /// Home tab — map + live GPS position + haul recording controls.
-///
-/// M1: flutter_map, OSM + OpenSeaMap, live boat marker.
-/// M2: tombol Mulai Tebar / Angkat Trawl wired, live stats, polyline,
-/// summary sheet, crash recovery dialog.
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
 
@@ -50,6 +53,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   final MapController _mapController = MapController();
   bool _followingUser = true;
   bool _checkedRecovery = false;
+
+  // Tracks the overlay whose bounds we already fitted the camera to, so
+  // pulling to refresh doesn't keep snapping the user's view.
+  Object? _fittedOverlayKey;
 
   @override
   void initState() {
@@ -112,12 +119,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       return;
     }
 
-    // Haptic feedback (per design §7).
     await _haptic();
 
-    // M8: read trawl width from the user profile (set during onboarding).
-    // Fallback to 20m — matches the onboarding default and keeps tests
-    // that bypass the profile working unchanged.
     final profile = ref.read(userProfileProvider).asData?.value;
     final width = profile?.trawlWidthMeters ?? 20.0;
 
@@ -138,12 +141,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     if (!mounted) return;
 
     switch (action) {
-      case HaulSummaryAction.nextHaul:
-        await _onStartHaulPressed();
       case HaulSummaryAction.endTrip:
+        // Dialog already renamed the trip; now actually finalise it.
         await ref.read(trackingControllerProvider.notifier).endTrip();
+      case HaulSummaryAction.saved:
+        // Stay idle. User taps MULAI TEBAR again from the bottom panel
+        // if they want another haul in the same trip.
+        break;
       case HaulSummaryAction.dismissed:
-        // Stay idle with trip still active — user can tap again later.
         break;
     }
   }
@@ -201,15 +206,52 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 
   Future<void> _haptic() async {
-    // Medium-impact haptic on start/stop haul — matches design §7.
-    // Wrapped in try/catch because some test environments don't have a
-    // platform channel attached.
     try {
       await HapticFeedback.mediumImpact();
     } catch (_) {
-      // no-op
+      // no-op — test env has no platform channel.
     }
   }
+
+  // ---------------------------------------------------------------------
+  // Overlay helpers
+  // ---------------------------------------------------------------------
+
+  /// Resolve the current overlay's render provider (if any). Returns null
+  /// for [MapOverlayNone], keeping the rest of the build call simple.
+  AsyncValue<HistoryOverlayRender>? _watchOverlayRender(
+    MapOverlayMode mode,
+  ) {
+    return switch (mode) {
+      MapOverlayNone() => null,
+      MapOverlayAllHistory() => ref.watch(allHistoryRenderProvider),
+      MapOverlaySingleTrip(tripId: final id) =>
+        ref.watch(tripRenderProvider(id)),
+      MapOverlaySingleHaul(haulId: final id) =>
+        ref.watch(haulRenderProvider(id)),
+    };
+  }
+
+  void _fitOverlayBounds(MapOverlayMode mode, HistoryOverlayRender render) {
+    if (render.bounds == null) return;
+    final key = _overlayKey(mode);
+    if (_fittedOverlayKey == key) return;
+    _fittedOverlayKey = key;
+    _followingUser = false;
+    _mapController.fitCamera(
+      CameraFit.bounds(
+        bounds: render.bounds!,
+        padding: const EdgeInsets.all(64),
+      ),
+    );
+  }
+
+  Object _overlayKey(MapOverlayMode mode) => switch (mode) {
+        MapOverlayNone() => 'none',
+        MapOverlayAllHistory() => 'all',
+        MapOverlaySingleTrip(tripId: final id) => 'trip:$id',
+        MapOverlaySingleHaul(haulId: final id) => 'haul:$id',
+      };
 
   // ---------------------------------------------------------------------
   // Build
@@ -226,6 +268,44 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final hasPermission = permState == LocationPermissionState.ready;
     final trackingState = ref.watch(trackingControllerProvider);
     final isRecording = trackingState.isRecording;
+
+    final overlayMode = ref.watch(mapOverlayControllerProvider);
+    final overlayAsync = _watchOverlayRender(overlayMode);
+    final overlayActive = overlayMode is! MapOverlayNone;
+
+    // Reset remembered fit when overlay is cleared so the next enable
+    // will re-fit.
+    if (!overlayActive) {
+      _fittedOverlayKey = null;
+    }
+
+    // Auto-zoom on new overlay data.
+    overlayAsync?.whenData((render) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _fitOverlayBounds(overlayMode, render);
+      });
+    });
+
+    final overlayPolylines = <Polyline>[];
+    if (overlayAsync != null) {
+      final tracks = overlayAsync.asData?.value.tracks ?? const [];
+      for (final t in tracks) {
+        final color = AppColors.resolveHaulColor(
+          colorValue: t.colorValue,
+          orderIndex: t.orderIndex,
+        );
+        overlayPolylines.add(
+          Polyline(
+            points: t.points,
+            strokeWidth: 4,
+            color: color.withValues(alpha: 0.4),
+            borderStrokeWidth: 0.6,
+            borderColor: Colors.white.withValues(alpha: 0.35),
+          ),
+        );
+      }
+    }
 
     return AmbientBackground(
       showBlobs: false,
@@ -258,10 +338,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     userAgentPackageName: 'id.co.langgengsea',
                     maxNativeZoom: 19,
                     retinaMode: RetinaMode.isHighDensity(context),
-                    // Cache-first tile provider. Tiles the user has
-                    // downloaded for offline use are served from disk;
-                    // new tiles fall back to the network and also get
-                    // cached for next time the user browses this area.
                     tileProvider: ref
                         .read(tileCacheServiceProvider)
                         .cachedTileProvider(
@@ -273,6 +349,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         'https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png',
                     userAgentPackageName: 'id.co.langgengsea',
                   ),
+                  if (overlayPolylines.isNotEmpty)
+                    PolylineLayer<Object>(polylines: overlayPolylines),
                   // Active haul polyline (empty layer when not recording).
                   const ActiveHaulPolyline(),
                   if (reading != null)
@@ -299,9 +377,21 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               top: AppSizes.sp3,
               left: AppSizes.sp4,
               right: AppSizes.sp4,
-              child: isRecording
-                  ? const RecordingBanner()
-                  : _IdleAppBar(),
+              child: Column(
+                children: [
+                  isRecording ? const RecordingBanner() : _IdleAppBar(),
+                  if (overlayActive && overlayAsync != null) ...[
+                    const SizedBox(height: AppSizes.sp2),
+                    _OverlayContextChip(
+                      mode: overlayMode,
+                      async: overlayAsync,
+                      onClear: () => ref
+                          .read(mapOverlayControllerProvider.notifier)
+                          .clear(),
+                    ),
+                  ],
+                ],
+              ),
             ),
 
             // --- Live stats (only while recording) ---
@@ -313,11 +403,23 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 child: LiveStatsPanel(),
               ),
 
-            // --- GPS accuracy chip ---
+            // --- GPS accuracy chip + Footprints toggle (top-right column) ---
             Positioned(
               top: isRecording ? 170 : 100,
               right: AppSizes.sp5,
-              child: const GpsAccuracyChip(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const GpsAccuracyChip(),
+                  const SizedBox(height: AppSizes.sp2),
+                  _AllHistoryToggle(
+                    on: overlayMode is MapOverlayAllHistory,
+                    onTap: () => ref
+                        .read(mapOverlayControllerProvider.notifier)
+                        .toggleAllHistory(),
+                  ),
+                ],
+              ),
             ),
 
             // --- Map controls ---
@@ -368,7 +470,184 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 }
 
 // ===========================================================================
-// Private UI pieces
+// All-history footprints toggle (sits right under the GPS accuracy chip)
+// ===========================================================================
+
+class _AllHistoryToggle extends StatelessWidget {
+  const _AllHistoryToggle({required this.on, required this.onTap});
+
+  final bool on;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final color = on ? context.colors.primary : tokens.textTertiary;
+    return Semantics(
+      label: on ? 'Sembunyikan jejak riwayat' : 'Tampilkan semua riwayat',
+      button: true,
+      toggled: on,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+          child: Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: tokens.surface3,
+              shape: BoxShape.circle,
+              border: Border.all(color: tokens.borderStrong),
+              boxShadow: [
+                BoxShadow(
+                  color: tokens.shadowMd,
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Icon(
+              on
+                  ? PhosphorIconsFill.footprints
+                  : PhosphorIconsRegular.footprints,
+              color: color,
+              size: 20,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ===========================================================================
+// Overlay context chip (top of the map while an overlay is active)
+// ===========================================================================
+
+class _OverlayContextChip extends ConsumerWidget {
+  const _OverlayContextChip({
+    required this.mode,
+    required this.async,
+    required this.onClear,
+  });
+
+  final MapOverlayMode mode;
+  final AsyncValue<HistoryOverlayRender> async;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tokens = context.tokens;
+    final text = context.text;
+
+    final (label, subtitle) = _buildLabel(ref);
+
+    return GlassCard(
+      level: GlassLevel.level2,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.sp3,
+        vertical: AppSizes.sp2 + 2,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: tokens.primarySoft,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              PhosphorIconsFill.footprints,
+              size: 16,
+              color: context.colors.primary,
+            ),
+          ),
+          const SizedBox(width: AppSizes.sp2),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: text.titleSmall?.copyWith(fontSize: 13),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (subtitle.isNotEmpty)
+                  Text(
+                    subtitle,
+                    style: text.bodySmall?.copyWith(
+                      color: tokens.textTertiary,
+                      fontSize: 11,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: onClear,
+            tooltip: 'Tutup overlay',
+            icon: const Icon(PhosphorIconsRegular.x, size: 18),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(
+              minWidth: 32,
+              minHeight: 32,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  (String, String) _buildLabel(WidgetRef ref) {
+    final render = async.asData?.value;
+    final tripHeadCount = render?.sourceHaulCount ?? 0;
+
+    switch (mode) {
+      case MapOverlayNone():
+        return ('', '');
+      case MapOverlayAllHistory():
+        if (render == null) return ('Semua Riwayat', 'Memuat…');
+        return (
+          'Semua Riwayat',
+          '$tripHeadCount haul selesai',
+        );
+      case MapOverlaySingleTrip(tripId: final id):
+        final tripAsync = ref.watch(tripByIdProvider(id));
+        final trip = tripAsync.asData?.value;
+        final titleBase = _tripTitle(trip);
+        final countLabel = render == null
+            ? 'Memuat…'
+            : '$tripHeadCount haul';
+        return ('Trip: $titleBase', countLabel);
+      case MapOverlaySingleHaul(haulId: final id):
+        final haulAsync = ref.watch(haulByIdProvider(id));
+        final haul = haulAsync.asData?.value;
+        final title = haul == null
+            ? 'Haul'
+            : 'Haul #${haul.orderIndex}: ${haul.displayName()}';
+        final subtitle = haul == null
+            ? 'Memuat…'
+            : Formatters.sectionDate(haul.startedAt);
+        return (title, subtitle);
+    }
+  }
+
+  String _tripTitle(Trip? trip) {
+    if (trip == null) return '…';
+    if (trip.name != null && trip.name!.isNotEmpty) return trip.name!;
+    return Formatters.sectionDate(trip.startedAt);
+  }
+}
+
+// ===========================================================================
+// Private UI pieces (idle app bar + action panel) — unchanged behaviour
 // ===========================================================================
 
 class _IdleAppBar extends ConsumerWidget {
@@ -532,7 +811,10 @@ class _ActionPanel extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      _subtitle(state: state, hasPermission: hasPermission, hasFix: hasFix),
+                      _subtitle(
+                          state: state,
+                          hasPermission: hasPermission,
+                          hasFix: hasFix),
                       style: text.bodySmall?.copyWith(
                         color: tokens.textTertiary,
                       ),

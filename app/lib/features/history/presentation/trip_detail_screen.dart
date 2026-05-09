@@ -11,6 +11,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/ambient_background.dart';
 import '../../../core/widgets/glass_card.dart';
+import '../../map/application/map_overlay_state.dart';
 import '../../tracking/data/haul_repository.dart';
 import '../../tracking/data/track_point_repository.dart';
 import '../../tracking/data/trip_repository.dart';
@@ -55,6 +56,12 @@ class TripDetailScreen extends ConsumerWidget {
                 pointsAsync: pointsAsync,
                 onHaulTap: (haul) =>
                     context.push(AppRoutes.haulDetail(haul.id)),
+                onExpandMap: () {
+                  ref
+                      .read(mapOverlayControllerProvider.notifier)
+                      .showTrip(trip.id);
+                  context.go(AppRoutes.map);
+                },
               ),
             );
           },
@@ -152,12 +159,14 @@ class _Body extends StatelessWidget {
     required this.hauls,
     required this.pointsAsync,
     required this.onHaulTap,
+    required this.onExpandMap,
   });
 
   final Trip trip;
   final List<Haul> hauls;
   final AsyncValue<Map<String, List<TrackPoint>>> pointsAsync;
   final void Function(Haul) onHaulTap;
+  final VoidCallback onExpandMap;
 
   @override
   Widget build(BuildContext context) {
@@ -189,6 +198,7 @@ class _Body extends StatelessWidget {
           data: (pointsMap) => MultiHaulMap(
             hauls: hauls,
             pointsByHaulId: pointsMap,
+            onExpandTap: onExpandMap,
           ),
         ),
         const SizedBox(height: AppSizes.sp3),

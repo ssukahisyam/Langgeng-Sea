@@ -11,6 +11,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/ambient_background.dart';
 import '../../../core/widgets/glass_card.dart';
+import '../../map/application/map_overlay_state.dart';
 import '../../tracking/data/haul_repository.dart';
 import '../../tracking/data/track_point_repository.dart';
 import '../../tracking/domain/entities/haul.dart';
@@ -43,7 +44,16 @@ class HaulDetailScreen extends ConsumerWidget {
           error: (e, _) => _ErrorState(message: '$e'),
           data: (haul) {
             if (haul == null) return const _NotFoundState();
-            return _Body(haul: haul, pointsAsync: pointsAsync);
+            return _Body(
+              haul: haul,
+              pointsAsync: pointsAsync,
+              onExpandMap: () {
+                ref
+                    .read(mapOverlayControllerProvider.notifier)
+                    .showHaul(haul.id);
+                context.go(AppRoutes.map);
+              },
+            );
           },
         ),
       ),
@@ -145,10 +155,15 @@ class HaulDetailScreen extends ConsumerWidget {
 // ===========================================================================
 
 class _Body extends StatelessWidget {
-  const _Body({required this.haul, required this.pointsAsync});
+  const _Body({
+    required this.haul,
+    required this.pointsAsync,
+    required this.onExpandMap,
+  });
 
   final Haul haul;
   final AsyncValue<List<TrackPoint>> pointsAsync;
+  final VoidCallback onExpandMap;
 
   @override
   Widget build(BuildContext context) {
@@ -168,6 +183,7 @@ class _Body extends StatelessWidget {
           data: (points) => MultiHaulMap(
             hauls: [haul],
             pointsByHaulId: {haul.id: points},
+            onExpandTap: onExpandMap,
           ),
         ),
         const SizedBox(height: AppSizes.sp4),
