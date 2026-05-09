@@ -158,16 +158,16 @@ class _FilterChip extends StatelessWidget {
           vertical: AppSizes.sp2,
         ),
         decoration: BoxDecoration(
-          color: selected ? tokens.accent : tokens.surface2,
-          borderRadius: BorderRadius.circular(AppSizes.radiusFull),
+          color: selected ? context.colors.secondary : tokens.surface2,
+          borderRadius: BorderRadius.circular(AppSizes.radiusPill),
           border: Border.all(
-            color: selected ? tokens.accent : tokens.border,
+            color: selected ? context.colors.secondary : tokens.border,
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? Colors.white : tokens.textPrimary,
+            color: selected ? Colors.white : context.colors.onSurface,
             fontSize: 13,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
           ),

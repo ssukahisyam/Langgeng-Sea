@@ -116,8 +116,7 @@ class FmtcTileCacheService implements TileCacheService {
       ),
     );
 
-    final (:downloadProgress, :tileEvents) =
-        store.download.startForeground(region: rect);
+    final downloadProgress = store.download.startForeground(region: rect);
 
     await for (final p in downloadProgress) {
       yield TileDownloadProgress(
@@ -128,8 +127,6 @@ class FmtcTileCacheService implements TileCacheService {
         cachedSizeBytes: (p.cachedSize * 1024).round(),
       );
     }
-    // Drain the tile-events stream so FMTC doesn't hold resources.
-    await tileEvents.drain<void>();
   }
 
   @override

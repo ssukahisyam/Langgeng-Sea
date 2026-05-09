@@ -1,4 +1,5 @@
-import 'dart:ui' show FontFeature;
+import 'dart:math' as math;
+import 'dart:ui' as ui show FontFeature, Path, PathOperation;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -56,8 +57,8 @@ class _RegionPickerScreenState extends ConsumerState<RegionPickerScreen> {
   /// screen using the current camera.
   void _recomputeBounds() {
     if (!mounted || _viewportSize == Size.zero) return;
-    final topLeft = Offset(_horizontalInset, _topInset);
-    final bottomRight = Offset(
+    final topLeft = math.Point<double>(_horizontalInset, _topInset);
+    final bottomRight = math.Point<double>(
       _viewportSize.width - _horizontalInset,
       _viewportSize.height - _bottomInset,
     );
@@ -230,11 +231,11 @@ class _SelectionOverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     // Shade everything outside the selection using even-odd fill.
-    final full = Path()..addRect(Offset.zero & size);
-    final inner = Path()
+    final full = ui.Path()..addRect(Offset.zero & size);
+    final inner = ui.Path()
       ..addRRect(RRect.fromRectAndRadius(selectionRect,
           const Radius.circular(AppSizes.radiusMd)));
-    final shade = Path.combine(PathOperation.difference, full, inner);
+    final shade = ui.Path.combine(ui.PathOperation.difference, full, inner);
     canvas.drawPath(shade, Paint()..color = shadeColor);
 
     // Border around the selection.
@@ -377,8 +378,8 @@ class _ConfigPanel extends ConsumerWidget {
 
   static String _countHuman(int c) {
     if (c < 1000) return '$c';
-    if (c < 1_000_000) return '${(c / 1000).toStringAsFixed(1)}K';
-    return '${(c / 1_000_000).toStringAsFixed(1)}M';
+    if (c < 1000000) return '${(c / 1000).toStringAsFixed(1)}K';
+    return '${(c / 1000000).toStringAsFixed(1)}M';
   }
 }
 
@@ -413,7 +414,7 @@ class _EstimateTile extends StatelessWidget {
                   value,
                   style: text.titleSmall?.copyWith(
                     fontWeight: FontWeight.w800,
-                    fontFeatures: const [FontFeature.tabularFigures()],
+                    fontFeatures: const [ui.FontFeature.tabularFigures()],
                   ),
                 ),
                 Text(
@@ -596,7 +597,7 @@ class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
                   _formatEstimate(newEstimate),
                   style: text.bodySmall?.copyWith(
                     color: tokens.textSecondary,
-                    fontFeatures: const [FontFeature.tabularFigures()],
+                    fontFeatures: const [ui.FontFeature.tabularFigures()],
                   ),
                 ),
               ],

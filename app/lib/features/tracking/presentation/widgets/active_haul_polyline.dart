@@ -17,12 +17,12 @@ class ActiveHaulPolyline extends ConsumerWidget {
     final points = state.livePoints;
     final haul = state.haul;
     if (haul == null || points.length < 2) {
-      return const PolylineLayer(polylines: []);
+      return const PolylineLayer<Object>(polylines: []);
     }
 
     final color = AppColors.colorForHaul(haul.orderIndex);
 
-    return PolylineLayer(
+    return PolylineLayer<Object>(
       polylines: [
         // Soft outer glow for visibility on busy tiles.
         Polyline(

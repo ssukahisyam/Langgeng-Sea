@@ -29,7 +29,7 @@ class LocationPermissionSheet extends ConsumerWidget {
     final state = ref.watch(locationPermissionProvider);
     final controller = ref.read(locationPermissionProvider.notifier);
 
-    final (title, body, ctaLabel, ctaIcon, onCta) = switch (state) {
+    final (title, body, ctaLabel, ctaIcon, Future<void> Function() onCta) = switch (state) {
       LocationPermissionState.serviceDisabled => (
           'Aktifkan Lokasi',
           'Langgeng Sea butuh GPS aktif untuk merekam jejak trawl. '
@@ -51,7 +51,7 @@ class LocationPermissionSheet extends ConsumerWidget {
           'GPS Anda sudah siap dipakai untuk merekam jejak trawl.',
           'Tutup',
           PhosphorIconsBold.checkCircle,
-          () => Navigator.of(context).pop(),
+          () async => Navigator.of(context).pop(),
         ),
       LocationPermissionState.denied ||
       LocationPermissionState.unknown =>
