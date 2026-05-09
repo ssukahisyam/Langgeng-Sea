@@ -2,7 +2,10 @@ import 'package:drift/drift.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../../../data/database/tables.dart';
+// See note in tracking/data/mappers.dart — we import the database
+// barrel (not tables.dart) so that generated OfflineRegionRow +
+// OfflineRegionsCompanion classes are visible.
+import '../../../data/database/app_database.dart';
 import '../domain/entities/offline_region.dart';
 
 /// Pure Drift-row ↔ [OfflineRegion] mapping. Isolated so the domain

@@ -1,6 +1,12 @@
 import 'package:drift/drift.dart';
 
-import '../../../data/database/tables.dart';
+// Import the app_database barrel so that generated types like
+// TripRow/HaulRow/TrackPointRow (defined in app_database.g.dart) and
+// TripsCompanion/HaulsCompanion/TrackPointsCompanion (also generated
+// into app_database.g.dart) are visible here. tables.dart alone is
+// not enough — row/companion classes are generated on top of the
+// tables declaration, not in the same file.
+import '../../../data/database/app_database.dart';
 import '../domain/entities/haul.dart';
 import '../domain/entities/track_point.dart';
 import '../domain/entities/trip.dart';
