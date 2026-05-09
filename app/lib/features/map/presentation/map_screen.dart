@@ -32,23 +32,23 @@ import 'widgets/map_controls.dart';
 
 /// Home tab — map + live GPS position + haul recording controls.
 ///
-/// PERFORMANCE NOTE: this widget is intentionally NOT a `Consumer` at
-/// the top level. Watching `trackingControllerProvider` or
-/// `currentReadingProvider` at the top would rebuild the entire Stack
-/// (map tile layer + overlays + bottom panel) on every GPS fix — about
-/// once per 1-2 seconds. That was the source of the app-wide lag.
+/// PERFORMANCE: top-level widget deliberately isn't a Consumer. See
+/// isolated `_*Isolated` consumers below. `ref.listen` handles the
+/// camera-follow side effect without rebuilding the whole Stack.
 ///
-/// Instead we do two things:
-///   1. `ref.listen` on `currentReadingProvider` to drive camera follow
-///      as a side-effect (no rebuild).
-///   2. Push the provider `watch` calls down into tiny `Consumer`
-///      widgets that wrap only the piece that depends on that state
-///      (boat marker, polyline, GPS chip, action panel). Rebuilds stay
-///      isolated to a few hundred Bytes of the widget tree.
+/// LAYOUT: the bottom-anchored UI (map controls FAB, attribution,
+/// action panel) lives inside a single bottom-aligned Column. FAB and
+/// attribution sit directly ABOVE the action panel — so when the
+/// action panel grows (e.g. recording state adds the stop button),
+/// the FAB shifts up with it and never overlaps. The whole column
+/// then respects `MediaQuery.padding.bottom` which AppShell inflates
+/// to `gestureBar + navHeight + gap`, so nothing is ever hidden
+/// behind the floating nav bar.
 ///
-/// The AmbientBackground wrapper is also intentionally removed — the
-/// map tile layer IS the background; stacking a blur layer on top of
-/// streaming tiles was killing the raster cache.
+/// GPS AUTO-DETECT: observes the app lifecycle so a re-check fires
+/// when the user comes back from the system location-settings
+/// screen. The permission provider itself also subscribes to
+/// `ServiceStatusStream`, so both paths converge.
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
 
@@ -56,7 +56,8 @@ class MapScreen extends ConsumerStatefulWidget {
   ConsumerState<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends ConsumerState<MapScreen> {
+class _MapScreenState extends ConsumerState<MapScreen>
+    with WidgetsBindingObserver {
   static const _initialCenter = LatLng(-7.25, 113.42); // Selat Madura
   static const _initialZoom = 9.0;
 
@@ -67,6 +68,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ref.read(locationPermissionProvider.notifier).check();
       if (!mounted) return;
@@ -92,8 +94,21 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _mapController.dispose();
     super.dispose();
+  }
+
+  /// Re-check permission when user comes back from system Settings.
+  /// If they toggled GPS on, the ServiceStatusStream would already
+  /// have fired — this is a belt-and-suspenders fallback for cases
+  /// where the stream missed the event (some Android vendors throttle
+  /// broadcast receivers when apps are backgrounded).
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      ref.read(locationPermissionProvider.notifier).check();
+    }
   }
 
   void _maybeFollow(GpsReading reading) {
@@ -225,14 +240,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       next.whenData(_maybeFollow);
     });
 
-    // Bottom padding = safe area (gesture bar) + nav bar + breathing
-    // room. This is what prevents the action panel from being hidden
-    // behind the floating bottom-nav on tall phones like Redmi Note
-    // 10 Pro with gesture navigation.
-    final bottomInset = MediaQuery.of(context).padding.bottom;
-    const kNavBarHeight = 72.0; // matches _NavButton size in AppShell
-    const kGapFromNav = 16.0;
-    final bottomSafe = bottomInset + kNavBarHeight + kGapFromNav;
+    // MediaQuery.padding.bottom here = AppShell's injected value
+    // (gestureBar + navHeight + gap). We use it as the bottom margin
+    // of the action-panel column, which keeps everything above the
+    // floating nav without hard-coded numbers.
+    final bottomSafe = MediaQuery.of(context).padding.bottom;
 
     return SafeArea(
       bottom: false,
@@ -307,32 +319,35 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             child: GpsAccuracyChip(),
           ),
 
-          // --- Map controls (fab column) ---
-          // Positioned above the action panel so they don't overlap.
-          // 100 for action panel height + gap. RepaintBoundary isolates
-          // the FAB repaint from the map tile rebuild.
-          Positioned(
-            right: AppSizes.sp4,
-            bottom: bottomSafe + 140,
-            child: RepaintBoundary(
-              child: _MapControlsIsolated(onCenterOnMe: _centerOnMe),
-            ),
-          ),
-
-          // --- Attribution (OSM + OpenSeaMap ToS requirement) ---
-          Positioned(
-            left: AppSizes.sp4,
-            bottom: bottomSafe + 140,
-            child: const MapAttribution(),
-          ),
-
-          // --- Bottom action panel ---
-          // Sits above the nav bar with gesture-bar safe padding.
+          // --- Bottom stack: attribution + FAB + action panel ---
+          // Everything anchored to bottom lives in this single Column so
+          // the FAB is always directly above the action panel
+          // (regardless of whether the action panel is the idle or the
+          // recording variant, which differ in height).
           Positioned(
             left: AppSizes.sp4,
             right: AppSizes.sp4,
             bottom: bottomSafe,
-            child: const _BottomPanelIsolated(),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Row: attribution on the left, FAB on the right.
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const MapAttribution(),
+                    RepaintBoundary(
+                      child:
+                          _MapControlsIsolated(onCenterOnMe: _centerOnMe),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSizes.sp2),
+                const _BottomPanelIsolated(),
+              ],
+            ),
           ),
         ],
       ),
@@ -352,9 +367,6 @@ class _ActivePolylineIsolated extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Single call still watches the whole state, but the widget is
-    // tiny: Flutter's build only diffs the Polyline list, which
-    // RenderFlutterMap already handles efficiently.
     return const ActiveHaulPolyline();
   }
 }
@@ -403,8 +415,7 @@ class _TopPanel extends ConsumerWidget {
   }
 }
 
-/// Live stats only rendered when recording. Uses internal Consumer so
-/// it's a single 1 Hz ticker when visible, zero work when not.
+/// Live stats only rendered when recording.
 class _LiveStatsIsolated extends ConsumerWidget {
   const _LiveStatsIsolated();
 
@@ -417,7 +428,7 @@ class _LiveStatsIsolated extends ConsumerWidget {
   }
 }
 
-/// Center-on-me FAB. Only rebuilds when permission state flips.
+/// Center-on-me FAB. Rebuilds when permission state flips.
 class _MapControlsIsolated extends ConsumerWidget {
   const _MapControlsIsolated({required this.onCenterOnMe});
 
@@ -446,10 +457,6 @@ class _BottomPanelIsolated extends ConsumerWidget {
         LocationPermissionState.ready;
     final hasFix = ref.watch(currentReadingProvider).asData?.value != null;
 
-    // Walk up the widget tree to find _MapScreenState so we can call
-    // the same handlers the old design used. This keeps the haul
-    // lifecycle logic in one place (the stateful parent) while the
-    // visual rebuild cost stays isolated here.
     final mapState = context.findAncestorStateOfType<_MapScreenState>();
     if (mapState == null) return const SizedBox.shrink();
 
@@ -619,7 +626,6 @@ class _ActionPanel extends StatelessWidget {
       );
     }
 
-    // Idle (possibly mid-trip).
     return GlassCard(
       level: GlassLevel.level2,
       child: Column(
@@ -633,7 +639,9 @@ class _ActionPanel extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      state.hasTrip ? 'Trip Berjalan' : AppStrings.readyToSail,
+                      state.hasTrip
+                          ? 'Trip Berjalan'
+                          : AppStrings.readyToSail,
                       style: text.titleMedium,
                     ),
                     const SizedBox(height: 2),
