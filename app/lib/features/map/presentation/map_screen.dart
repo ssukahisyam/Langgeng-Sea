@@ -272,7 +272,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     urlTemplate:
                         'https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png',
                     userAgentPackageName: 'id.co.langgengsea',
-                    backgroundColor: Colors.transparent,
                   ),
                   // Active haul polyline (empty layer when not recording).
                   const ActiveHaulPolyline(),
