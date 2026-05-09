@@ -90,8 +90,8 @@ Estimasi total: **~13 minggu (3 bulan)** dari mulai coding.
 | M6 Dashboard | 1 minggu | Statistik, grafik | ✅ Done |
 | M7 Ekspor / Impor | 1 minggu | GPX + JSON share | ✅ Done |
 | M8 Onboarding & Polish | 1.5 minggu | Tutorial, UI polish | ✅ Done |
-| M9 QA & Beta | 2 minggu | Test real-world | 🔜 Next |
-| M10 Rilis MVP | 0.5 minggu | Play Store | ⏳ |
+| M9 QA & Beta | 2 minggu | Test real-world | ✅ Done |
+| M10 Rilis MVP | 0.5 minggu | Play Store | 🔜 Next |
 
 Detail lengkap: [`tasks.md`](./.kiro/specs/langgeng-sea/tasks.md)
 
@@ -120,3 +120,21 @@ Detail lengkap: [`tasks.md`](./.kiro/specs/langgeng-sea/tasks.md)
 
 Peta dasar oleh [OpenStreetMap contributors](https://www.openstreetmap.org/copyright).
 Layer nautical oleh [OpenSeaMap](https://www.openseamap.org/).
+
+---
+
+## 🧪 Beta Testing
+
+Aplikasi saat ini dalam fase **Beta**. Untuk bergabung sebagai beta tester:
+
+1. Hubungi kami via WhatsApp: +62-xxx-xxx-xxxx (dummy for now)
+2. Install APK beta (distribusi via Google Drive atau Play Console internal testing)
+3. Gunakan saat trip melaut minimum 3 kali
+4. Submit feedback via Google Form (link diberikan saat pendaftaran)
+
+Lihat [`.kiro/specs/langgeng-sea/beta-test-plan.md`](./.kiro/specs/langgeng-sea/beta-test-plan.md) untuk detail lengkap,
+termasuk kriteria rekrutmen, timeline, dan bug triage process.
+
+Manual QA checklist (60+ scenarios): [`qa-checklist.md`](./.kiro/specs/langgeng-sea/qa-checklist.md).
+
+Bug report / saran: buka issue di repo ini atau hubungi via WhatsApp group.

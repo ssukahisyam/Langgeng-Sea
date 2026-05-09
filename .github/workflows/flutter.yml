@@ -50,7 +50,17 @@ jobs:
       - name: Analyze code
         run: flutter analyze --no-fatal-infos
 
-      - name: Run tests
+      - name: Run unit + integration tests
+        # `flutter test` discovers every *_test.dart under test/ including
+        # test/integration/trip_lifecycle_test.dart and
+        # test/data/database/migration_test.dart. Both run on the host VM
+        # against an in-memory SQLite — no emulator required.
+        #
+        # NOTE: True on-device integration tests live under
+        # integration_test/ (currently empty at M9). When those are added
+        # they need `flutter test integration_test/` run on a connected
+        # Android emulator / device, e.g. via
+        # reactivecircus/android-emulator-runner@v2.
         run: flutter test --reporter expanded
 
   build-debug-apk:
