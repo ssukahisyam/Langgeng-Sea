@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/dashboard/presentation/dashboard_screen.dart';
+import '../../features/export_import/presentation/import_screen.dart';
 import '../../features/history/presentation/haul_detail_screen.dart';
 import '../../features/history/presentation/history_screen.dart';
 import '../../features/history/presentation/trip_detail_screen.dart';
@@ -35,6 +36,7 @@ abstract class AppRoutes {
 
   // Coming in later milestones
   static const String markerList = '/markers';
+  static const String importData = '/import';
   static const String profile = '/settings/profile';
   static const String logBookHaul = '/log-book/haul/:id';
   static const String logBookTrip = '/log-book/trip/:id';
@@ -129,6 +131,11 @@ final GoRouter appRouter = GoRouter(
       path: AppRoutes.markerList,
       parentNavigatorKey: _rootNavigatorKey,
       pageBuilder: (_, __) => _slideUp(const MarkersListScreen()),
+    ),
+    GoRoute(
+      path: AppRoutes.importData,
+      parentNavigatorKey: _rootNavigatorKey,
+      pageBuilder: (_, __) => _slideUp(const ImportScreen()),
     ),
   ],
 );
