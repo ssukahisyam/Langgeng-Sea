@@ -79,7 +79,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  generate: true
+  # NOTE: `generate: true` is intentionally disabled — we don't ship an
+  # l10n.yaml / *.arb bundle yet. Re-enable when M11 (localisation) lands.
 
   assets:
     - assets/images/

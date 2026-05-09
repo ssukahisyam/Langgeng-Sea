@@ -28,6 +28,7 @@
         android:label="@string/app_name"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:requestLegacyExternalStorage="true">
 
         <activity
@@ -55,11 +56,15 @@
             android:name="flutterEmbedding"
             android:value="2" />
 
-        <!-- Background Service -->
-        <service
-            android:name="id.co.langgengsea.background.BackgroundTrackingService"
-            android:foregroundServiceType="location"
-            android:exported="false"/>
+        <!--
+          NOTE: The flutter_background_service plugin registers its own
+          foreground service automatically via manifest merging. We do
+          NOT declare a custom BackgroundTrackingService class here — it
+          would fail to resolve at runtime because no matching Kotlin
+          class exists in kotlin/id/co/langgengsea/. When we implement
+          a custom native service in v1.1 we'll re-add the <service>
+          tag together with the Kotlin implementation.
+        -->
 
     </application>
 
