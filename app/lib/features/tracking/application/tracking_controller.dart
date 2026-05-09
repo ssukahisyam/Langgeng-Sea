@@ -216,8 +216,17 @@ class TrackingController extends Notifier<TrackingState> {
 
     // Drop low-quality fixes from metric aggregation (still persisted so
     // the raw trace is preserved for later review).
+    //
+    // Gate relaxed from 25m → 50m in this revision. Reason: `high`
+    // accuracy mode (Fused Location Provider) reports ~30-40m indoors
+    // and near shore, which was getting ALL fixes dropped under the
+    // old 25m gate — polyline stayed empty when user walked around
+    // the village. 50m is still tight enough that real fixes di laut
+    // lepas (3-8m) selalu lolos, sementara indoor/pinggir-darat fixes
+    // (30-40m) juga masuk — akurasi berkurang ~1-2% di track total,
+    // acceptable trade-off.
     final acc = reading.accuracyMeters;
-    final accept = acc == null || acc <= 25.0;
+    final accept = acc == null || acc <= 50.0;
 
     await _points.appendReading(haulId: haul.id, reading: reading);
 

@@ -41,9 +41,13 @@ abstract class GpsService {
 
   /// Continuous stream of GPS readings at high accuracy.
   /// Emits until the subscription is cancelled.
-  /// [distanceFilterMeters] = 0 means emit every update regardless of movement.
+  ///
+  /// [distanceFilterMeters] = minimum movement before a new fix is
+  /// emitted. 0 = emit every sensor update (expensive). 2-5m is
+  /// responsive for walking/boat tracking without flooding the main
+  /// thread.
   Stream<GpsReading> watchPosition({
-    double distanceFilterMeters = 0,
+    double distanceFilterMeters = 2,
   });
 
   /// Opens the device's location settings screen.
@@ -82,10 +86,21 @@ class GeolocatorGpsService implements GpsService {
   }
 
   @override
-  Stream<GpsReading> watchPosition({double distanceFilterMeters = 0}) {
+  Stream<GpsReading> watchPosition({double distanceFilterMeters = 2}) {
+    // ACCURACY NOTE: we use `LocationAccuracy.high` (not
+    // `bestForNavigation`). Why:
+    //   - `bestForNavigation` = raw GPS chip, ignores WiFi/cell-tower
+    //     triangulation. Gives ~3m accuracy under open sky but can
+    //     never get a fix indoors (atap nge-block satelit).
+    //   - `high` = Android Fused Location Provider. Combines satelit +
+    //     WiFi + cell towers. ~10m under open sky, ~30-50m indoors.
+    //     Works everywhere Google Maps works.
+    // For our use case (trawl haul 500m-2km), 10m accuracy is fine —
+    // the noise is 1-2% of the total track length. Trade-off worth it
+    // because nelayan kadang cek app di rumah sebelum berangkat.
     return Geolocator.getPositionStream(
       locationSettings: LocationSettings(
-        accuracy: LocationAccuracy.bestForNavigation,
+        accuracy: LocationAccuracy.high,
         distanceFilter: distanceFilterMeters.toInt(),
       ),
     ).map(_toReading);
@@ -122,6 +137,10 @@ final gpsServiceProvider = Provider<GpsService>((ref) {
 });
 
 /// Live stream of GPS readings. Null while waiting for first fix.
+///
+/// 2m distanceFilter — responsive enough to show boat marker moving
+/// when user walks on deck, light enough to not trigger rebuild storms
+/// on the main thread.
 final currentReadingProvider = StreamProvider<GpsReading>((ref) {
   final svc = ref.watch(gpsServiceProvider);
   return svc.watchPosition();
