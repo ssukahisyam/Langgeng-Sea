@@ -16,7 +16,7 @@ void main() {
       const jakarta = LatLng(-6.2088, 106.8456);
       const surabaya = LatLng(-7.2575, 112.7521);
       final d = GeoCalculator.haversineMeters(jakarta, surabaya);
-      expect(d, closeTo(660_500, 3500));
+      expect(d, closeTo(660500, 3500));
     });
 
     test('is symmetric', () {

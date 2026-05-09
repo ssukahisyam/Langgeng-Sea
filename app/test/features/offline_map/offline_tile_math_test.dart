@@ -109,7 +109,7 @@ void main() {
     test('respects a custom average byte size', () {
       expect(
         OfflineTileMath.estimatedBytes(100, avgTileBytes: 10000),
-        1_000_000,
+        1000000,
       );
     });
   });

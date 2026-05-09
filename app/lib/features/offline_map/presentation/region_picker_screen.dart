@@ -377,8 +377,8 @@ class _ConfigPanel extends ConsumerWidget {
 
   static String _countHuman(int c) {
     if (c < 1000) return '$c';
-    if (c < 1_000_000) return '${(c / 1000).toStringAsFixed(1)}K';
-    return '${(c / 1_000_000).toStringAsFixed(1)}M';
+    if (c < 1000000) return '${(c / 1000).toStringAsFixed(1)}K';
+    return '${(c / 1000000).toStringAsFixed(1)}M';
   }
 }
 
