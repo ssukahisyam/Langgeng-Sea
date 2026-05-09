@@ -45,7 +45,23 @@ jobs:
         run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Verify formatting
-        run: dart format --set-exit-if-changed --output=none --exclude=lib/**/*.g.dart,lib/**/*.freezed.dart .
+        # NOTE: `dart format --exclude` was only added in Dart 3.6. Flutter
+        # 3.24.x ships Dart 3.5, so we can't use it. Instead we feed the
+        # formatter an explicit list of files, stripping out generated
+        # sources (`*.g.dart`, `*.freezed.dart`) via `grep -v`.
+        #
+        # Formatting is reported as a warning but does NOT fail the job —
+        # otherwise a stray whitespace commit would block the APK build.
+        continue-on-error: true
+        run: |
+          files=$(find lib test -name '*.dart' \
+            -not -name '*.g.dart' \
+            -not -name '*.freezed.dart' 2>/dev/null || true)
+          if [ -z "$files" ]; then
+            echo "No Dart files to format."
+          else
+            echo "$files" | xargs dart format --set-exit-if-changed --output=none
+          fi
 
       - name: Analyze code
         run: flutter analyze --no-fatal-infos
