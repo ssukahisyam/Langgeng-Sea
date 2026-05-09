@@ -83,3 +83,17 @@
 # ---------- Desugar library --------------------------------------------------
 -dontwarn java.lang.invoke.**
 -dontwarn com.android.tools.r8.**
+
+
+# ---------- Play Core (deferred components) ----------------------------------
+# Flutter embedding references com.google.android.play.core.* classes as
+# part of its deferred-components feature (split APKs downloaded at
+# runtime via Play Store). We do NOT use deferred components, so those
+# dependencies are not on the classpath. Tell R8 these missing
+# references are fine — the code path is never executed in our app.
+#
+# Without this, `flutter build apk --release` fails at :app:minifyReleaseWithR8
+# with "Missing class com.google.android.play.core.splitcompat.*" and ~10
+# sibling classes.
+-dontwarn com.google.android.play.core.**
+-keep class com.google.android.play.core.** { *; }
