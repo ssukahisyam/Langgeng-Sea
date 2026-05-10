@@ -31,10 +31,16 @@ import '../../tracking/presentation/widgets/active_haul_polyline.dart';
 import '../../tracking/presentation/widgets/haul_summary_sheet.dart';
 import '../../tracking/presentation/widgets/live_stats_panel.dart';
 import '../../tracking/presentation/widgets/recording_banner.dart';
+import '../../marker/data/marker_repository.dart';
+import '../../marker/domain/entities/marker.dart';
+import '../../marker/presentation/widgets/add_marker_dialog.dart';
+import '../../marker/presentation/widgets/marker_info_sheet.dart';
+import '../../marker/presentation/widgets/marker_pin.dart';
 import '../../offline_map/data/tile_cache_service.dart';
 import '../../onboarding/data/user_profile_repository.dart';
 import '../application/history_overlay_providers.dart';
 import '../application/map_overlay_state.dart';
+import '../application/markers_overlay_provider.dart';
 import 'providers/location_permission_provider.dart';
 import 'widgets/boat_marker.dart';
 import 'widgets/gps_accuracy_chip.dart';
@@ -205,6 +211,48 @@ class _MapScreenState extends ConsumerState<MapScreen>
     }
     setState(() => _followingUser = true);
     _mapController.move(reading.latLng, 15);
+  }
+
+  // ---------------------------------------------------------------------
+  // Marker handlers
+  // ---------------------------------------------------------------------
+
+  /// Prompt to add a marker at the user's current GPS position.
+  /// Requires a live fix — otherwise we'd drop a pin at (0,0).
+  Future<void> _onAddMarkerPressed(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final reading = ref.read(currentReadingProvider).asData?.value;
+    if (reading == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tunggu sinyal GPS dulu sebelum menandai lokasi.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    final draft = await showDialog<AppMarker>(
+      context: context,
+      builder: (_) => AddMarkerDialog(
+        latitude: reading.latLng.latitude,
+        longitude: reading.latLng.longitude,
+      ),
+    );
+    if (draft == null || !context.mounted) return;
+    // AddMarkerDialog only builds a draft AppMarker — the caller is
+    // responsible for persisting it through the repository.
+    await ref.read(markerRepositoryProvider).create(
+          name: draft.name,
+          category: draft.category,
+          latitude: draft.latitude,
+          longitude: draft.longitude,
+          notes: draft.notes,
+        );
+    if (!context.mounted) return;
+    // Auto-enable the overlay so the user immediately sees their pin.
+    ref.read(markersOverlayEnabledProvider.notifier).state = true;
   }
 
   // ---------------------------------------------------------------------
@@ -384,6 +432,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final overlayAsync = _watchOverlayRender(overlayMode);
     final overlayActive = overlayMode is! MapOverlayNone;
 
+    // User-placed markers overlay (persistent toggle, see
+    // markersOverlayEnabledProvider).
+    final markersOn = ref.watch(markersOverlayEnabledProvider);
+    final markersAsync =
+        markersOn ? ref.watch(allMarkersProvider) : null;
+
     // Reset remembered fit when overlay is cleared so the next enable
     // will re-fit.
     if (!overlayActive) {
@@ -470,6 +524,28 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     PolylineLayer<Object>(polylines: overlayPolylines),
                   // Active haul polyline (empty layer when not recording).
                   const ActiveHaulPolyline(),
+                  // User-placed markers — toggled by the pin icon in
+                  // the top-right column. Rendered ABOVE the history
+                  // polyline overlay but BELOW the boat marker so the
+                  // live position never disappears under a pin.
+                  if (markersOn)
+                    MarkerLayer(
+                      markers: (markersAsync?.asData?.value ?? const [])
+                          .map(
+                            (m) => Marker(
+                              point: m.latLng,
+                              width: 80,
+                              height: 48,
+                              alignment: Alignment.topCenter,
+                              child: MarkerPin(
+                                marker: m,
+                                onTap: () =>
+                                    MarkerInfoSheet.show(context, m),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    ),
                   if (reading != null)
                     MarkerLayer(
                       markers: [
@@ -535,6 +611,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
                         .read(mapOverlayControllerProvider.notifier)
                         .toggleAllHistory(),
                   ),
+                  const SizedBox(height: AppSizes.sp2),
+                  _MarkersToggle(
+                    on: markersOn,
+                    onTap: () {
+                      final notifier =
+                          ref.read(markersOverlayEnabledProvider.notifier);
+                      notifier.state = !notifier.state;
+                    },
+                  ),
                 ],
               ),
             ),
@@ -549,10 +634,20 @@ class _MapScreenState extends ConsumerState<MapScreen>
               ),
             ),
 
+            // --- Add-marker FAB (left side, sejajar MapControls) ---
+            Positioned(
+              left: AppSizes.sp4,
+              bottom: 220,
+              child: _AddMarkerButton(
+                onTap: () => _onAddMarkerPressed(context, ref),
+                enabled: hasPermission,
+              ),
+            ),
+
             // --- Attribution ---
             const Positioned(
               left: AppSizes.sp4,
-              bottom: 200,
+              bottom: 280,
               child: MapAttribution(),
             ),
 
@@ -631,6 +726,109 @@ class _AllHistoryToggle extends StatelessWidget {
                   : PhosphorIconsRegular.footprints,
               color: color,
               size: 20,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ===========================================================================
+// Markers toggle (sits below the All-History toggle)
+// ===========================================================================
+
+class _MarkersToggle extends StatelessWidget {
+  const _MarkersToggle({required this.on, required this.onTap});
+
+  final bool on;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final color = on ? context.colors.primary : tokens.textTertiary;
+    return Semantics(
+      label: on ? 'Sembunyikan penanda' : 'Tampilkan penanda',
+      button: true,
+      toggled: on,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+          child: Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: tokens.surface3,
+              shape: BoxShape.circle,
+              border: Border.all(color: tokens.borderStrong),
+              boxShadow: [
+                BoxShadow(
+                  color: tokens.shadowMd,
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Icon(
+              on ? PhosphorIconsFill.mapPin : PhosphorIconsRegular.mapPin,
+              color: color,
+              size: 20,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ===========================================================================
+// Add-marker FAB (mirrors MapControls' center-on-me button on the left)
+// ===========================================================================
+
+class _AddMarkerButton extends StatelessWidget {
+  const _AddMarkerButton({required this.onTap, required this.enabled});
+
+  final VoidCallback onTap;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    return Semantics(
+      label: 'Tambah penanda di posisi saat ini',
+      button: true,
+      enabled: enabled,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: enabled ? onTap : null,
+          borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+          child: Container(
+            width: 52,
+            height: 52,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: tokens.surface3,
+              shape: BoxShape.circle,
+              border: Border.all(color: tokens.borderStrong),
+              boxShadow: [
+                BoxShadow(
+                  color: tokens.shadowMd,
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Icon(
+              PhosphorIconsBold.mapPinPlus,
+              color: enabled
+                  ? context.colors.primary
+                  : tokens.textTertiary,
+              size: 22,
             ),
           ),
         ),

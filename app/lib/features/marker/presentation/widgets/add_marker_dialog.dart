@@ -40,7 +40,7 @@ class _AddMarkerDialogState extends State<AddMarkerDialog> {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nama marker wajib diisi')),
+        const SnackBar(content: Text('Nama penanda wajib diisi')),
       );
       return;
     }
@@ -63,7 +63,7 @@ class _AddMarkerDialogState extends State<AddMarkerDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Tambah Marker'),
+      title: const Text('Tambah Penanda'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -83,7 +83,7 @@ class _AddMarkerDialogState extends State<AddMarkerDialog> {
               controller: _nameController,
               autofocus: true,
               decoration: const InputDecoration(
-                labelText: 'Nama Marker',
+                labelText: 'Nama Penanda',
                 hintText: 'cth: Spot Udang Utara',
                 border: OutlineInputBorder(),
               ),
