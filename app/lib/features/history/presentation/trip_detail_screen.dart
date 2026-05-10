@@ -14,6 +14,8 @@ import '../../../core/widgets/glass_card.dart';
 import '../../logbook/data/log_book_repository.dart';
 import '../../logbook/domain/entities/log_book_entry.dart';
 import '../../map/application/map_overlay_state.dart';
+import '../../navigation/application/navigation_controller.dart';
+import '../../navigation/domain/entities/navigation_target.dart';
 import '../../tracking/data/haul_repository.dart';
 import '../../tracking/data/track_point_repository.dart';
 import '../../tracking/data/trip_repository.dart';
@@ -21,6 +23,7 @@ import '../../tracking/domain/entities/haul.dart';
 import '../../tracking/domain/entities/track_point.dart';
 import '../../tracking/domain/entities/trip.dart';
 import 'widgets/delete_confirm_dialog.dart';
+import 'widgets/follow_haul_picker_sheet.dart';
 import 'widgets/haul_list_tile.dart';
 import 'widgets/item_options_sheet.dart';
 import 'widgets/multi_haul_map.dart';
@@ -211,6 +214,12 @@ class _Body extends StatelessWidget {
           duration: totalDuration,
           sweptAreaM2: totalArea,
         ),
+        const SizedBox(height: AppSizes.sp4),
+
+        // Navigation CTAs -- shown above the hauls list so they read
+        // as actions on the trip as a whole, not on any individual
+        // haul below.
+        _NavigationCtaRow(hauls: hauls, pointsAsync: pointsAsync),
         const SizedBox(height: AppSizes.sp5),
 
         // Section header for hauls
@@ -654,6 +663,185 @@ class _TripLogBookCard extends ConsumerWidget {
       parts.add('Catatan tersimpan');
     }
     return parts.isEmpty ? 'Log tersimpan' : parts.join(' · ');
+  }
+}
+
+// ===========================================================================
+// Navigation CTAs
+// ===========================================================================
+
+/// Two buttons shown in the trip detail that kick the M11 navigation
+/// controller into action. Mirrors [HaulDetailScreen]'s CTA row
+/// semantically but operates at the trip scope:
+///
+///   * "Ikuti Jalur Tarikan" -- follow-track mode. If the trip has
+///     exactly one haul that haul is auto-picked; for 2+ hauls the
+///     [FollowHaulPickerSheet] pops to resolve which haul to follow.
+///     This matches spec sect 8.4's resolved open question: no
+///     gabungan polyline for multi-haul trips, instead a picker
+///     disambiguates because inter-haul gaps (boat repositioning
+///     between tarikan) would otherwise confuse the reference
+///     polyline.
+///   * "Pandu ke Akhir" -- go-to the last GPS fix of the last haul
+///     in the trip (ordered by orderIndex, which [haulsByTripProvider]
+///     already yields sorted).
+///
+/// Both CTAs depend on [pointsAsync] having resolved; while Drift
+/// is still resolving the points both buttons render disabled. When
+/// no haul has any GPS data a short hint pill replaces the row.
+class _NavigationCtaRow extends ConsumerWidget {
+  const _NavigationCtaRow({
+    required this.hauls,
+    required this.pointsAsync,
+  });
+
+  final List<Haul> hauls;
+  final AsyncValue<Map<String, List<TrackPoint>>> pointsAsync;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (hauls.isEmpty) return const SizedBox.shrink();
+
+    final pointsMap = pointsAsync.asData?.value;
+    final loading = pointsAsync is AsyncLoading;
+
+    // A haul is "navigable" when it has at least 2 GPS points. Trips
+    // with only crashed/empty hauls collapse to the no-data hint.
+    final navigableHauls = pointsMap == null
+        ? const <Haul>[]
+        : hauls
+            .where((h) => (pointsMap[h.id]?.length ?? 0) >= 2)
+            .toList(growable: false);
+
+    if (!loading && navigableHauls.isEmpty) {
+      return _EmptyNavHint();
+    }
+
+    final enabled = navigableHauls.isNotEmpty;
+
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: enabled
+                ? () => _onFollowTrackPressed(
+                      context,
+                      ref,
+                      navigableHauls,
+                      pointsMap!,
+                    )
+                : null,
+            icon: const Icon(PhosphorIconsBold.footprints, size: 18),
+            label: const Text('Ikuti Jalur Tarikan'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: AppSizes.sp3),
+            ),
+          ),
+        ),
+        const SizedBox(width: AppSizes.sp2),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: enabled
+                ? () => _onGotoEndPressed(
+                      context,
+                      ref,
+                      navigableHauls,
+                      pointsMap!,
+                    )
+                : null,
+            icon: const Icon(PhosphorIconsBold.navigationArrow, size: 18),
+            label: const Text('Pandu ke Akhir'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: AppSizes.sp3),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _onFollowTrackPressed(
+    BuildContext context,
+    WidgetRef ref,
+    List<Haul> navigableHauls,
+    Map<String, List<TrackPoint>> pointsMap,
+  ) async {
+    final picked = navigableHauls.length == 1
+        ? navigableHauls.single
+        : await FollowHaulPickerSheet.show(context, hauls: navigableHauls);
+    if (picked == null || !context.mounted) return;
+
+    final points = pointsMap[picked.id] ?? const <TrackPoint>[];
+    if (points.length < 2) return; // defensive; picker filtered already.
+
+    final latLngs = points.map((p) => p.latLng).toList(growable: false);
+    ref.read(navigationControllerProvider.notifier).startFollowTrack(
+          FollowTrackTarget(
+            pathPoints: latLngs,
+            label: picked.displayName(),
+            // FollowTrackSource.haul (not .trip) because the active
+            // reference is a single haul's polyline -- the trip-level
+            // entry point is just how the user got here. Spec sect
+            // 8.4 leaves `.trip` as forward-looking only.
+            sourceType: FollowTrackSource.haul,
+            sourceId: picked.id,
+          ),
+        );
+    if (context.mounted) {
+      context.go(AppRoutes.map);
+    }
+  }
+
+  void _onGotoEndPressed(
+    BuildContext context,
+    WidgetRef ref,
+    List<Haul> navigableHauls,
+    Map<String, List<TrackPoint>> pointsMap,
+  ) {
+    // haulsByTripProvider yields hauls sorted by orderIndex so the
+    // *last* navigable haul is already the trip's chronological end.
+    final lastHaul = navigableHauls.last;
+    final points = pointsMap[lastHaul.id] ?? const <TrackPoint>[];
+    if (points.isEmpty) return;
+
+    final end = points.last.latLng;
+    ref.read(navigationControllerProvider.notifier).startGoto(
+          GotoTarget(
+            position: end,
+            label: '${lastHaul.displayName()} (akhir)',
+          ),
+        );
+    context.go(AppRoutes.map);
+  }
+}
+
+class _EmptyNavHint extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final text = context.text;
+    return GlassCard(
+      level: GlassLevel.level1,
+      padding: const EdgeInsets.all(AppSizes.sp3 + 2),
+      child: Row(
+        children: [
+          Icon(
+            PhosphorIconsRegular.info,
+            size: 18,
+            color: tokens.textTertiary,
+          ),
+          const SizedBox(width: AppSizes.sp2),
+          Expanded(
+            child: Text(
+              'Trip ini belum punya titik GPS — pandu tidak tersedia.',
+              style: text.bodySmall?.copyWith(
+                color: tokens.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

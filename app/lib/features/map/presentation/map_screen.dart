@@ -695,10 +695,16 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     PolylineLayer<Object>(polylines: overlayPolylines),
                   // Active haul polyline (empty layer when not recording).
                   const ActiveHaulPolyline(),
-                  // Navigation polyline -- dashed go-to line to the
-                  // active target (empty layer when nav is idle).
+                  // Navigation layers -- dashed go-to line to the
+                  // active target, or solid reference polyline +
+                  // start/end dots for follow-track. Returns empty
+                  // when nav is idle so this spread is always safe.
                   if (navActive != null)
-                    NavigationPolyline(state: navActive),
+                    ...NavigationPolyline.buildLayers(
+                      context,
+                      ref,
+                      navActive,
+                    ),
                   // User-placed markers — toggled by the pin icon in
                   // the top-right column. Rendered ABOVE the history
                   // polyline overlay but BELOW the boat marker so the

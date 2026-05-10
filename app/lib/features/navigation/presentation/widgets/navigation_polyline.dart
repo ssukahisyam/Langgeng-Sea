@@ -4,77 +4,118 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../map/application/current_reading_provider.dart';
 import '../../application/navigation_state.dart';
 import '../../domain/entities/navigation_target.dart';
 
-/// flutter_map layer that renders the active navigation target on the map.
+/// Builds the flutter_map layers that visualise an active navigation
+/// target. Exposed as a collection of layers (not a single widget)
+/// because follow-track needs both a [PolylineLayer] *and* a
+/// [MarkerLayer] for the start/end dots; flutter_map expects each
+/// child to be a real layer sitting on the map, so returning a
+/// `Column` would misplace the children on screen instead of
+/// georegistering them.
 ///
-/// Go-to mode: short dashed polyline from the user to the target,
-/// drawn in primary colour. The dashed look is composed from
-/// hand-sliced segments (flutter_map's `Polyline` does not support a
-/// dash pattern on the 7.x line, so we build it ourselves). The
-/// slicing runs in geographic space -- each dash ~120 m (converted to
-/// degrees via a lat-latitude-safe factor), producing roughly 6-10
-/// dashes on typical 500 m-5 km runs.
+/// Call from `MapScreen.build`:
 ///
-/// Follow-track mode (M11b) will extend this widget to highlight the
-/// reference polyline with a thicker warning-coloured stroke. For M11a
-/// we render an empty layer in that branch so swapping the state to
-/// follow-track keeps the map functional pending the M11b diff.
-class NavigationPolyline extends ConsumerWidget {
-  const NavigationPolyline({super.key, required this.state});
+/// ```dart
+/// if (navActive != null)
+///   ...NavigationPolyline.buildLayers(context, ref, navActive),
+/// ```
+///
+/// Modes:
+///   * Go-to: dashed polyline from user → target in primary colour.
+///     flutter_map 7.x `Polyline` has no dash pattern so the line is
+///     built from hand-sliced segments (~150 m per dash, scaled to
+///     total distance). Only polyline — no marker layer.
+///   * Follow-track: solid, thick warning-coloured stroke along the
+///     reference polyline with a subtle white halo for visibility on
+///     busy tiles; a separate [MarkerLayer] places a green "start"
+///     dot at pathPoints.first and a red "end" dot at pathPoints.last
+///     so the user can orient themselves without reading metadata.
+class NavigationPolyline {
+  NavigationPolyline._();
 
-  final NavigationActive state;
+  /// How far (in meters) between the midpoint of each dash for go-to
+  /// mode. Tuned empirically in the prototype — shorter and the dash
+  /// pattern turns into a solid line on zoom 10, longer and you only
+  /// see two or three dashes on 200 m runs.
+  static const double _gotoDashSpacingMeters = 150.0;
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  /// Main stroke width for the follow-track reference polyline. Thicker
+  /// than the active haul polyline (strokeWidth 5 at level-2 glow,
+  /// see `ActiveHaulPolyline`) so that when the user is recording
+  /// *and* following, the reference track reads as the dominant
+  /// guidance layer, not a peer.
+  static const double _followTrackStrokeWidth = 6.0;
+
+  /// Build the list of map layers for the active navigation target.
+  /// Returns an empty list when there is nothing reasonable to draw
+  /// (no GPS fix yet, degenerate targets, etc.) — always safe to
+  /// spread into `FlutterMap.children`.
+  static List<Widget> buildLayers(
+    BuildContext context,
+    WidgetRef ref,
+    NavigationActive state,
+  ) {
     final target = state.target;
     final userReading = ref.watch(currentReadingProvider).asData?.value;
-    if (userReading == null) {
-      // No fix yet -- nothing reasonable to draw. Return an empty
-      // PolylineLayer rather than a SizedBox so parents can keep
-      // expecting a map layer child type.
-      return const PolylineLayer<Object>(polylines: []);
-    }
 
     if (target is GotoTarget) {
-      final dashes = _dashedSegments(userReading.latLng, target.position);
-      final color = context.colors.primary;
-      return PolylineLayer<Object>(
-        polylines: [
-          for (final seg in dashes)
-            Polyline(
-              points: seg,
-              strokeWidth: 3,
-              color: color.withValues(alpha: 0.85),
-            ),
-        ],
-      );
+      if (userReading == null) return const [];
+      return [_GotoDashedLayer(from: userReading.latLng, to: target.position)];
     }
 
-    // Follow-track branch -- final look lands in M11b. Keep an empty
-    // layer so widget tests and map composition stay stable.
-    return const PolylineLayer<Object>(polylines: []);
+    if (target is FollowTrackTarget) {
+      final path = target.pathPoints;
+      if (path.length < 2) return const [];
+      return [
+        _FollowTrackStroke(points: path),
+        _FollowTrackEndpoints(points: path),
+      ];
+    }
+
+    return const [];
+  }
+}
+
+// ===========================================================================
+// Go-to — dashed polyline from user to target
+// ===========================================================================
+
+class _GotoDashedLayer extends StatelessWidget {
+  const _GotoDashedLayer({required this.from, required this.to});
+
+  final LatLng from;
+  final LatLng to;
+
+  @override
+  Widget build(BuildContext context) {
+    final dashes = _dashedSegments(from, to);
+    final color = context.colors.primary;
+    return PolylineLayer<Object>(
+      polylines: [
+        for (final seg in dashes)
+          Polyline(
+            points: seg,
+            strokeWidth: 3,
+            color: color.withValues(alpha: 0.85),
+          ),
+      ],
+    );
   }
 
-  /// Split the great-circle line user->target into roughly equal
+  /// Split the great-circle line user→target into roughly equal
   /// dashes + gaps. Uses linear interpolation in (lat, lng) space
-  /// which is good enough below ~100 km at our typical latitudes --
+  /// which is good enough below ~100 km at our typical latitudes —
   /// the visible artefact of pretending the line is straight on a
   /// Mercator tile is sub-pixel.
-  ///
-  /// Dash length scales with total distance so very long lines do not
-  /// become a solid line (too many dashes) and very short lines get
-  /// at least 2 segments.
   static List<List<LatLng>> _dashedSegments(LatLng from, LatLng to) {
     if (from == to) return const [];
 
-    // Rough great-circle distance via haversine would be more
-    // accurate, but for visual dashing the planar approximation is
-    // fine and avoids the double math cost.
     const mPerDegLat = 111000.0;
     final avgLatRad = (from.latitude + to.latitude) / 2 * math.pi / 180.0;
     final mPerDegLng = mPerDegLat * math.cos(avgLatRad);
@@ -85,10 +126,12 @@ class NavigationPolyline extends ConsumerWidget {
     if (totalMeters < 1) return const [];
 
     // Target 8 dashes for mid-range, min 2, max 40.
-    final approxDashCount = (totalMeters / 150).clamp(2.0, 40.0).round();
+    final approxDashCount =
+        (totalMeters / NavigationPolyline._gotoDashSpacingMeters)
+            .clamp(2.0, 40.0)
+            .round();
     final step = 1.0 / (approxDashCount * 2); // each dash + gap
     final segments = <List<LatLng>>[];
-    // i = 0 -> dash, i = 1 -> gap, alternating.
     for (var i = 0; i < approxDashCount * 2; i += 2) {
       final t0 = i * step;
       final t1 = (i + 1) * step;
@@ -104,6 +147,106 @@ class NavigationPolyline extends ConsumerWidget {
     return LatLng(
       a.latitude + (b.latitude - a.latitude) * t,
       a.longitude + (b.longitude - a.longitude) * t,
+    );
+  }
+}
+
+// ===========================================================================
+// Follow-track — solid reference polyline
+// ===========================================================================
+
+class _FollowTrackStroke extends StatelessWidget {
+  const _FollowTrackStroke({required this.points});
+
+  final List<LatLng> points;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final color = tokens.warning;
+    return PolylineLayer<Object>(
+      polylines: [
+        // Soft outer glow — same visual trick as ActiveHaulPolyline,
+        // reused here so the reference track is legible against busy
+        // sea chart tiles.
+        Polyline(
+          points: points,
+          strokeWidth: NavigationPolyline._followTrackStrokeWidth + 4,
+          color: color.withValues(alpha: 0.22),
+        ),
+        Polyline(
+          points: points,
+          strokeWidth: NavigationPolyline._followTrackStrokeWidth,
+          color: color,
+          borderStrokeWidth: 1.5,
+          borderColor: Colors.white.withValues(alpha: 0.9),
+        ),
+      ],
+    );
+  }
+}
+
+// ===========================================================================
+// Follow-track — start / end dots
+// ===========================================================================
+
+class _FollowTrackEndpoints extends StatelessWidget {
+  const _FollowTrackEndpoints({required this.points});
+
+  final List<LatLng> points;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    return MarkerLayer(
+      markers: [
+        Marker(
+          point: points.first,
+          width: 22,
+          height: 22,
+          alignment: Alignment.center,
+          child: _EndpointDot(
+            color: tokens.success,
+            icon: PhosphorIconsFill.playCircle,
+          ),
+        ),
+        Marker(
+          point: points.last,
+          width: 22,
+          height: 22,
+          alignment: Alignment.center,
+          child: _EndpointDot(
+            color: tokens.danger,
+            icon: PhosphorIconsFill.flag,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _EndpointDot extends StatelessWidget {
+  const _EndpointDot({required this.color, required this.icon});
+
+  final Color color;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.45),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Icon(icon, color: Colors.white, size: 11),
     );
   }
 }
