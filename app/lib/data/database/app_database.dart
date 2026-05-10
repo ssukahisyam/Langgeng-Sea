@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3_flutter_libs/sqlite3_flutter_libs.dart';
 
+import 'daos/app_settings_dao.dart';
 import 'daos/haul_dao.dart';
 import 'daos/log_book_dao.dart';
 import 'daos/marker_dao.dart';
@@ -26,6 +27,7 @@ import 'tables.dart';
 // `app_database.dart` fail to compile with
 // "Type 'HaulDao' not found" / "Type 'HaulRow' not found".
 export 'tables.dart';
+export 'daos/app_settings_dao.dart';
 export 'daos/haul_dao.dart';
 export 'daos/log_book_dao.dart';
 export 'daos/marker_dao.dart';
@@ -51,6 +53,7 @@ part 'app_database.g.dart';
     CatchItems,
     Markers,
     UserProfiles,
+    AppSettings,
   ],
   daos: [
     TripDao,
@@ -60,6 +63,7 @@ part 'app_database.g.dart';
     LogBookDao,
     MarkerDao,
     UserProfileDao,
+    AppSettingsDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -69,7 +73,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -84,6 +88,8 @@ class AppDatabase extends _$AppDatabase {
             'CREATE INDEX IF NOT EXISTS idx_hauls_trip_order '
             'ON hauls (trip_id, order_index)',
           );
+          // Seed the app_settings singleton so reads never hit null.
+          await _seedAppSettings();
         },
         onUpgrade: (m, from, to) async {
           // v1 → v2 adds the offline_regions table (M4). No data in the
@@ -106,8 +112,32 @@ class AppDatabase extends _$AppDatabase {
           if (from < 5) {
             await m.addColumn(hauls, hauls.colorValue);
           }
+          // v5 → v6 adds app_settings (M11 navigation). Single-row
+          // preferences table seeded with alarm sound + vibrate both
+          // ON so existing users get sensible defaults without any UI
+          // prompt. Spec calls this "v4 → v5" from the planning doc
+          // perspective; in actual codebase it lands at 6 because the
+          // colour-picker migration took v5 first.
+          if (from < 6) {
+            await m.createTable(appSettings);
+            await _seedAppSettings();
+          }
         },
       );
+
+  /// Insert the singleton app_settings row if the table is empty.
+  /// Used by both `onCreate` (fresh install) and `onUpgrade v5→v6`
+  /// (existing user upgrading). INSERT OR IGNORE keeps it idempotent
+  /// so re-running the migration on a partially-upgraded DB can't
+  /// double-seed.
+  Future<void> _seedAppSettings() async {
+    await customStatement(
+      'INSERT OR IGNORE INTO app_settings '
+      '(id, alarm_sound_enabled, alarm_vibrate_enabled, updated_at) '
+      'VALUES (1, 1, 1, ?)',
+      [DateTime.now().millisecondsSinceEpoch],
+    );
+  }
 }
 
 LazyDatabase _openConnection() {

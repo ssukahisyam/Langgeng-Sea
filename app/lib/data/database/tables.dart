@@ -195,3 +195,26 @@ class UserProfiles extends Table {
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
+
+
+/// Preferensi aplikasi per-device (bukan per-user). Mirip pola
+/// [UserProfiles]: baris tunggal dengan `id` dipatok ke 1, sehingga
+/// tidak ada null-handling di layer repository. Ditambahkan di schema
+/// v6 (M11) untuk menampung toggle alarm navigasi (TTS + getar).
+///
+/// Domain separation: [UserProfiles] menjawab "siapa user-nya",
+/// [AppSettings] menjawab "preferensi aplikasi di device ini". Kalau
+/// multi-user datang di v2, [UserProfiles] akan per-user tapi
+/// [AppSettings] tetap per-device.
+@DataClassName('AppSettingsRow')
+class AppSettings extends Table {
+  IntColumn get id => integer()();
+  BoolColumn get alarmSoundEnabled =>
+      boolean().withDefault(const Constant(true))();
+  BoolColumn get alarmVibrateEnabled =>
+      boolean().withDefault(const Constant(true))();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
