@@ -43,6 +43,14 @@ class FakeGpsService implements GpsService {
     return _lastReading!;
   }
 
+  /// Mirrors [GeolocatorGpsService.getLastKnownReading]: returns the
+  /// most recently emitted reading (test equivalent of the OS cache),
+  /// or null on a fresh fake that hasn't emitted yet. Tests that want
+  /// to exercise the "no cached fix on first install" branch just
+  /// assert against the freshly-constructed fake.
+  @override
+  Future<GpsReading?> getLastKnownReading() async => _lastReading;
+
   @override
   Stream<GpsReading> watchPosition({double distanceFilterMeters = 2}) =>
       _controller.stream;

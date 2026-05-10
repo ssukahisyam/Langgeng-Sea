@@ -39,6 +39,13 @@ abstract class GpsService {
   /// Throws if permission not granted or service disabled.
   Future<GpsReading> getCurrentReading();
 
+  /// Best-effort cached reading from the OS location subsystem. Null
+  /// on fresh install or if the OS hasn't stored a fix yet. Used as
+  /// an instant "first fix" stand-in while [watchPosition] is still
+  /// warming up the receiver — otherwise the user can see the
+  /// accuracy chip spinning for 5-30 s on a cold GPS start.
+  Future<GpsReading?> getLastKnownReading();
+
   /// Continuous stream of GPS readings.
   ///
   /// The default [distanceFilterMeters] of 2m is tuned for trawl
@@ -86,6 +93,22 @@ class GeolocatorGpsService implements GpsService {
       ),
     );
     return _toReading(pos);
+  }
+
+  @override
+  Future<GpsReading?> getLastKnownReading() async {
+    // Wrapped in try/catch because Geolocator throws PlatformException
+    // on some OEMs (e.g. certain Xiaomi builds) when the cache is
+    // empty. Callers treat "null OR threw" as "no cached fix", so
+    // swallowing the error keeps the fast-first-fix path optional —
+    // the live stream still takes over regardless.
+    try {
+      final pos = await Geolocator.getLastKnownPosition();
+      if (pos == null) return null;
+      return _toReading(pos);
+    } catch (_) {
+      return null;
+    }
   }
 
   @override
@@ -141,10 +164,4 @@ class GeolocatorGpsService implements GpsService {
 /// Riverpod provider so the impl can be swapped in tests.
 final gpsServiceProvider = Provider<GpsService>((ref) {
   return GeolocatorGpsService();
-});
-
-/// Live stream of GPS readings. Null while waiting for first fix.
-final currentReadingProvider = StreamProvider<GpsReading>((ref) {
-  final svc = ref.watch(gpsServiceProvider);
-  return svc.watchPosition();
 });

@@ -39,6 +39,7 @@ import '../../marker/presentation/widgets/marker_pin.dart';
 import '../../offline_map/data/tile_cache_service.dart';
 import '../../onboarding/data/user_profile_repository.dart';
 import '../application/all_history_visible_provider.dart';
+import '../application/current_reading_provider.dart';
 import '../application/history_overlay_providers.dart';
 import '../application/map_overlay_state.dart';
 import '../application/markers_overlay_provider.dart';
@@ -66,6 +67,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
   final MapController _mapController = MapController();
   bool _followingUser = true;
   bool _checkedRecovery = false;
+
+  /// Tracks the current map zoom so the marker layer can decide
+  /// whether to show name labels (see MarkerPin.labelZoomThreshold).
+  /// Updated every time onPositionChanged fires; stored in state so
+  /// rebuilds re-run the MarkerPin.geometry helpers with a fresh
+  /// showLabel flag.
+  double _currentZoom = _initialZoom;
 
   // Tracks the overlay whose bounds we already fitted the camera to, so
   // pulling to refresh doesn't keep snapping the user's view.
@@ -573,8 +581,29 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   initialCenter: reading?.latLng ?? _initialCenter,
                   initialZoom: _initialZoom,
                   minZoom: 3,
-                  maxZoom: 18,
+                  // z=20 is beyond OSM native tiles (z=19 max — see
+                  // maxNativeZoom on the TileLayer below), so the last
+                  // level overzooms / stretches the z=19 tile. Users
+                  // in port asked for this: at z=19 a whole pier fits
+                  // in one tile, they want to resolve individual boat
+                  // slips. Visual fuzziness at z=20 is acceptable
+                  // compared to the alternative of clamping the view.
+                  maxZoom: 20,
                   onPositionChanged: (pos, hasGesture) {
+                    // Keep the label-visibility zoom in state. Only
+                    // setState when we actually cross the threshold
+                    // (or by a whole integer) to avoid rebuilding the
+                    // whole Stack on every pan pixel.
+                    final z = pos.zoom;
+                    final wasShowing =
+                        _currentZoom >= MarkerPin.labelZoomThreshold;
+                    final nowShowing =
+                        z >= MarkerPin.labelZoomThreshold;
+                    if (wasShowing != nowShowing) {
+                      setState(() => _currentZoom = z);
+                    } else {
+                      _currentZoom = z;
+                    }
                     if (hasGesture && _followingUser) {
                       setState(() => _followingUser = false);
                     }
@@ -611,27 +640,38 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   // live position never disappears under a pin.
                   if (markersOn)
                     MarkerLayer(
-                      // `alignment: Alignment.bottomCenter` makes the
-                      // tip of the teardrop pin (the bottom-center of
-                      // the MarkerPin widget) anchor to the real
-                      // lat/lng. Changing this without also updating
-                      // MarkerPin's geometry will mis-register every
-                      // pin on the map.
-                      markers: (markersAsync?.asData?.value ?? const [])
-                          .map(
-                            (m) => Marker(
-                              point: m.latLng,
-                              width: MarkerPin.width,
-                              height: MarkerPin.height,
-                              alignment: Alignment.bottomCenter,
-                              child: MarkerPin(
-                                marker: m,
-                                onTap: () =>
-                                    MarkerInfoSheet.show(context, m),
+                      // Name labels auto-show once the user zooms in
+                      // past MarkerPin.labelZoomThreshold (currently
+                      // z=14) and auto-hide again when they zoom out.
+                      // MarkerPin.markerSize / markerAlignment MUST be
+                      // called with the SAME showLabel flag — both
+                      // helpers are stamped here once so the values
+                      // can't drift.
+                      markers: () {
+                        final showLabel =
+                            _currentZoom >= MarkerPin.labelZoomThreshold;
+                        final size =
+                            MarkerPin.markerSize(showLabel: showLabel);
+                        final alignment = MarkerPin.markerAlignment(
+                          showLabel: showLabel,
+                        );
+                        return (markersAsync?.asData?.value ?? const [])
+                            .map(
+                              (m) => Marker(
+                                point: m.latLng,
+                                width: size.width,
+                                height: size.height,
+                                alignment: alignment,
+                                child: MarkerPin(
+                                  marker: m,
+                                  showLabel: showLabel,
+                                  onTap: () =>
+                                      MarkerInfoSheet.show(context, m),
+                                ),
                               ),
-                            ),
-                          )
-                          .toList(),
+                            )
+                            .toList();
+                      }(),
                     ),
                   if (reading != null)
                     MarkerLayer(

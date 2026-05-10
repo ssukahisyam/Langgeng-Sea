@@ -11,8 +11,8 @@ import '../../domain/entities/marker.dart';
 ///
 /// Shape: classic teardrop pin — a filled circle with a downward-
 /// pointing tail that tapers to a single pixel. The tip lands exactly
-/// on the marker coordinate when the enclosing `Marker` is aligned
-/// `Alignment.bottomCenter`.
+/// on the marker coordinate when the enclosing `Marker` is anchored
+/// per [MarkerPin.markerAlignment] below.
 ///
 /// The circle is filled with the category colour. Inside the circle,
 /// a white category icon (ikan / warning / jangkar / mapPin) mirrors
@@ -20,52 +20,120 @@ import '../../domain/entities/marker.dart';
 /// instantly recognises what a pin represents — same visual language
 /// in both places.
 ///
-/// A translucent label pill sits BELOW the tip with a small gap so it
-/// doesn't collide with the pin itself. Capped at 14 characters + "…".
+/// ## Label visibility (zoom-aware)
 ///
-/// Layout contract:
-///   • Outer `Marker` must be `width: 80, height: 64` with
-///     `alignment: Alignment.bottomCenter`.
-///   • Pin glyph is 36w × 46h (circle top, tail bottom).
-///   • Label pill lives in the remaining 18dp under the tip.
+/// When [showLabel] is true, a translucent pill with the marker name
+/// is rendered BELOW the pin tip. The convention from Google/Apple
+/// Maps is to auto-show labels only when the user has zoomed in
+/// enough to need them; callers set this by comparing the map
+/// camera's current zoom to [MarkerPin.labelZoomThreshold].
+///
+/// ## Geometry contract
+///
+/// The enclosing `Marker` must use [MarkerPin.markerSize] and
+/// [MarkerPin.markerAlignment]. Both depend on [showLabel] because
+/// adding the label extends the widget bounds downward, which in
+/// turn shifts where "bottom-center" lands relative to the pin tip.
+///
+/// ```
+///   showLabel = false            showLabel = true
+///   ─────────────                ─────────────
+///   ┌──────────┐  y=0            ┌──────────┐  y=0
+///   │  (pin)   │                 │  (pin)   │
+///   │  36×46   │                 │  36×46   │
+///   │     ↓    │  y=46 (tip)     │     ↓    │  y=46 (tip)
+///   └──────────┘  ← anchor       ├──────────┤
+///                                │  label   │
+///                                │  pill    │
+///                                └──────────┘  y=64
+///                                              ← anchor lands here
+///                                              if we used
+///                                              bottomCenter, so we
+///                                              use Alignment(0,
+///                                              0.4375) to push the
+///                                              anchor back up to
+///                                              the tip.
+/// ```
+///
+/// See [MarkerPin.markerAlignment] for the derivation.
 class MarkerPin extends StatelessWidget {
   const MarkerPin({
     super.key,
     required this.marker,
+    this.showLabel = false,
     this.onTap,
   });
 
   final AppMarker marker;
+
+  /// Whether to render the name label pill under the pin. When false,
+  /// only the teardrop glyph is drawn and the overall height shrinks
+  /// by [_labelRegionHeight] — the enclosing `Marker` must use
+  /// [markerSize] / [markerAlignment] with the SAME `showLabel` value
+  /// so the tip registration stays correct.
+  final bool showLabel;
+
   final VoidCallback? onTap;
 
-  /// Target width used by the enclosing `Marker`. Exported so callers
-  /// stay in sync without hard-coding numbers.
-  static const double width = 80;
+  /// Pin glyph dimensions (constant; label is layered below).
+  static const double _pinWidth = 36;
+  static const double _pinHeight = 46;
 
-  /// Target height used by the enclosing `Marker`.
-  static const double height = 64;
+  /// Height reserved for the label pill + the gap between pin & pill.
+  static const double _labelRegionHeight = 18;
+
+  /// Zoom at which labels should start appearing. Below this we only
+  /// draw glyphs; above, callers pass `showLabel: true`. Tuned so
+  /// that at city-overview zooms the map doesn't flood with pill
+  /// text, but once the user zooms in on a port or channel the
+  /// names are immediately legible.
+  static const double labelZoomThreshold = 14.0;
+
+  /// Returns the `width`/`height` the enclosing `Marker` must use.
+  /// Grows by [_labelRegionHeight] when [showLabel] is on.
+  static Size markerSize({required bool showLabel}) => Size(
+        _pinWidth,
+        showLabel ? _pinHeight + _labelRegionHeight : _pinHeight,
+      );
+
+  /// Returns the `alignment` the enclosing `Marker` must use so the
+  /// pin tip lands exactly on the lat/lng.
+  ///
+  /// With no label the widget height equals the pin height and the
+  /// tip *is* the bottom, so `bottomCenter` works.
+  ///
+  /// With a label the widget height is `pinH + labelRegionH`. The tip
+  /// sits at y = pinH inside the widget (not y = height). Flutter's
+  /// `Alignment(0, y)` anchors to the y-position (height/2) + (y *
+  /// height/2), so we solve for the y that places the anchor at the
+  /// tip: `y = (2 * pinH / totalH) - 1`. Pre-computed below to avoid
+  /// floating-point math in the hot rebuild path.
+  static Alignment markerAlignment({required bool showLabel}) {
+    if (!showLabel) return Alignment.bottomCenter;
+    // (2 * 46 / 64) - 1 = 0.4375
+    return const Alignment(0, 0.4375);
+  }
 
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final fillColor = _categoryColor(context, marker.category);
     final icon = _categoryIcon(marker.category);
-    final displayLabel = _truncate(marker.name, 14);
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: SizedBox(
-        width: width,
-        height: height,
+        width: _pinWidth,
+        height: showLabel ? _pinHeight + _labelRegionHeight : _pinHeight,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
             // --- Pin glyph (circle + tail) -------------------------------
             SizedBox(
-              width: 36,
-              height: 46,
+              width: _pinWidth,
+              height: _pinHeight,
               child: CustomPaint(
                 painter: _PinShapePainter(
                   fill: fillColor,
@@ -85,37 +153,40 @@ class MarkerPin extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 2),
-            // --- Name label pill -----------------------------------------
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 78),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 6,
-                  vertical: 1,
-                ),
-                decoration: BoxDecoration(
-                  color: tokens.surface3.withValues(alpha: 0.92),
-                  borderRadius: BorderRadius.circular(AppSizes.radiusPill),
-                  border: Border.all(
-                    color: tokens.borderStrong,
-                    width: 0.5,
+            // --- Name label pill (zoom-gated by caller) ------------------
+            if (showLabel) ...[
+              const SizedBox(height: 2),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 78),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 1,
                   ),
-                ),
-                child: Text(
-                  displayLabel,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 9.5,
-                    height: 1.1,
-                    color: context.colors.onSurface,
-                    fontWeight: FontWeight.w700,
+                  decoration: BoxDecoration(
+                    color: tokens.surface3.withValues(alpha: 0.92),
+                    borderRadius:
+                        BorderRadius.circular(AppSizes.radiusPill),
+                    border: Border.all(
+                      color: tokens.borderStrong,
+                      width: 0.5,
+                    ),
+                  ),
+                  child: Text(
+                    _truncate(marker.name, 14),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 9.5,
+                      height: 1.1,
+                      color: context.colors.onSurface,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
       ),
