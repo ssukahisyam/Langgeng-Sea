@@ -24,12 +24,6 @@ import 'end_trip_dialog.dart';
 /// is triggered explicitly from the main "MULAI TEBAR" button.
 enum HaulSummaryAction { dismissed, saved, endTrip }
 
-/// AppShell bottom nav constants — duplicated here so the sheet can
-/// pad its bottom to leave the floating nav visible. Must stay in sync
-/// with AppShell.
-const double _kNavBarContentHeight = 56;
-const double _kGapAboveNav = 8;
-
 class HaulSummarySheet extends ConsumerStatefulWidget {
   const HaulSummarySheet({super.key, required this.completion});
 
@@ -42,6 +36,7 @@ class HaulSummarySheet extends ConsumerStatefulWidget {
   ) async {
     final result = await showModalBottomSheet<HaulSummaryAction>(
       context: context,
+      useRootNavigator: false,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       isDismissible: true,
@@ -93,17 +88,19 @@ class _HaulSummarySheetState extends ConsumerState<HaulSummarySheet> {
     final text = context.text;
     final tokens = context.tokens;
 
-    // Bottom clearance = keyboard (if up) + space for the floating
-    // bottom nav that AppShell draws over the scaffold body.
-    final navClearance = _kNavBarContentHeight + _kGapAboveNav + AppSizes.sp3;
+    // With `useRootNavigator: false` the sheet lives in the shell's
+    // Navigator, so AppShell's `MediaQuery.padding.bottom` injection
+    // already covers the floating nav clearance. viewInsets handles
+    // the keyboard if it shows up for the rename field.
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final bottomSafe = MediaQuery.of(context).padding.bottom;
 
     return Padding(
       padding: EdgeInsets.only(
         left: AppSizes.sp4,
         right: AppSizes.sp4,
         top: AppSizes.sp4,
-        bottom: bottomInset + navClearance + AppSizes.sp4,
+        bottom: bottomInset + bottomSafe + AppSizes.sp4,
       ),
       child: GlassCard(
         level: GlassLevel.level3,

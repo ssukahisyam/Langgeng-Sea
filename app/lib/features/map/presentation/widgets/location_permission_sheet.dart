@@ -16,6 +16,7 @@ class LocationPermissionSheet extends ConsumerWidget {
   static Future<void> show(BuildContext context) {
     return showModalBottomSheet<void>(
       context: context,
+      useRootNavigator: false,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) => const LocationPermissionSheet(),
@@ -79,19 +80,17 @@ class LocationPermissionSheet extends ConsumerWidget {
         ),
     };
 
-    // AppShell's bottom nav keeps floating over the scaffold while a
-    // modal sheet is up — leave room so the CTA doesn't disappear
-    // under it. Must stay in sync with AppShell's _NavBar.
-    const navBarContentHeight = 56.0;
-    const gapAboveNav = 8.0;
-    final navClearance = navBarContentHeight + gapAboveNav + AppSizes.sp3;
-
+    // With `useRootNavigator: false` the sheet is hosted by the
+    // shell-level Navigator, so AppShell's `MediaQuery.padding.bottom`
+    // injection (= floating nav clearance) already reaches us. No
+    // magic constants needed — viewInsets covers the keyboard,
+    // padding.bottom covers the floating nav.
     return Padding(
       padding: EdgeInsets.only(
         left: AppSizes.sp4,
         right: AppSizes.sp4,
         bottom: MediaQuery.of(context).viewInsets.bottom +
-            navClearance +
+            MediaQuery.of(context).padding.bottom +
             AppSizes.sp4,
         top: AppSizes.sp4,
       ),

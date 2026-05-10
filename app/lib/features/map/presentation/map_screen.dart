@@ -171,11 +171,17 @@ class _MapScreenState extends ConsumerState<MapScreen>
   /// Guarded by [_permissionSheetOpen] so we don't accidentally pop a
   /// haul summary sheet or a recovery dialog that happens to be
   /// sitting above the map.
+  ///
+  /// The sheet is hosted in the local (shell) navigator — see
+  /// [LocationPermissionSheet.show]'s `useRootNavigator: false` —
+  /// so we must pop the local one, not the root. Popping the root
+  /// here would accidentally unwind a Haul summary sheet or crash
+  /// recovery dialog that happens to be on top.
   void _maybeAutoDismissPermissionSheet() {
     if (!_permissionSheetOpen) return;
     final permState = ref.read(locationPermissionProvider);
     if (permState != LocationPermissionState.ready) return;
-    final nav = Navigator.of(context, rootNavigator: true);
+    final nav = Navigator.of(context);
     if (nav.canPop()) {
       nav.pop();
     }
@@ -522,7 +528,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
             // --- Map controls ---
             Positioned(
               right: AppSizes.sp4,
-              bottom: 180,
+              bottom: 220,
               child: MapControls(
                 onCenterOnMe: _centerOnMe,
                 centerEnabled: hasPermission,
@@ -532,7 +538,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
             // --- Attribution ---
             const Positioned(
               left: AppSizes.sp4,
-              bottom: 180,
+              bottom: 200,
               child: MapAttribution(),
             ),
 
