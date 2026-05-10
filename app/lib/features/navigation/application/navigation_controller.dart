@@ -18,11 +18,18 @@ import 'navigation_state.dart';
 /// - Subscribes to [currentReadingProvider] while a target is active.
 /// - On each reading recomputes a [NavigationProgress] snapshot.
 /// - Runs the alarm state machine in [navigation_state.dart]:
+///   Go-to:
 ///     * normal → arrivingCountdown (start 3s timer)
 ///     * arrivingCountdown → arrived (fires "sudah sampai" alarm)
 ///     * arrived is sticky until the user hits Stop — anti-spam.
-/// - Off-route / back-on-route transitions are stubbed with TODOs
-///   so M11b can wire them without re-plumbing the dispatch layer.
+///   Follow-track:
+///     * normal → offRouteCountdown (crossTrack > 30m, start 5s timer)
+///     * offRouteCountdown → offRoute (dispatches "keluar jalur")
+///     * offRoute → returnCountdown (crossTrack back ≤ 30m, 5s timer)
+///     * returnCountdown → normal (dispatches back-on-route haptic)
+///     Cancellation on flip: if crossTrack crosses threshold again
+///     during a countdown the timer resets to `normal` / `offRoute`
+///     respectively, so borderline jitter never fires the alarm.
 ///
 /// Navigation intentionally does NOT survive app restart: the state
 /// is pure in-memory and resets to [NavigationIdle] on boot. Users
@@ -140,21 +147,36 @@ class NavigationController extends Notifier<NavigationState> {
           crossTrackMeters: 0,
           percentAlongPath: 0,
         );
-      case FollowTrackTarget():
-        // M11b wires the follow-track math here. For M11a we still
-        // compute something sensible so the panel renders: distance
-        // and bearing to the last polyline point.
-        if (target.pathPoints.isEmpty) {
-          return NavigationProgress.empty;
-        }
-        final end = target.pathPoints.last;
-        final distance = GeoCalculator.haversineMeters(userPos, end);
+      case FollowTrackTarget(pathPoints: final path):
+        // No path → degenerate; the panel still needs a render.
+        if (path.isEmpty) return NavigationProgress.empty;
+
+        // Distance + bearing are computed to the *end* of the
+        // polyline (i.e. "how much further is there to go"), not to
+        // the nearest point on the path. This matches what user
+        // testers expected from the "Pandu ke Akhir" flow during
+        // prototype review: the number counts down as they progress.
+        final end = path.last;
+        final distanceToEnd = GeoCalculator.haversineMeters(userPos, end);
+
+        // Cross-track + percent-along run over the *whole* polyline
+        // so the off-route alarm and progress bar both reflect the
+        // user's relationship to the reference track, regardless of
+        // how close they happen to be to the end point.
+        final near =
+            GeoCalculator.nearestPointOnPolyline(userPos, path);
+        final percent = GeoCalculator.percentAlongPolyline(
+          userPos,
+          path,
+          nearestSegmentIndex: near.nearestSegmentIndex,
+        );
+
         return NavigationProgress(
-          distanceToTargetMeters: distance,
+          distanceToTargetMeters: distanceToEnd,
           bearingDegrees: GeoCalculator.bearingDegrees(userPos, end),
-          etaSeconds: _etaSeconds(distance, reading.speedMps),
-          crossTrackMeters: 0,
-          percentAlongPath: 0,
+          etaSeconds: _etaSeconds(distanceToEnd, reading.speedMps),
+          crossTrackMeters: near.distanceMeters,
+          percentAlongPath: percent,
         );
     }
   }
@@ -205,10 +227,54 @@ class NavigationController extends Notifier<NavigationState> {
           return NavigationAlarmState.normal;
       }
     }
-    // FollowTrackTarget branch — M11b wires full state machine. M11a
-    // keeps it in `normal` so no spurious alarms fire during the
-    // transitional period.
-    return NavigationAlarmState.normal;
+    // Follow-track branch: the off-route hysteresis machine. Tuning
+    // values live in NavigationConstants so post-MVP tuning from
+    // real-device logs is a single-file edit.
+    final offRoute = progress.crossTrackMeters >
+        NavigationConstants.offRouteMeters;
+
+    switch (current) {
+      case NavigationAlarmState.normal:
+        if (offRoute) {
+          _startOffRouteCountdown();
+          return NavigationAlarmState.offRouteCountdown;
+        }
+        return NavigationAlarmState.normal;
+
+      case NavigationAlarmState.offRouteCountdown:
+        if (!offRoute) {
+          // User drifted back inside before the 5s lapsed: cancel the
+          // pending alarm silently.
+          _debounce?.cancel();
+          _debounce = null;
+          return NavigationAlarmState.normal;
+        }
+        return NavigationAlarmState.offRouteCountdown;
+
+      case NavigationAlarmState.offRoute:
+        if (!offRoute) {
+          // User came back inside: start the return-to-route debounce.
+          _startReturnCountdown();
+          return NavigationAlarmState.returnCountdown;
+        }
+        return NavigationAlarmState.offRoute;
+
+      case NavigationAlarmState.returnCountdown:
+        if (offRoute) {
+          // Drifted out again mid-return: cancel + bounce back to
+          // offRoute without re-firing the "keluar jalur" alarm.
+          _debounce?.cancel();
+          _debounce = null;
+          return NavigationAlarmState.offRoute;
+        }
+        return NavigationAlarmState.returnCountdown;
+
+      // Go-to branches (arriving/arrived) should never surface here on
+      // a FollowTrackTarget; collapse defensively so the machine
+      // stays self-consistent.
+      default:
+        return NavigationAlarmState.normal;
+    }
   }
 
   /// Schedule the "arrived" promotion after the debounce window.
@@ -222,6 +288,31 @@ class NavigationController extends Notifier<NavigationState> {
       // Fire-and-forget: the alert service swallows its own errors
       // and a failed alert must never block the state machine.
       unawaited(_dispatchArrived(s.target));
+    });
+  }
+
+  /// Schedule the "keluar jalur" promotion after the debounce window.
+  void _startOffRouteCountdown() {
+    _debounce?.cancel();
+    _debounce = Timer(NavigationConstants.offRouteDebounce, () {
+      final s = state;
+      if (s is! NavigationActive) return;
+      if (s.alarmState != NavigationAlarmState.offRouteCountdown) return;
+      state = s.copyWith(alarmState: NavigationAlarmState.offRoute);
+      unawaited(_dispatchOffRoute(s.progress));
+    });
+  }
+
+  /// Schedule the back-on-route promotion after the debounce window.
+  /// Fires the quiet "kembali ke jalur" haptic (no TTS).
+  void _startReturnCountdown() {
+    _debounce?.cancel();
+    _debounce = Timer(NavigationConstants.offRouteDebounce, () {
+      final s = state;
+      if (s is! NavigationActive) return;
+      if (s.alarmState != NavigationAlarmState.returnCountdown) return;
+      state = s.copyWith(alarmState: NavigationAlarmState.normal);
+      unawaited(_dispatchBackOnRoute());
     });
   }
 
@@ -247,6 +338,27 @@ class NavigationController extends Notifier<NavigationState> {
     await alertSvc.notifyArrived(
       label: target.displayLabel,
       sound: settings.alarmSoundEnabled,
+      vibrate: settings.alarmVibrateEnabled,
+    );
+  }
+
+  Future<void> _dispatchOffRoute(NavigationProgress progress) async {
+    final settings = _currentSettings();
+    final alertSvc = ref.read(navigationAlertServiceProvider);
+    await alertSvc.notifyOffRoute(
+      distanceMeters: progress.crossTrackMeters,
+      sound: settings.alarmSoundEnabled,
+      vibrate: settings.alarmVibrateEnabled,
+    );
+  }
+
+  Future<void> _dispatchBackOnRoute() async {
+    final settings = _currentSettings();
+    final alertSvc = ref.read(navigationAlertServiceProvider);
+    // Back-on-route deliberately skips TTS — only a light haptic so
+    // the user gets feedback without a spammy "kembali ke jalur"
+    // announcement on every flip-flop. Matches spec §4.4.
+    await alertSvc.notifyBackOnRoute(
       vibrate: settings.alarmVibrateEnabled,
     );
   }
