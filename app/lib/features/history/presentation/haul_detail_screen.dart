@@ -14,6 +14,8 @@ import '../../../core/widgets/glass_card.dart';
 import '../../logbook/data/log_book_repository.dart';
 import '../../logbook/domain/entities/log_book_entry.dart';
 import '../../map/application/map_overlay_state.dart';
+import '../../navigation/application/navigation_controller.dart';
+import '../../navigation/domain/entities/navigation_target.dart';
 import '../../tracking/data/haul_repository.dart';
 import '../../tracking/data/track_point_repository.dart';
 import '../../tracking/domain/entities/haul.dart';
@@ -190,6 +192,8 @@ class _Body extends StatelessWidget {
         ),
         const SizedBox(height: AppSizes.sp4),
         _MetricGrid(haul: haul),
+        const SizedBox(height: AppSizes.sp4),
+        _NavigationCtaRow(haul: haul, pointsAsync: pointsAsync),
         const SizedBox(height: AppSizes.sp4),
         _HaulLogBookCard(haulId: haul.id),
       ],
@@ -601,6 +605,136 @@ class _MiniCta extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ===========================================================================
+// Navigation CTAs
+// ===========================================================================
+
+/// Two buttons shown in the haul detail, wired to the M11 navigation
+/// controller:
+///   * "Ikuti Jalur" — starts follow-track with the haul's polyline.
+///   * "Pandu ke Akhir" — starts go-to to the last recorded fix of
+///     this haul.
+/// Both CTAs depend on [pointsAsync] actually resolving; while Drift
+/// is resolving the points both buttons render disabled. A haul with
+/// zero recorded points collapses the row to a short "no GPS data"
+/// pill — better than a silent dead button.
+class _NavigationCtaRow extends ConsumerWidget {
+  const _NavigationCtaRow({
+    required this.haul,
+    required this.pointsAsync,
+  });
+
+  final Haul haul;
+  final AsyncValue<List<TrackPoint>> pointsAsync;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final points = pointsAsync.asData?.value;
+    final loading = pointsAsync is AsyncLoading;
+    final hasPath = points != null && points.length >= 2;
+
+    if (!loading && (points == null || points.isEmpty)) {
+      // No GPS data at all — show a compact hint instead of dead
+      // buttons, so the detail screen's meaning is preserved.
+      return _EmptyNavHint();
+    }
+
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: hasPath
+                ? () => _onFollowTrackPressed(context, ref, points)
+                : null,
+            icon: const Icon(PhosphorIconsBold.footprints, size: 18),
+            label: const Text('Ikuti Jalur'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: AppSizes.sp3),
+            ),
+          ),
+        ),
+        const SizedBox(width: AppSizes.sp2),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: hasPath
+                ? () => _onGotoEndPressed(context, ref, points)
+                : null,
+            icon: const Icon(PhosphorIconsBold.navigationArrow, size: 18),
+            label: const Text('Pandu ke Akhir'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: AppSizes.sp3),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _onFollowTrackPressed(
+    BuildContext context,
+    WidgetRef ref,
+    List<TrackPoint> points,
+  ) {
+    final latLngs = points.map((p) => p.latLng).toList(growable: false);
+    ref.read(navigationControllerProvider.notifier).startFollowTrack(
+          FollowTrackTarget(
+            pathPoints: latLngs,
+            label: haul.displayName(),
+            sourceType: FollowTrackSource.haul,
+            sourceId: haul.id,
+          ),
+        );
+    // Jump to the map so the user sees the reference polyline and
+    // bearing arrow without having to navigate manually.
+    context.go(AppRoutes.map);
+  }
+
+  void _onGotoEndPressed(
+    BuildContext context,
+    WidgetRef ref,
+    List<TrackPoint> points,
+  ) {
+    final end = points.last.latLng;
+    ref.read(navigationControllerProvider.notifier).startGoto(
+          GotoTarget(
+            position: end,
+            label: '${haul.displayName()} (akhir)',
+          ),
+        );
+    context.go(AppRoutes.map);
+  }
+}
+
+class _EmptyNavHint extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final text = context.text;
+    return GlassCard(
+      level: GlassLevel.level1,
+      padding: const EdgeInsets.all(AppSizes.sp3 + 2),
+      child: Row(
+        children: [
+          Icon(
+            PhosphorIconsRegular.info,
+            size: 18,
+            color: tokens.textTertiary,
+          ),
+          const SizedBox(width: AppSizes.sp2),
+          Expanded(
+            child: Text(
+              'Tarikan ini belum punya titik GPS — pandu tidak tersedia.',
+              style: text.bodySmall?.copyWith(
+                color: tokens.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
