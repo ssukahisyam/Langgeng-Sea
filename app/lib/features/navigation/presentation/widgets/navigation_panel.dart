@@ -11,11 +11,14 @@ import '../../domain/entities/navigation_target.dart';
 
 /// Top-of-map glass card shown whenever navigation is active.
 ///
-/// M11a renders the [GotoTarget] branch: target label, distance,
-/// bearing (compass + cardinal hint), and ETA if the boat is moving.
-/// The [FollowTrackTarget] branch renders the same header plus a
-/// progress bar stub -- filled in more completely in M11b when
-/// follow-track metrics come online.
+/// Renders both navigation branches:
+///   * [GotoTarget]: label, distance, bearing (degrees + cardinal
+///     Bahasa), optional ETA, and a "Sudah Sampai" terminal state.
+///   * [FollowTrackTarget]: same header + a progress bar 0..100% that
+///     switches colour when the follow-track alarm machine enters
+///     off-route. An inline warning pill "Keluar jalur X m" surfaces
+///     inside the card so the user sees it without looking down at
+///     the map.
 class NavigationPanel extends StatelessWidget {
   const NavigationPanel({
     super.key,
@@ -36,6 +39,14 @@ class NavigationPanel extends StatelessWidget {
     final isFollowTrack = target is FollowTrackTarget;
     final isArrived = state.alarmState == NavigationAlarmState.arrived;
 
+    // Surface off-route to the panel whenever the controller has
+    // *committed* to the alarm, i.e. after the 5s debounce has lapsed.
+    // Countdown states deliberately don't trigger the warning UI --
+    // doing so would make the warning flicker on borderline jitter.
+    final isOffRoute =
+        state.alarmState == NavigationAlarmState.offRoute ||
+            state.alarmState == NavigationAlarmState.returnCountdown;
+
     // Pick icon + colour based on target type and arrival state so the
     // same panel reads as "heading there" vs "sudah sampai" at a
     // glance.
@@ -44,7 +55,16 @@ class NavigationPanel extends StatelessWidget {
         : (isArrived
             ? PhosphorIconsFill.checkCircle
             : PhosphorIconsFill.navigationArrow);
-    final iconColor = isArrived ? tokens.success : context.colors.primary;
+    // Arrival dominates all other colouring; otherwise follow-track in
+    // an off-route state shows the warning tint to draw the eye.
+    final Color iconColor;
+    if (isArrived) {
+      iconColor = tokens.success;
+    } else if (isFollowTrack && isOffRoute) {
+      iconColor = tokens.warning;
+    } else {
+      iconColor = context.colors.primary;
+    }
 
     return GlassCard(
       level: GlassLevel.level2,
@@ -114,18 +134,16 @@ class NavigationPanel extends StatelessWidget {
           // --- Row 2: distance / bearing / ETA -----------------------------
           _ProgressLine(progress: progress, arrived: isArrived),
 
-          // --- Row 3 (follow-track only): progress bar ---------------------
+          // --- Row 3 (follow-track only): off-route warning + bar ----------
           if (isFollowTrack) ...[
+            if (isOffRoute) ...[
+              const SizedBox(height: AppSizes.sp2),
+              _OffRouteBadge(crossTrackMeters: progress.crossTrackMeters),
+            ],
             const SizedBox(height: AppSizes.sp2),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(AppSizes.radiusPill),
-              child: LinearProgressIndicator(
-                value: progress.percentAlongPath.clamp(0.0, 1.0),
-                minHeight: 4,
-                backgroundColor: tokens.surface1,
-                valueColor:
-                    AlwaysStoppedAnimation<Color>(context.colors.primary),
-              ),
+            _ProgressBar(
+              value: progress.percentAlongPath,
+              offRoute: isOffRoute,
             ),
           ],
         ],
@@ -133,6 +151,10 @@ class NavigationPanel extends StatelessWidget {
     );
   }
 }
+
+// ===========================================================================
+// Progress line
+// ===========================================================================
 
 class _ProgressLine extends StatelessWidget {
   const _ProgressLine({required this.progress, required this.arrived});
@@ -199,6 +221,114 @@ class _ProgressLine extends StatelessWidget {
     return labels[idx];
   }
 }
+
+// ===========================================================================
+// Off-route badge
+// ===========================================================================
+
+class _OffRouteBadge extends StatelessWidget {
+  const _OffRouteBadge({required this.crossTrackMeters});
+
+  final double crossTrackMeters;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final text = context.text;
+    // Nearest 5m — 27m reads as "~25m", keeps the chip stable instead
+    // of bouncing every GPS tick.
+    final rounded = (crossTrackMeters / 5).round() * 5;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.sp3,
+        vertical: 5,
+      ),
+      decoration: BoxDecoration(
+        color: tokens.warning.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+        border: Border.all(
+          color: tokens.warning.withValues(alpha: 0.45),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            PhosphorIconsFill.warningCircle,
+            size: 14,
+            color: tokens.warning,
+          ),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              'Keluar jalur $rounded m',
+              style: text.labelSmall?.copyWith(
+                color: tokens.warning,
+                fontWeight: FontWeight.w800,
+                fontSize: 11.5,
+                letterSpacing: 0.3,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ===========================================================================
+// Progress bar
+// ===========================================================================
+
+class _ProgressBar extends StatelessWidget {
+  const _ProgressBar({required this.value, required this.offRoute});
+
+  final double value;
+  final bool offRoute;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final text = context.text;
+    final clamped = value.clamp(0.0, 1.0);
+    final pct = (clamped * 100).round();
+    final barColour = offRoute ? tokens.warning : context.colors.primary;
+
+    return Row(
+      children: [
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+            child: LinearProgressIndicator(
+              value: clamped,
+              minHeight: 4,
+              backgroundColor: tokens.surface1,
+              valueColor: AlwaysStoppedAnimation<Color>(barColour),
+            ),
+          ),
+        ),
+        const SizedBox(width: AppSizes.sp2),
+        SizedBox(
+          width: 34,
+          child: Text(
+            '$pct%',
+            textAlign: TextAlign.right,
+            style: text.labelSmall?.copyWith(
+              color: tokens.textSecondary,
+              fontWeight: FontWeight.w700,
+              fontSize: 11,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ===========================================================================
+// Pill
+// ===========================================================================
 
 class _Pill extends StatelessWidget {
   const _Pill({required this.text, required this.icon});
