@@ -1,8 +1,9 @@
 // Migration test for AppDatabase.
 //
-// Verifies the v1 → v4 upgrade path adds the tables introduced in later
+// Verifies the v1 → v5 upgrade path adds the tables introduced in later
 // milestones (offline_regions at v2; log_book_entries, catch_items,
-// markers at v3; user_profiles at v4) without losing any existing data.
+// markers at v3; user_profiles at v4; hauls.color_value at v5) without
+// losing any existing data.
 //
 // drift_dev ships schema-version helpers (`dart run drift_dev schema
 // dump`) but we don't have a dumped `drift_schemas/` directory yet, so
@@ -12,7 +13,7 @@
 // The trick: NativeDatabase.memory(setup: (raw) { … }) gives us access
 // to the raw `sqlite3` handle *before* Drift runs its migration
 // strategy. We create the v1 tables and set user_version=1 there, then
-// Drift reads user_version, sees schemaVersion=4, and runs onUpgrade.
+// Drift reads user_version, sees schemaVersion=5, and runs onUpgrade.
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
@@ -71,7 +72,7 @@ CREATE TABLE track_points (
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('AppDatabase migration v1 → v4', () {
+  group('AppDatabase migration v1 → v5', () {
     late AppDatabase db;
 
     setUp(() {
@@ -112,15 +113,15 @@ void main() {
       await db.close();
     });
 
-    test('onUpgrade runs and reaches schemaVersion 4', () async {
+    test('onUpgrade runs and reaches schemaVersion 5', () async {
       // Any query forces the migration to run.
       final row = await db
           .customSelect('PRAGMA user_version')
           .getSingle();
       expect(
         row.data.values.first,
-        4,
-        reason: 'migration should land at schemaVersion 4',
+        5,
+        reason: 'migration should land at schemaVersion 5',
       );
     });
 
@@ -179,6 +180,29 @@ void main() {
 
     test('user_profiles table exists after upgrade (v4)', () async {
       await _expectTableExists(db, 'user_profiles');
+    });
+
+    test('hauls.color_value column exists after upgrade (v5)', () async {
+      final rows = await db
+          .customSelect('PRAGMA table_info(hauls)')
+          .get();
+      final colNames = rows.map((r) => r.data['name'] as String).toList();
+      expect(
+        colNames,
+        contains('color_value'),
+        reason: 'v5 migration should add hauls.color_value column',
+      );
+    });
+
+    test('legacy hauls.color_value defaults to NULL for pre-v5 rows',
+        () async {
+      final rows = await db
+          .customSelect(
+            "SELECT color_value FROM hauls WHERE id = 'haul-1'",
+          )
+          .get();
+      expect(rows, hasLength(1));
+      expect(rows.single.data['color_value'], isNull);
     });
 
     test('new tables are writable after migration', () async {

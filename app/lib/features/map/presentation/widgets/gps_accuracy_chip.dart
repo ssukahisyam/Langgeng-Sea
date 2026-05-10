@@ -5,11 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../../core/services/gps_reading.dart';
-import '../../../../core/services/gps_service.dart';
 import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/glass_card.dart';
+import '../../application/current_reading_provider.dart';
 
 /// Floating chip that shows current GPS accuracy with color coding.
 /// PRD FR-03.9: warn if accuracy > 20m.

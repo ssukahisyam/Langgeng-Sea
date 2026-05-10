@@ -15,6 +15,10 @@ import '../../../tracking/domain/entities/track_point.dart';
 /// Renders every haul in [pointsByHaulId] as its own colored polyline
 /// with start (green) and end (red) dots, then auto-fits the camera.
 /// Non-interactive by default so it works inside scrollables.
+///
+/// When [onExpandTap] is provided a small icon button is rendered in
+/// the top-right corner — tap it to hand off to the main map tab with
+/// this trip/haul highlighted.
 class MultiHaulMap extends StatefulWidget {
   const MultiHaulMap({
     super.key,
@@ -22,12 +26,14 @@ class MultiHaulMap extends StatefulWidget {
     required this.pointsByHaulId,
     this.height = 180,
     this.interactive = false,
+    this.onExpandTap,
   });
 
   final List<Haul> hauls;
   final Map<String, List<TrackPoint>> pointsByHaulId;
   final double height;
   final bool interactive;
+  final VoidCallback? onExpandTap;
 
   @override
   State<MultiHaulMap> createState() => _MultiHaulMapState();
@@ -73,7 +79,10 @@ class _MultiHaulMapState extends State<MultiHaulMap> {
       final points = widget.pointsByHaulId[haul.id] ?? const <TrackPoint>[];
       if (points.length < 2) continue;
       final latLngs = points.map((p) => p.latLng).toList(growable: false);
-      final color = AppColors.colorForHaul(haul.orderIndex);
+      final color = AppColors.resolveHaulColor(
+        colorValue: haul.colorValue,
+        orderIndex: haul.orderIndex,
+      );
       polylines.add(
         Polyline(
           points: latLngs,
@@ -131,6 +140,12 @@ class _MultiHaulMapState extends State<MultiHaulMap> {
               )
             else
               _NoTrackData(),
+            if (widget.onExpandTap != null)
+              Positioned(
+                top: AppSizes.sp2,
+                right: AppSizes.sp2,
+                child: _ExpandButton(onTap: widget.onExpandTap!),
+              ),
           ],
         ),
       ),
@@ -163,6 +178,49 @@ class _MultiHaulMapState extends State<MultiHaulMap> {
           ),
         ),
       );
+}
+
+class _ExpandButton extends StatelessWidget {
+  const _ExpandButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    return Semantics(
+      label: 'Tampilkan di peta utama',
+      button: true,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+          child: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: tokens.surface3,
+              shape: BoxShape.circle,
+              border: Border.all(color: tokens.borderStrong),
+              boxShadow: [
+                BoxShadow(
+                  color: tokens.shadowMd,
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Icon(
+              PhosphorIconsBold.arrowsOut,
+              size: 16,
+              color: context.colors.primary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _NoTrackData extends StatelessWidget {

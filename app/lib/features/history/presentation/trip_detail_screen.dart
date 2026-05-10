@@ -11,6 +11,9 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/ambient_background.dart';
 import '../../../core/widgets/glass_card.dart';
+import '../../logbook/data/log_book_repository.dart';
+import '../../logbook/domain/entities/log_book_entry.dart';
+import '../../map/application/map_overlay_state.dart';
 import '../../tracking/data/haul_repository.dart';
 import '../../tracking/data/track_point_repository.dart';
 import '../../tracking/data/trip_repository.dart';
@@ -55,6 +58,12 @@ class TripDetailScreen extends ConsumerWidget {
                 pointsAsync: pointsAsync,
                 onHaulTap: (haul) =>
                     context.push(AppRoutes.haulDetail(haul.id)),
+                onExpandMap: () {
+                  ref
+                      .read(mapOverlayControllerProvider.notifier)
+                      .showTrip(trip.id);
+                  context.go(AppRoutes.map);
+                },
               ),
             );
           },
@@ -121,7 +130,7 @@ class TripDetailScreen extends ConsumerWidget {
         final confirmed = await DeleteConfirmDialog.show(
           context,
           title: 'Hapus Trip?',
-          body: 'Semua haul, titik GPS, dan log yang terkait akan '
+          body: 'Semua tarikan, titik GPS, dan log yang terkait akan '
               'ikut terhapus. Tindakan ini tidak dapat dibatalkan.',
         );
         if (!confirmed || !context.mounted) return;
@@ -152,12 +161,14 @@ class _Body extends StatelessWidget {
     required this.hauls,
     required this.pointsAsync,
     required this.onHaulTap,
+    required this.onExpandMap,
   });
 
   final Trip trip;
   final List<Haul> hauls;
   final AsyncValue<Map<String, List<TrackPoint>>> pointsAsync;
   final void Function(Haul) onHaulTap;
+  final VoidCallback onExpandMap;
 
   @override
   Widget build(BuildContext context) {
@@ -189,6 +200,7 @@ class _Body extends StatelessWidget {
           data: (pointsMap) => MultiHaulMap(
             hauls: hauls,
             pointsByHaulId: pointsMap,
+            onExpandTap: onExpandMap,
           ),
         ),
         const SizedBox(height: AppSizes.sp3),
@@ -205,7 +217,7 @@ class _Body extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: AppSizes.sp2),
           child: Text(
-            '${hauls.length} HAUL',
+            '${hauls.length} TARIKAN',
             style: text.labelSmall?.copyWith(
               color: tokens.textTertiary,
               letterSpacing: 1,
@@ -223,7 +235,7 @@ class _Body extends StatelessWidget {
           ],
 
         const SizedBox(height: AppSizes.sp4),
-        _TripLogPlaceholder(),
+        _TripLogBookCard(tripId: trip.id),
       ],
     );
   }
@@ -486,7 +498,7 @@ class _EmptyHauls extends StatelessWidget {
           const SizedBox(width: AppSizes.sp2),
           Expanded(
             child: Text(
-              'Trip ini belum punya haul.',
+              'Trip ini belum punya tarikan.',
               style: text.bodyMedium?.copyWith(color: tokens.textSecondary),
             ),
           ),
@@ -496,27 +508,74 @@ class _EmptyHauls extends StatelessWidget {
   }
 }
 
-class _TripLogPlaceholder extends StatelessWidget {
+class _TripLogBookCard extends ConsumerWidget {
+  const _TripLogBookCard({required this.tripId});
+
+  final String tripId;
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(logBookByTripProvider(tripId));
     final text = context.text;
     final tokens = context.tokens;
+
+    final (title, subtitle, ctaLabel, ctaIcon, saved) = switch (async) {
+      AsyncData(value: null) => (
+          'Log Book Trip',
+          'Belum ada — catat BBM, kru, biaya untuk trip ini',
+          'Isi Log Book',
+          PhosphorIconsBold.plus,
+          false,
+        ),
+      AsyncData(value: LogBookEntry(:final totalCatchKg, :final crewCount, :final fuelLiters, :final notes)) =>
+        (
+          'Log Book Trip',
+          _tripSummary(
+            totalCatchKg: totalCatchKg,
+            crewCount: crewCount,
+            fuelLiters: fuelLiters,
+            notes: notes,
+          ),
+          'Edit Log Book',
+          PhosphorIconsBold.pencilSimple,
+          true,
+        ),
+      AsyncError() => (
+          'Log Book Trip',
+          'Gagal memuat log',
+          'Buka',
+          PhosphorIconsBold.arrowRight,
+          false,
+        ),
+      _ => ('Log Book Trip', 'Memuat…', '', null, false),
+    };
+
+    final accent = saved ? tokens.success : context.colors.primary;
+    final iconBg = saved
+        ? tokens.success.withValues(alpha: 0.14)
+        : tokens.primarySoft;
+
     return GlassCard(
       level: GlassLevel.level1,
       padding: const EdgeInsets.all(AppSizes.sp4),
+      onTap: async is AsyncLoading
+          ? null
+          : () => context.push(AppRoutes.logBookForTrip(tripId)),
       child: Row(
         children: [
           Container(
-            width: 36,
-            height: 36,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              color: tokens.primarySoft,
-              borderRadius: BorderRadius.circular(10),
+              color: iconBg,
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
-              PhosphorIconsRegular.notebook,
-              size: 18,
-              color: context.colors.primary,
+              saved
+                  ? PhosphorIconsFill.notebook
+                  : PhosphorIconsRegular.notebook,
+              size: 20,
+              color: accent,
             ),
           ),
           const SizedBox(width: AppSizes.sp3),
@@ -525,10 +584,24 @@ class _TripLogPlaceholder extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Log Book Trip', style: text.titleSmall),
+                Row(
+                  children: [
+                    Text(title, style: text.titleSmall),
+                    if (saved) ...[
+                      const SizedBox(width: 6),
+                      Icon(
+                        PhosphorIconsFill.checkCircle,
+                        size: 14,
+                        color: tokens.success,
+                      ),
+                    ],
+                  ],
+                ),
                 const SizedBox(height: 2),
                 Text(
-                  'BBM, kru, biaya — tersedia di M5',
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: text.bodySmall?.copyWith(
                     color: tokens.textTertiary,
                     fontSize: 12,
@@ -537,9 +610,50 @@ class _TripLogPlaceholder extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(width: AppSizes.sp2),
+          if (async is AsyncLoading)
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else if (ctaIcon != null) ...[
+            Icon(ctaIcon, size: 14, color: accent),
+            const SizedBox(width: 4),
+            Text(
+              ctaLabel,
+              style: text.labelSmall?.copyWith(
+                color: accent,
+                fontWeight: FontWeight.w700,
+                fontSize: 11,
+              ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  String _tripSummary({
+    required double totalCatchKg,
+    required int? crewCount,
+    required double? fuelLiters,
+    required String? notes,
+  }) {
+    final parts = <String>[];
+    if (totalCatchKg > 0) {
+      parts.add('${totalCatchKg.toStringAsFixed(1)} kg tangkap');
+    }
+    if (fuelLiters != null && fuelLiters > 0) {
+      parts.add('${fuelLiters.toStringAsFixed(0)} L BBM');
+    }
+    if (crewCount != null && crewCount > 0) {
+      parts.add('$crewCount kru');
+    }
+    if (parts.isEmpty && notes != null && notes.isNotEmpty) {
+      parts.add('Catatan tersimpan');
+    }
+    return parts.isEmpty ? 'Log tersimpan' : parts.join(' · ');
   }
 }
 

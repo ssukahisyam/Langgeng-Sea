@@ -69,7 +69,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -100,6 +100,11 @@ class AppDatabase extends _$AppDatabase {
           // v3 → v4 adds user_profiles (M8 onboarding).
           if (from < 4) {
             await m.createTable(userProfiles);
+          }
+          // v4 → v5 adds hauls.color_value for per-haul user colours
+          // (Commit 2 history/map integration).
+          if (from < 5) {
+            await m.addColumn(hauls, hauls.colorValue);
           }
         },
       );

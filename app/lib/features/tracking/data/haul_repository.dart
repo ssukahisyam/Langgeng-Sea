@@ -76,6 +76,37 @@ class HaulRepository {
     );
   }
 
+  /// Persist the user-picked polyline colour for a haul.
+  ///
+  /// Pass `colorValue: null` to clear the colour (polyline falls back
+  /// to the auto-assigned palette entry).
+  Future<void> setColor(String haulId, int? colorValue) async {
+    final existing = await getById(haulId);
+    if (existing == null) return;
+    final updated = colorValue == null
+        ? existing.copyWith(clearColor: true)
+        : existing.copyWith(colorValue: colorValue);
+    await _dao.updateHaul(
+      haulId,
+      HaulMapper.toUpdateCompanion(updated),
+    );
+  }
+
+  /// Every haul in the database whose status is 'completed', ordered by
+  /// start time ascending. Used by the "Tampilkan Semua Riwayat" map
+  /// overlay.
+  Future<List<Haul>> listAllCompleted() async {
+    final rows = await _dao.findAllCompleted();
+    return rows.map(HaulMapper.fromRow).toList();
+  }
+
+  /// Reactive stream equivalent of [listAllCompleted].
+  Stream<List<Haul>> watchAllCompleted() {
+    return _dao
+        .watchAllCompleted()
+        .map((rows) => rows.map(HaulMapper.fromRow).toList());
+  }
+
   Future<void> deleteHaul(String haulId) => _dao.deleteHaul(haulId);
 }
 

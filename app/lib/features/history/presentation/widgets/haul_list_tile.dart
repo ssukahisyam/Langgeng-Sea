@@ -1,6 +1,7 @@
 import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -8,12 +9,13 @@ import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/glass_card.dart';
+import '../../../logbook/data/log_book_repository.dart';
 import '../../../tracking/domain/entities/haul.dart';
 
 /// Single-line row used in the trip detail to list that trip's hauls.
 /// The colored bar on the left matches the polyline color on the map
 /// above so users can cross-reference at a glance.
-class HaulListTile extends StatelessWidget {
+class HaulListTile extends ConsumerWidget {
   const HaulListTile({
     super.key,
     required this.haul,
@@ -24,10 +26,15 @@ class HaulListTile extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final text = context.text;
     final tokens = context.tokens;
     final color = AppColors.colorForHaul(haul.orderIndex);
+    final hasLog = ref
+            .watch(logBookByHaulProvider(haul.id))
+            .asData
+            ?.value !=
+        null;
 
     return GlassCard(
       level: GlassLevel.level2,
@@ -90,6 +97,25 @@ class HaulListTile extends StatelessWidget {
                   fontSize: 9,
                   letterSpacing: 0.5,
                 ),
+              ),
+            ),
+            const SizedBox(width: AppSizes.sp2),
+          ] else if (hasLog) ...[
+            // Subtle notebook badge — visible cue that this tarikan
+            // already has a log book entry. No text, icon only, so it
+            // doesn't fight with the tile density.
+            Container(
+              width: 24,
+              height: 24,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: tokens.success.withValues(alpha: 0.14),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                PhosphorIconsFill.notebook,
+                size: 12,
+                color: tokens.success,
               ),
             ),
             const SizedBox(width: AppSizes.sp2),

@@ -265,7 +265,7 @@ class _HeroCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppSizes.radiusPill),
             ),
             child: Text(
-              '${stats.haulCount} haul dalam ${stats.tripCount} trip',
+              '${stats.haulCount} tarikan dalam ${stats.tripCount} trip',
               style: text.labelSmall?.copyWith(
                 color: context.colors.primary,
                 fontWeight: FontWeight.w600,
@@ -291,7 +291,7 @@ class _MetricGrid extends StatelessWidget {
     final distanceKm = stats.totalDistanceMeters / 1000;
     final items = [
       (PhosphorIconsBold.boat, 'Trip', '${stats.tripCount}'),
-      (PhosphorIconsBold.arrowsClockwise, 'Haul', '${stats.haulCount}'),
+      (PhosphorIconsBold.arrowsClockwise, 'Tarikan', '${stats.haulCount}'),
       (
         PhosphorIconsBold.path,
         'Jarak',

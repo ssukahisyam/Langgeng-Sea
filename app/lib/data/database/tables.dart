@@ -52,6 +52,12 @@ class Hauls extends Table {
   RealColumn get avgHeadingDegrees => real().nullable()();
   RealColumn get sweptAreaM2 => real().withDefault(const Constant(0))();
 
+  /// Optional user-picked color for this haul's polyline in history &
+  /// map overlays. Stored as an ARGB32 int. `null` = "use palette
+  /// fallback" (resolveHaulColor picks from [AppColors.haulColors] by
+  /// order index). Added in schema v5.
+  IntColumn get colorValue => integer().nullable()();
+
   TextColumn get notes => text().nullable()();
 
   DateTimeColumn get createdAt => dateTime()();

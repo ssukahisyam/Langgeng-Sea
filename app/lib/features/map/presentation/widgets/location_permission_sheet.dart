@@ -16,6 +16,7 @@ class LocationPermissionSheet extends ConsumerWidget {
   static Future<void> show(BuildContext context) {
     return showModalBottomSheet<void>(
       context: context,
+      useRootNavigator: false,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) => const LocationPermissionSheet(),
@@ -29,7 +30,17 @@ class LocationPermissionSheet extends ConsumerWidget {
     final state = ref.watch(locationPermissionProvider);
     final controller = ref.read(locationPermissionProvider.notifier);
 
-    final (title, body, ctaLabel, ctaIcon, Future<void> Function() onCta) = switch (state) {
+    // When the OS reports permission is already ready, the sheet is
+    // purely a "you're good, close this" confirmation. In that case we
+    // MUST NOT run the generic onCta+re-check flow below, because that
+    // flow always ends with a Navigator.pop() for ready state. That
+    // second pop would unmount the sheet AND then pop the MapScreen
+    // underneath (since the sheet already popped itself from onCta),
+    // leaving the user on a black Scaffold body. See PR #17 feedback.
+    final isReady = state == LocationPermissionState.ready;
+
+    final (title, body, ctaLabel, ctaIcon, Future<void> Function() onCta) =
+        switch (state) {
       LocationPermissionState.serviceDisabled => (
           'Aktifkan Lokasi',
           'Langgeng Sea butuh GPS aktif untuk merekam jejak trawl. '
@@ -51,7 +62,10 @@ class LocationPermissionSheet extends ConsumerWidget {
           'GPS Anda sudah siap dipakai untuk merekam jejak trawl.',
           'Tutup',
           PhosphorIconsBold.checkCircle,
-          () async => Navigator.of(context).pop(),
+          // Kept as a no-op future — the actual pop happens via the
+          // CTA handler below because `isReady` short-circuits the
+          // recheck-then-pop logic that caused PR #17's black screen.
+          () async {},
         ),
       LocationPermissionState.denied ||
       LocationPermissionState.unknown =>
@@ -66,11 +80,18 @@ class LocationPermissionSheet extends ConsumerWidget {
         ),
     };
 
+    // With `useRootNavigator: false` the sheet is hosted by the
+    // shell-level Navigator, so AppShell's `MediaQuery.padding.bottom`
+    // injection (= floating nav clearance) already reaches us. No
+    // magic constants needed — viewInsets covers the keyboard,
+    // padding.bottom covers the floating nav.
     return Padding(
       padding: EdgeInsets.only(
         left: AppSizes.sp4,
         right: AppSizes.sp4,
-        bottom: MediaQuery.of(context).viewInsets.bottom + AppSizes.sp4,
+        bottom: MediaQuery.of(context).viewInsets.bottom +
+            MediaQuery.of(context).padding.bottom +
+            AppSizes.sp4,
         top: AppSizes.sp4,
       ),
       child: GlassCard(
@@ -138,16 +159,23 @@ class LocationPermissionSheet extends ConsumerWidget {
             PrimaryActionButton(
               label: ctaLabel,
               icon: ctaIcon,
-              onPressed: () async {
-                await onCta();
-                if (!context.mounted) return;
-                final newState = ref.read(locationPermissionProvider);
-                if (newState == LocationPermissionState.ready) {
-                  Navigator.of(context).pop();
-                }
-              },
+              onPressed: isReady
+                  ? () {
+                      // Ready-state CTA: single pop, no recheck. Fixes
+                      // the black-screen regression from PR #17.
+                      Navigator.of(context).pop();
+                    }
+                  : () async {
+                      await onCta();
+                      if (!context.mounted) return;
+                      final newState =
+                          ref.read(locationPermissionProvider);
+                      if (newState == LocationPermissionState.ready) {
+                        Navigator.of(context).pop();
+                      }
+                    },
             ),
-            if (state != LocationPermissionState.ready) ...[
+            if (!isReady) ...[
               const SizedBox(height: AppSizes.sp2),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),

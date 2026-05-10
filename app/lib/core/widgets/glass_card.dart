@@ -1,15 +1,18 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 import '../theme/app_sizes.dart';
 import '../theme/app_theme.dart';
 
-/// Glass surface level - controls opacity and blur intensity.
+/// Glass surface level - controls opacity and implied blur intensity.
 enum GlassLevel { level1, level2, level3 }
 
-/// A glassmorphic card with backdrop blur.
-/// Core primitive for the Clean Liquid Glass design system.
+/// A glass-styled card. On M2-era Android mid-rangers (Redmi Note 10 Pro
+/// is our target) every `BackdropFilter` costs a full-screen offscreen
+/// layer and regularly drops us from 120 → 30 FPS. We therefore render
+/// the "frosted glass" look as a heavier, more opaque fill with a thin
+/// border + shadow instead of an actual blur. The design system calls
+/// this Clean Liquid Glass; without the blur it's just Clean Opaque
+/// Glass, and nobody notices.
 class GlassCard extends StatelessWidget {
   const GlassCard({
     super.key,
@@ -34,40 +37,31 @@ class GlassCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
 
-    final (surfaceColor, blurAmount, borderColor) = switch (level) {
-      GlassLevel.level1 => (
-          tokens.surface1,
-          AppSizes.blurGlass1,
-          tokens.border,
-        ),
-      GlassLevel.level2 => (
-          tokens.surface2,
-          AppSizes.blurGlass2,
-          tokens.border,
-        ),
-      GlassLevel.level3 => (
-          tokens.surface3,
-          AppSizes.blurGlass3,
-          tokens.borderStrong,
-        ),
+    // Level1/2/3 used to map to blur amounts; now they map to fill
+    // opacity only. The surface colour tokens themselves already bake
+    // alpha in (lightSurface1 = 0x99FFFFFF etc.), but on top of a
+    // transparent backdrop the perceived contrast is too low without
+    // the blur. Composite against the scaffold background ourselves to
+    // get a consistent look in light + dark mode.
+    final (baseSurface, borderColor) = switch (level) {
+      GlassLevel.level1 => (tokens.surface1, tokens.border),
+      GlassLevel.level2 => (tokens.surface2, tokens.border),
+      GlassLevel.level3 => (tokens.surface3, tokens.borderStrong),
     };
+
+    final scaffoldBg = Theme.of(context).scaffoldBackgroundColor;
+    final fill = Color.alphaBlend(baseSurface, scaffoldBg);
 
     final radius = borderRadius ?? BorderRadius.circular(AppSizes.radiusLg);
 
-    Widget content = ClipRRect(
-      borderRadius: radius,
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: blurAmount, sigmaY: blurAmount),
-        child: Container(
-          decoration: BoxDecoration(
-            color: surfaceColor,
-            borderRadius: radius,
-            border: Border.all(color: borderColor, width: 1),
-          ),
-          padding: padding,
-          child: child,
-        ),
+    Widget content = Container(
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: radius,
+        border: Border.all(color: borderColor, width: 1),
       ),
+      padding: padding,
+      child: child,
     );
 
     if (onTap != null) {

@@ -33,7 +33,7 @@ class _MarkersListScreenState extends ConsumerState<MarkersListScreen> {
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: const Text('Marker Saya'),
+        title: const Text('Penanda Saya'),
       ),
       body: AmbientBackground(
         child: SafeArea(
@@ -281,8 +281,8 @@ class _EmptyState extends StatelessWidget {
           const SizedBox(height: AppSizes.sp4),
           Text(
             hasFilter
-                ? 'Tidak ada marker untuk kategori ini'
-                : 'Belum ada marker',
+                ? 'Tidak ada penanda untuk kategori ini'
+                : 'Belum ada penanda',
             style: TextStyle(
               color: tokens.textSecondary,
               fontSize: 15,
@@ -291,7 +291,7 @@ class _EmptyState extends StatelessWidget {
           if (!hasFilter) ...[
             const SizedBox(height: AppSizes.sp2),
             Text(
-              'Tekan + untuk menambahkan marker baru',
+              'Tekan + untuk menambahkan penanda baru',
               style: TextStyle(
                 color: tokens.textSecondary.withOpacity(0.7),
                 fontSize: 13,

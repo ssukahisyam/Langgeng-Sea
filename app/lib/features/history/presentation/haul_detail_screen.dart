@@ -11,6 +11,9 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/ambient_background.dart';
 import '../../../core/widgets/glass_card.dart';
+import '../../logbook/data/log_book_repository.dart';
+import '../../logbook/domain/entities/log_book_entry.dart';
+import '../../map/application/map_overlay_state.dart';
 import '../../tracking/data/haul_repository.dart';
 import '../../tracking/data/track_point_repository.dart';
 import '../../tracking/domain/entities/haul.dart';
@@ -43,7 +46,16 @@ class HaulDetailScreen extends ConsumerWidget {
           error: (e, _) => _ErrorState(message: '$e'),
           data: (haul) {
             if (haul == null) return const _NotFoundState();
-            return _Body(haul: haul, pointsAsync: pointsAsync);
+            return _Body(
+              haul: haul,
+              pointsAsync: pointsAsync,
+              onExpandMap: () {
+                ref
+                    .read(mapOverlayControllerProvider.notifier)
+                    .showHaul(haul.id);
+                context.go(AppRoutes.map);
+              },
+            );
           },
         ),
       ),
@@ -62,7 +74,7 @@ class HaulDetailScreen extends ConsumerWidget {
         icon: const Icon(PhosphorIconsRegular.arrowLeft),
       ),
       title: Text(
-        'Haul Detail',
+        'Detail Tarikan',
         style: text.titleLarge?.copyWith(fontWeight: FontWeight.w800),
       ),
       actions: [
@@ -88,7 +100,7 @@ class HaulDetailScreen extends ConsumerWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-              'Selesaikan haul terlebih dulu (tekan "Angkat Trawl").'),
+              'Selesaikan tarikan terlebih dulu (tekan "Berhenti").'),
           duration: Duration(seconds: 2),
         ),
       );
@@ -107,7 +119,7 @@ class HaulDetailScreen extends ConsumerWidget {
       case ItemOption.rename:
         final newName = await RenameDialog.show(
           context,
-          title: 'Ubah Nama Haul',
+          title: 'Ubah Nama Tarikan',
           initial: haul.name ?? '',
           hint: 'Contoh: Spot Utara Pagi',
         );
@@ -118,8 +130,8 @@ class HaulDetailScreen extends ConsumerWidget {
       case ItemOption.delete:
         final confirmed = await DeleteConfirmDialog.show(
           context,
-          title: 'Hapus Haul?',
-          body: 'Semua titik GPS dan catatan yang terkait haul ini '
+          title: 'Hapus Tarikan?',
+          body: 'Semua titik GPS dan catatan yang terkait tarikan ini '
               'akan ikut terhapus. Tindakan ini tidak dapat dibatalkan.',
         );
         if (!confirmed || !context.mounted) return;
@@ -145,10 +157,15 @@ class HaulDetailScreen extends ConsumerWidget {
 // ===========================================================================
 
 class _Body extends StatelessWidget {
-  const _Body({required this.haul, required this.pointsAsync});
+  const _Body({
+    required this.haul,
+    required this.pointsAsync,
+    required this.onExpandMap,
+  });
 
   final Haul haul;
   final AsyncValue<List<TrackPoint>> pointsAsync;
+  final VoidCallback onExpandMap;
 
   @override
   Widget build(BuildContext context) {
@@ -168,12 +185,13 @@ class _Body extends StatelessWidget {
           data: (points) => MultiHaulMap(
             hauls: [haul],
             pointsByHaulId: {haul.id: points},
+            onExpandTap: onExpandMap,
           ),
         ),
         const SizedBox(height: AppSizes.sp4),
         _MetricGrid(haul: haul),
         const SizedBox(height: AppSizes.sp4),
-        _CatchPlaceholder(),
+        _HaulLogBookCard(haulId: haul.id),
       ],
     );
   }
@@ -203,7 +221,7 @@ class _Hero extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'HAUL #${haul.orderIndex} · '
+            'TARIKAN #${haul.orderIndex} · '
             '${Formatters.sectionDate(haul.startedAt).toUpperCase()} · '
             '$startClock - $endClock',
             style: text.labelSmall?.copyWith(
@@ -392,30 +410,122 @@ class _Tile extends StatelessWidget {
 }
 
 // ===========================================================================
-// Catch placeholder (M5)
+// Log book card (live from DB)
 // ===========================================================================
 
-class _CatchPlaceholder extends StatelessWidget {
+class _HaulLogBookCard extends ConsumerWidget {
+  const _HaulLogBookCard({required this.haulId});
+
+  final String haulId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(logBookByHaulProvider(haulId));
+
+    return async.when(
+      loading: () => _LogBookCardShell(
+        title: 'Log Book Tarikan',
+        subtitle: 'Memuat…',
+        trailing: const SizedBox(
+          width: 18,
+          height: 18,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+        onTap: null,
+      ),
+      error: (_, __) => _LogBookCardShell(
+        title: 'Log Book Tarikan',
+        subtitle: 'Gagal memuat log',
+        onTap: () => context.push(AppRoutes.logBookForHaul(haulId)),
+        ctaIcon: PhosphorIconsBold.arrowRight,
+      ),
+      data: (entry) {
+        if (entry == null) {
+          return _LogBookCardShell(
+            title: 'Log Book Tarikan',
+            subtitle: 'Belum ada catatan — isi hasil tangkap & kondisi',
+            onTap: () => context.push(AppRoutes.logBookForHaul(haulId)),
+            ctaLabel: 'Isi Log Book',
+            ctaIcon: PhosphorIconsBold.plus,
+          );
+        }
+        return _LogBookCardShell(
+          title: 'Log Book Tarikan',
+          subtitle: _summarize(entry),
+          onTap: () => context.push(AppRoutes.logBookForHaul(haulId)),
+          ctaLabel: 'Edit Log Book',
+          ctaIcon: PhosphorIconsBold.pencilSimple,
+          saved: true,
+        );
+      },
+    );
+  }
+
+  String _summarize(LogBookEntry entry) {
+    final parts = <String>[];
+    if (entry.totalCatchKg > 0) {
+      parts.add('${entry.totalCatchKg.toStringAsFixed(1)} kg tangkap');
+    } else if (entry.catches.isNotEmpty) {
+      parts.add('${entry.catches.length} jenis ikan');
+    }
+    if (entry.weather != null) {
+      parts.add('Cuaca ${entry.weather!.name}');
+    }
+    if (entry.wave != null) {
+      parts.add('Gelombang ${entry.wave!.name}');
+    }
+    if (parts.isEmpty && entry.notes != null && entry.notes!.isNotEmpty) {
+      parts.add('Catatan tersimpan');
+    }
+    return parts.isEmpty ? 'Log tersimpan' : parts.join(' · ');
+  }
+}
+
+class _LogBookCardShell extends StatelessWidget {
+  const _LogBookCardShell({
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.ctaLabel,
+    this.ctaIcon,
+    this.trailing,
+    this.saved = false,
+  });
+
+  final String title;
+  final String subtitle;
+  final VoidCallback? onTap;
+  final String? ctaLabel;
+  final IconData? ctaIcon;
+  final Widget? trailing;
+  final bool saved;
+
   @override
   Widget build(BuildContext context) {
-    final text = context.text;
     final tokens = context.tokens;
+    final text = context.text;
+    final accent = saved ? tokens.success : context.colors.primary;
+    final iconBg = saved ? tokens.success.withValues(alpha: 0.14) : tokens.primarySoft;
+
     return GlassCard(
       level: GlassLevel.level1,
       padding: const EdgeInsets.all(AppSizes.sp4),
+      onTap: onTap,
       child: Row(
         children: [
           Container(
-            width: 36,
-            height: 36,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              color: tokens.accentSoft,
-              borderRadius: BorderRadius.circular(10),
+              color: iconBg,
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
-              PhosphorIconsRegular.fish,
-              size: 18,
-              color: context.colors.secondary,
+              saved
+                  ? PhosphorIconsFill.notebook
+                  : PhosphorIconsRegular.notebook,
+              size: 20,
+              color: accent,
             ),
           ),
           const SizedBox(width: AppSizes.sp3),
@@ -424,10 +534,24 @@ class _CatchPlaceholder extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Hasil Tangkap', style: text.titleSmall),
+                Row(
+                  children: [
+                    Text(title, style: text.titleSmall),
+                    if (saved) ...[
+                      const SizedBox(width: 6),
+                      Icon(
+                        PhosphorIconsFill.checkCircle,
+                        size: 14,
+                        color: tokens.success,
+                      ),
+                    ],
+                  ],
+                ),
                 const SizedBox(height: 2),
                 Text(
-                  'Jenis ikan & berat (kg) — tersedia di M5',
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: text.bodySmall?.copyWith(
                     color: tokens.textTertiary,
                     fontSize: 12,
@@ -436,8 +560,47 @@ class _CatchPlaceholder extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(width: AppSizes.sp2),
+          if (trailing != null)
+            trailing!
+          else if (ctaIcon != null)
+            _MiniCta(
+              label: ctaLabel ?? '',
+              icon: ctaIcon!,
+              color: accent,
+            ),
         ],
       ),
+    );
+  }
+}
+
+class _MiniCta extends StatelessWidget {
+  const _MiniCta({required this.label, required this.icon, required this.color});
+
+  final String label;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    if (label.isEmpty) {
+      return Icon(icon, size: 18, color: color);
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: color),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: context.text.labelSmall?.copyWith(
+            color: color,
+            fontWeight: FontWeight.w700,
+            fontSize: 11,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -478,7 +641,7 @@ class _ErrorState extends StatelessWidget {
           children: [
             Icon(PhosphorIconsFill.warning, size: 48, color: tokens.danger),
             const SizedBox(height: AppSizes.sp3),
-            Text('Gagal memuat haul', style: text.titleMedium),
+            Text('Gagal memuat tarikan', style: text.titleMedium),
             const SizedBox(height: AppSizes.sp2),
             Text(
               message,
@@ -510,10 +673,10 @@ class _NotFoundState extends StatelessWidget {
               color: tokens.textTertiary,
             ),
             const SizedBox(height: AppSizes.sp3),
-            Text('Haul tidak ditemukan', style: text.titleMedium),
+            Text('Tarikan tidak ditemukan', style: text.titleMedium),
             const SizedBox(height: AppSizes.sp2),
             Text(
-              'Haul ini mungkin sudah dihapus.',
+              'Tarikan ini mungkin sudah dihapus.',
               style: text.bodySmall?.copyWith(color: tokens.textSecondary),
             ),
           ],

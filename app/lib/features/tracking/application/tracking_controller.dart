@@ -129,13 +129,24 @@ class TrackingController extends Notifier<TrackingState> {
   }
 
   /// Finalize the parent trip. Any recording haul is stopped first.
-  Future<void> endTrip() async {
+  ///
+  /// Normally we resolve the trip from `state.activeTrip`. But this is
+  /// called from the summary sheet's "Akhiri Trip" path, which runs
+  /// AFTER `stopHaul()` has already reset state to idle — plus there
+  /// are real observed races where `activeTrip` reads null before the
+  /// handler runs (Flutter frame boundary between pop-sheet and
+  /// endTrip-call). In those cases the trip stayed `active` in the DB
+  /// even though the user clearly asked to end it.
+  ///
+  /// [forceTripId] lets the caller pass the trip id directly (from the
+  /// completed haul) so the finalize goes through no matter the state.
+  Future<void> endTrip({String? forceTripId}) async {
     if (state.isRecording) {
       await stopHaul();
     }
-    final trip = state.activeTrip;
-    if (trip == null) return;
-    await _trips.endTrip(trip.id);
+    final tripId = forceTripId ?? state.activeTrip?.id;
+    if (tripId == null) return;
+    await _trips.endTrip(tripId);
     state = const TrackingState.idle();
   }
 
@@ -215,9 +226,14 @@ class TrackingController extends Notifier<TrackingState> {
     if (haul == null) return;
 
     // Drop low-quality fixes from metric aggregation (still persisted so
-    // the raw trace is preserved for later review).
+    // the raw trace is preserved for later review). The 50m threshold
+    // matches real-world performance on a Redmi Note 10 Pro: on land
+    // a calibrated GNSS typically reports 5-15m, at sea 10-30m, and
+    // only truly degraded fixes (indoor startup, canopy occlusion)
+    // come back >50m. A tighter gate (25m) discarded perfectly usable
+    // offshore fixes and made the live metrics freeze.
     final acc = reading.accuracyMeters;
-    final accept = acc == null || acc <= 25.0;
+    final accept = acc == null || acc <= 50.0;
 
     await _points.appendReading(haulId: haul.id, reading: reading);
 

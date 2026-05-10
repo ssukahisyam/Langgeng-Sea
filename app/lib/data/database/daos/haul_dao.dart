@@ -55,4 +55,24 @@ class HaulDao extends DatabaseAccessor<AppDatabase> with _$HaulDaoMixin {
 
   Future<int> deleteHaul(String id) =>
       (delete(hauls)..where((h) => h.id.equals(id))).go();
+
+  /// All hauls that have been stopped (status == 'completed'), oldest
+  /// first. Used by the "Tampilkan Semua Riwayat" map overlay so
+  /// polylines render in the order the user sailed them.
+  Future<List<HaulRow>> findAllCompleted() {
+    return (select(hauls)
+          ..where((h) => h.status.equals('completed'))
+          ..orderBy([(h) => OrderingTerm.asc(h.startedAt)]))
+        .get();
+  }
+
+  /// Reactive variant of [findAllCompleted]. The map overlay listens to
+  /// this so newly-finished hauls light up the overlay without a
+  /// manual refresh.
+  Stream<List<HaulRow>> watchAllCompleted() {
+    return (select(hauls)
+          ..where((h) => h.status.equals('completed'))
+          ..orderBy([(h) => OrderingTerm.asc(h.startedAt)]))
+        .watch();
+  }
 }
