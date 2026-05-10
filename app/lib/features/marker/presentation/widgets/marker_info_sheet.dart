@@ -95,7 +95,11 @@ class _MarkerInfoBody extends ConsumerWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(PhosphorIconsFill.mapPin, size: 12, color: color),
+                      Icon(
+                        _categoryIcon(marker.category),
+                        size: 12,
+                        color: color,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         marker.category.displayLabel.toUpperCase(),
@@ -238,4 +242,13 @@ class _MarkerInfoBody extends ConsumerWidget {
       MarkerCategory.other => tokens.textSecondary,
     };
   }
+
+  /// Category icon mirrored from MarkerPin / MarkersListScreen so the
+  /// info sheet pill reads the same as the map pin and the list tile.
+  IconData _categoryIcon(MarkerCategory cat) => switch (cat) {
+        MarkerCategory.productive => PhosphorIconsFill.fishSimple,
+        MarkerCategory.hazard => PhosphorIconsFill.warning,
+        MarkerCategory.port => PhosphorIconsFill.anchor,
+        MarkerCategory.other => PhosphorIconsFill.mapPin,
+      };
 }

@@ -38,6 +38,7 @@ import '../../marker/presentation/widgets/marker_info_sheet.dart';
 import '../../marker/presentation/widgets/marker_pin.dart';
 import '../../offline_map/data/tile_cache_service.dart';
 import '../../onboarding/data/user_profile_repository.dart';
+import '../application/all_history_visible_provider.dart';
 import '../application/history_overlay_providers.dart';
 import '../application/map_overlay_state.dart';
 import '../application/markers_overlay_provider.dart';
@@ -376,14 +377,17 @@ class _MapScreenState extends ConsumerState<MapScreen>
   // Overlay helpers
   // ---------------------------------------------------------------------
 
-  /// Resolve the current overlay's render provider (if any). Returns null
+  /// Resolve the pinned overlay's render provider (if any). Returns null
   /// for [MapOverlayNone], keeping the rest of the build call simple.
+  ///
+  /// This only covers the SINGLE-slot pinned overlay. The independent
+  /// all-history footprints layer is resolved separately in [build] via
+  /// [allHistoryVisibleProvider] + [allHistoryRenderProvider].
   AsyncValue<HistoryOverlayRender>? _watchOverlayRender(
     MapOverlayMode mode,
   ) {
     return switch (mode) {
       MapOverlayNone() => null,
-      MapOverlayAllHistory() => ref.watch(allHistoryRenderProvider),
       MapOverlaySingleTrip(tripId: final id) =>
         ref.watch(tripRenderProvider(id)),
       MapOverlaySingleHaul(haulId: final id) =>
@@ -405,9 +409,29 @@ class _MapScreenState extends ConsumerState<MapScreen>
     );
   }
 
+  /// Fit the camera to the all-history footprints bounds. Only called
+  /// when the footprints toggle just turned ON and no pinned overlay
+  /// is active — otherwise the pinned overlay would fight for camera
+  /// control and the user's drill-down zoom would get yanked away.
+  ///
+  /// Re-uses [_fittedOverlayKey] (stamped with a sentinel string) so
+  /// subsequent rebuilds don't re-snap on every provider tick.
+  void _fitAllHistoryBounds(HistoryOverlayRender render) {
+    if (render.bounds == null) return;
+    const key = 'all-history:on';
+    if (_fittedOverlayKey == key) return;
+    _fittedOverlayKey = key;
+    _followingUser = false;
+    _mapController.fitCamera(
+      CameraFit.bounds(
+        bounds: render.bounds!,
+        padding: const EdgeInsets.all(64),
+      ),
+    );
+  }
+
   Object _overlayKey(MapOverlayMode mode) => switch (mode) {
         MapOverlayNone() => 'none',
-        MapOverlayAllHistory() => 'all',
         MapOverlaySingleTrip(tripId: final id) => 'trip:$id',
         MapOverlaySingleHaul(haulId: final id) => 'haul:$id',
       };
@@ -432,27 +456,84 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final overlayAsync = _watchOverlayRender(overlayMode);
     final overlayActive = overlayMode is! MapOverlayNone;
 
+    // All-history footprints toggle — independent from the pinned
+    // overlay above. When ON we also watch the all-history render
+    // provider so its polylines can be merged into the layer below.
+    // When OFF we deliberately do NOT watch the provider so it
+    // auto-disposes and frees memory on devices with hundreds of
+    // completed hauls.
+    final allHistoryOn = ref.watch(allHistoryVisibleProvider);
+    final allHistoryAsync =
+        allHistoryOn ? ref.watch(allHistoryRenderProvider) : null;
+
     // User-placed markers overlay (persistent toggle, see
     // markersOverlayEnabledProvider).
     final markersOn = ref.watch(markersOverlayEnabledProvider);
     final markersAsync =
         markersOn ? ref.watch(allMarkersProvider) : null;
 
-    // Reset remembered fit when overlay is cleared so the next enable
-    // will re-fit.
+    // Reset remembered fit when the pinned overlay is cleared so the
+    // next time a pinned overlay becomes active, the camera re-fits.
     if (!overlayActive) {
       _fittedOverlayKey = null;
     }
+    // Also reset when the footprints toggle is OFF so that flipping
+    // it back ON triggers a fresh camera fit instead of the old one
+    // being remembered.
+    if (!allHistoryOn && _fittedOverlayKey == 'all-history:on') {
+      _fittedOverlayKey = null;
+    }
 
-    // Auto-zoom on new overlay data.
+    // Auto-zoom priority:
+    //   1. A freshly-pinned single trip / haul always wins — that's
+    //      the user's explicit "zoom to this thing" intent.
+    //   2. Otherwise, when the footprints toggle flips from OFF to
+    //      ON and no pinned overlay exists, fit the camera to the
+    //      full-history bounds.
+    // _fittedOverlayKey remembers the last thing we fitted so the
+    // same overlay doesn't re-snap on every rebuild.
     overlayAsync?.whenData((render) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         _fitOverlayBounds(overlayMode, render);
       });
     });
+    if (!overlayActive && allHistoryOn) {
+      allHistoryAsync?.whenData((render) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          _fitAllHistoryBounds(render);
+        });
+      });
+    }
 
+    // Compose polylines from both overlays. Order matters: we draw
+    // all-history first (as background, lighter alpha) so the pinned
+    // overlay renders on top with the more saturated colour. That
+    // keeps the user-drilled-into thing visually dominant even when
+    // it shares geography with other history.
     final overlayPolylines = <Polyline>[];
+
+    if (allHistoryOn) {
+      final tracks = allHistoryAsync?.asData?.value.tracks ?? const [];
+      for (final t in tracks) {
+        final color = AppColors.resolveHaulColor(
+          colorValue: t.colorValue,
+          orderIndex: t.orderIndex,
+        );
+        overlayPolylines.add(
+          Polyline(
+            points: t.points,
+            strokeWidth: 3,
+            // Lower alpha + thinner stroke for the "context" layer so
+            // it reads as background. The pinned overlay below uses a
+            // heavier stroke and higher alpha.
+            color: color.withValues(alpha: 0.28),
+          ),
+        );
+      }
+    }
+
     if (overlayAsync != null) {
       final tracks = overlayAsync.asData?.value.tracks ?? const [];
       for (final t in tracks) {
@@ -464,7 +545,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
           Polyline(
             points: t.points,
             strokeWidth: 4,
-            color: color.withValues(alpha: 0.4),
+            color: color.withValues(alpha: 0.55),
             borderStrokeWidth: 0.6,
             borderColor: Colors.white.withValues(alpha: 0.35),
           ),
@@ -530,13 +611,19 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   // live position never disappears under a pin.
                   if (markersOn)
                     MarkerLayer(
+                      // `alignment: Alignment.bottomCenter` makes the
+                      // tip of the teardrop pin (the bottom-center of
+                      // the MarkerPin widget) anchor to the real
+                      // lat/lng. Changing this without also updating
+                      // MarkerPin's geometry will mis-register every
+                      // pin on the map.
                       markers: (markersAsync?.asData?.value ?? const [])
                           .map(
                             (m) => Marker(
                               point: m.latLng,
-                              width: 80,
-                              height: 48,
-                              alignment: Alignment.topCenter,
+                              width: MarkerPin.width,
+                              height: MarkerPin.height,
+                              alignment: Alignment.bottomCenter,
                               child: MarkerPin(
                                 marker: m,
                                 onTap: () =>
@@ -606,10 +693,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   const GpsAccuracyChip(),
                   const SizedBox(height: AppSizes.sp2),
                   _AllHistoryToggle(
-                    on: overlayMode is MapOverlayAllHistory,
-                    onTap: () => ref
-                        .read(mapOverlayControllerProvider.notifier)
-                        .toggleAllHistory(),
+                    on: allHistoryOn,
+                    onTap: () {
+                      final notifier =
+                          ref.read(allHistoryVisibleProvider.notifier);
+                      notifier.state = !notifier.state;
+                    },
                   ),
                   const SizedBox(height: AppSizes.sp2),
                   _MarkersToggle(
@@ -927,12 +1016,6 @@ class _OverlayContextChip extends ConsumerWidget {
     switch (mode) {
       case MapOverlayNone():
         return ('', '');
-      case MapOverlayAllHistory():
-        if (render == null) return ('Semua Riwayat', 'Memuat…');
-        return (
-          'Semua Riwayat',
-          '$tripHeadCount tarikan selesai',
-        );
       case MapOverlaySingleTrip(tripId: final id):
         final tripAsync = ref.watch(tripByIdProvider(id));
         final trip = tripAsync.asData?.value;
