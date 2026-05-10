@@ -129,13 +129,24 @@ class TrackingController extends Notifier<TrackingState> {
   }
 
   /// Finalize the parent trip. Any recording haul is stopped first.
-  Future<void> endTrip() async {
+  ///
+  /// Normally we resolve the trip from `state.activeTrip`. But this is
+  /// called from the summary sheet's "Akhiri Trip" path, which runs
+  /// AFTER `stopHaul()` has already reset state to idle — plus there
+  /// are real observed races where `activeTrip` reads null before the
+  /// handler runs (Flutter frame boundary between pop-sheet and
+  /// endTrip-call). In those cases the trip stayed `active` in the DB
+  /// even though the user clearly asked to end it.
+  ///
+  /// [forceTripId] lets the caller pass the trip id directly (from the
+  /// completed haul) so the finalize goes through no matter the state.
+  Future<void> endTrip({String? forceTripId}) async {
     if (state.isRecording) {
       await stopHaul();
     }
-    final trip = state.activeTrip;
-    if (trip == null) return;
-    await _trips.endTrip(trip.id);
+    final tripId = forceTripId ?? state.activeTrip?.id;
+    if (tripId == null) return;
+    await _trips.endTrip(tripId);
     state = const TrackingState.idle();
   }
 

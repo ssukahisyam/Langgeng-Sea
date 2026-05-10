@@ -240,7 +240,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
     switch (action) {
       case HaulSummaryAction.endTrip:
         // Dialog already renamed the trip; now actually finalise it.
-        await ref.read(trackingControllerProvider.notifier).endTrip();
+        // Pass `forceTripId` directly off the just-completed haul so
+        // the end survives even if activeTrip already cleared during
+        // stopHaul() above.
+        await ref
+            .read(trackingControllerProvider.notifier)
+            .endTrip(forceTripId: completion.haul.tripId);
       case HaulSummaryAction.saved:
         // Stay idle. User taps MULAI TEBAR again from the bottom panel
         // if they want another haul in the same trip.

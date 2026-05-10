@@ -10,7 +10,6 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/glass_card.dart';
 import '../../../../core/widgets/primary_action_button.dart';
-import '../../application/tracking_controller.dart';
 import '../../application/tracking_state.dart';
 import '../../data/haul_repository.dart';
 import '../../domain/entities/haul.dart';
@@ -230,15 +229,10 @@ class _HaulSummarySheetState extends ConsumerState<HaulSummarySheet> {
                 onPressed: () async {
                   await _persistEdits();
                   if (!mounted) return;
-                  final tripId = ref
-                      .read(trackingControllerProvider)
-                      .activeTrip
-                      ?.id;
-                  if (tripId == null) {
-                    // Edge case: trip already gone. Just fall through.
-                    Navigator.of(context).pop(HaulSummaryAction.endTrip);
-                    return;
-                  }
+                  // Use the tripId off the just-completed haul rather
+                  // than state.activeTrip — the latter can be stale
+                  // after a race with stopHaul() upstream.
+                  final tripId = widget.completion.haul.tripId;
                   final confirmed = await EndTripDialog.show(
                     context,
                     tripId: tripId,
