@@ -72,7 +72,7 @@ CREATE TABLE track_points (
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('AppDatabase migration v1 → v5', () {
+  group('AppDatabase migration v1 → v6', () {
     late AppDatabase db;
 
     setUp(() {
@@ -113,15 +113,15 @@ void main() {
       await db.close();
     });
 
-    test('onUpgrade runs and reaches schemaVersion 5', () async {
+    test('onUpgrade runs and reaches schemaVersion 6', () async {
       // Any query forces the migration to run.
       final row = await db
           .customSelect('PRAGMA user_version')
           .getSingle();
       expect(
         row.data.values.first,
-        5,
-        reason: 'migration should land at schemaVersion 5',
+        6,
+        reason: 'migration should land at schemaVersion 6',
       );
     });
 
@@ -203,6 +203,39 @@ void main() {
           .get();
       expect(rows, hasLength(1));
       expect(rows.single.data['color_value'], isNull);
+    });
+
+    test('app_settings table exists after upgrade (v6)', () async {
+      await _expectTableExists(db, 'app_settings');
+    });
+
+    test('app_settings is seeded with alarms both ON after v5 -> v6 upgrade',
+        () async {
+      final rows = await db
+          .customSelect(
+            'SELECT id, alarm_sound_enabled, alarm_vibrate_enabled, '
+            'updated_at FROM app_settings WHERE id = 1',
+          )
+          .get();
+      expect(rows, hasLength(1),
+          reason: 'migration should seed exactly one app_settings row');
+      final r = rows.single.data;
+      // Drift stores bool as 0/1 via custom SQL, but the seed uses
+      // literal 1 values so we compare against the numeric form.
+      expect(r['alarm_sound_enabled'], 1);
+      expect(r['alarm_vibrate_enabled'], 1);
+      expect(r['updated_at'], isNotNull);
+    });
+
+    test('app_settings row is a singleton (PK = 1)', () async {
+      // Attempting to insert a second row with id=1 must fail; inserting
+      // with a different PK is mechanically possible in SQLite but the
+      // domain invariant is enforced by the DAO -- guarding here keeps
+      // the migration test honest.
+      final count = await db
+          .customSelect('SELECT COUNT(*) AS c FROM app_settings')
+          .getSingle();
+      expect(count.data['c'], 1);
     });
 
     test('new tables are writable after migration', () async {

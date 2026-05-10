@@ -9,6 +9,8 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/glass_card.dart';
 import '../../../../core/widgets/primary_action_button.dart';
 import '../../../history/presentation/widgets/delete_confirm_dialog.dart';
+import '../../../navigation/application/navigation_controller.dart';
+import '../../../navigation/domain/entities/navigation_target.dart';
 import '../../data/marker_repository.dart';
 import '../../domain/entities/marker.dart';
 
@@ -171,7 +173,17 @@ class _MarkerInfoBody extends ConsumerWidget {
 
             const SizedBox(height: AppSizes.sp5),
 
-            // Actions
+            // Primary: start go-to navigation to this marker. Stacked
+            // above the secondary Hapus/Tutup row so the most common
+            // action (navigate) is also the easiest thumb target.
+            PrimaryActionButton(
+              label: 'Pandu ke sini',
+              icon: PhosphorIconsBold.navigationArrow,
+              onPressed: () => _onNavigatePressed(context, ref),
+            ),
+            const SizedBox(height: AppSizes.sp2),
+
+            // Secondary actions.
             Row(
               children: [
                 Expanded(
@@ -199,10 +211,23 @@ class _MarkerInfoBody extends ConsumerWidget {
                 ),
                 const SizedBox(width: AppSizes.sp2),
                 Expanded(
-                  child: PrimaryActionButton(
-                    label: 'Tutup',
-                    icon: PhosphorIconsBold.checkCircle,
+                  child: OutlinedButton.icon(
                     onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(
+                      PhosphorIconsBold.xCircle,
+                      size: 18,
+                    ),
+                    label: Text(
+                      'Tutup',
+                      style: text.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSizes.sp3,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -211,6 +236,17 @@ class _MarkerInfoBody extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  void _onNavigatePressed(BuildContext context, WidgetRef ref) {
+    ref.read(navigationControllerProvider.notifier).startGoto(
+          GotoTarget(
+            position: marker.latLng,
+            label: marker.name,
+            sourceMarkerId: marker.id,
+          ),
+        );
+    Navigator.of(context).pop();
   }
 
   Future<void> _onDeletePressed(BuildContext context, WidgetRef ref) async {

@@ -5,22 +5,39 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../../core/services/gps_reading.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../navigation/presentation/widgets/bearing_arrow.dart';
 
 /// Visual representation of the user's boat on the map.
 ///
 /// Rotates with [reading.headingDegrees] when available, shows a pulsing
 /// halo for visibility, and darkens when [isTracking] (during active haul).
+///
+/// When [bearingToTarget] is non-null (set by MapScreen while navigation
+/// is active) a small [BearingArrow] is composed on top pointing in
+/// the compass direction of the current nav target -- heading (boat's
+/// own course) and bearing (direction the user *should* go) thus sit
+/// side by side without visual collision.
 class BoatMarker extends StatefulWidget {
   const BoatMarker({
     super.key,
     required this.reading,
     this.isTracking = false,
     this.size = 36,
+    this.bearingToTarget,
+    this.navArrived = false,
   });
 
   final GpsReading? reading;
   final bool isTracking;
   final double size;
+
+  /// Compass bearing (0..360) to the active navigation target.
+  /// Null when navigation is idle -- no arrow rendered then.
+  final double? bearingToTarget;
+
+  /// When true, the bearing arrow is rendered in success colour as
+  /// the "you have arrived" indicator instead of the usual primary.
+  final bool navArrived;
 
   @override
   State<BoatMarker> createState() => _BoatMarkerState();
@@ -114,6 +131,15 @@ class _BoatMarkerState extends State<BoatMarker>
               ),
             ),
           ),
+
+          // Navigation bearing arrow -- only when a target is active.
+          // Kept OUTSIDE the rotating Transform so the arrow tracks the
+          // compass bearing directly, not the boat's heading.
+          if (widget.bearingToTarget != null)
+            BearingArrow(
+              bearingDegrees: widget.bearingToTarget!,
+              arrived: widget.navArrived,
+            ),
         ],
       ),
     );
