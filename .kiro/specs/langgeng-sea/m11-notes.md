@@ -43,13 +43,16 @@ Setelah M11 selesai:
 - [ ] Tap marker → "Pandu ke sini" → panel panduan muncul, peta overlay garis dashed ke tujuan
 - [ ] Long-press peta → menu kontekstual dengan "Pandu ke titik ini"
 - [ ] Haul detail → "Ikuti jalur" → polyline haul di-highlight, off-route alarm jalan
-- [ ] Trip detail → "Ikuti jalur" dan "Pandu ke titik akhir"
+- [ ] Trip detail (≥2 haul) → "Ikuti jalur" → bottom sheet pilih haul → follow-track haul pilihan
+- [ ] Trip detail (1 haul) → "Ikuti jalur" → auto-pick haul tunggal, langsung start
+- [ ] Trip detail → "Pandu ke titik akhir" (titik akhir haul terakhir)
 - [ ] Saat jarak ke target ≤ 15m selama 3 detik → notif "Sudah sampai" + vibrasi + suara TTS
 - [ ] Saat cross-track ≥ 30m selama 5 detik → notif "Keluar jalur" + vibrasi + suara
-- [ ] Settings: toggle suara alarm on/off, toggle getar alarm on/off (default keduanya on)
+- [ ] Settings `app_settings` table (single row, seeded default true/true): toggle suara alarm on/off, toggle getar alarm on/off
 - [ ] Navigasi + tracking trawl bisa jalan bareng (dua mode independen)
 - [ ] Tombol "Akhiri Pandu" selalu accessible saat nav aktif
 - [ ] Crash recovery: navigasi TIDAK survive restart (state di-reset ke None saat app buka lagi — tracking survive, nav tidak, intentional karena user biasanya mulai nav setelah sudah di laut)
+- [ ] Schema migration v4 → v5: CREATE TABLE app_settings + seed default row (tidak ALTER user_profiles)
 
 ## Threshold
 

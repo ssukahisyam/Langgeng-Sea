@@ -4,6 +4,22 @@ Technical spec pendamping [`m11-notes.md`](m11-notes.md). Dokumen ini berfokus p
 
 ---
 
+## 0. Keputusan final (open questions → resolved)
+
+Lima pertanyaan di versi pertama spec sudah dijawab. Dokumen ini sudah
+mencerminkan keputusan tersebut; bagian ini hanya untuk catatan
+reviewer yang membandingkan dengan versi pertama.
+
+| # | Pertanyaan | Keputusan | Alasan singkat |
+|---|---|---|---|
+| 1 | Math cross-track: library atau sendiri? | **Tulis sendiri** di `core/utils/geo_calculator.dart` | 5-8 baris Dart per fungsi, referensi rumus stabil, tidak menambah ~200KB bundle `turf_dart`, konsisten dengan helper yang sudah ada (`haversineMeters`, `circularMeanDegrees`). Lihat § 3. |
+| 2 | Debounce 3s arrived / 5s off-route? | **OK, finalize** | Tidak ada perubahan. |
+| 3 | Kolom alarm di `user_profiles` atau table sendiri? | **Table `app_settings` tersendiri** | Domain separation: `user_profiles` = siapa user-nya (nama, kapal); `app_settings` = preferensi device. Kalau nanti multi-user (v2), user_profiles per user tapi app_settings tetap per device. Lihat § 6. |
+| 4 | Trip follow-track: gabung polyline atau pilih haul? | **Pilih haul** via bottom sheet kalau trip punya ≥2 haul; auto-pick kalau 1 haul | Gabung polyline multi-haul awkward karena ada gap waktu + posisi antar-haul (kapal pindah lokasi baru tebar haul berikut). Lebih jelas secara mental: "ikuti Haul #3 yang hasilnya bagus kemarin", bukan "ikuti gabungan semua haul trip kemarin". Lihat § 8.4. |
+| 5 | Split 2 PR (M11a + M11b)? | **OK** | Tidak ada perubahan. Lihat § 10. |
+
+---
+
 ## 1. Arsitektur
 
 Satu feature module baru: `features/navigation/` — mengikuti pattern Clean Architecture yang sudah dipakai di module lain (marker, tracking, dsb).
@@ -134,7 +150,18 @@ Alarm state machine jadi penting supaya alarm tidak spam. Detail transisi di § 
 
 ## 3. Math utilities (extend `core/utils/geo_calculator.dart`)
 
-Semua tambahan adalah pure Dart function — unit-testable tanpa Flutter.
+Semua tambahan adalah **pure Dart function tanpa library eksternal** —
+konsisten dengan helper yang sudah ada (`haversineMeters`,
+`circularMeanDegrees`, `sweptAreaM2`). Setiap fungsi ~5-10 baris. Tiap
+fungsi menyimpan URL referensi rumus di docstring supaya reviewer bisa
+verify independently; lihat [Movable Type Scripts — Latitude/Longitude
+calculations](https://www.movable-type.co.uk/scripts/latlong.html)
+untuk cross-track, bearing, dst.
+
+Kenapa tidak pakai `turf_dart` atau library sejenis: bundle size
+tambahan ~200KB untuk ratusan fungsi yang tidak kita pakai; APK arm64
+release sekarang sudah 20MB, tidak perlu tambah 1% untuk tiga fungsi.
+Kalau M12/M13 nanti butuh geofencing / convex hull, pertimbangan ulang.
 
 ```dart
 /// Initial compass bearing dari (lat1,lon1) ke (lat2,lon2).
@@ -167,7 +194,8 @@ double percentAlongPolyline(
 }) { ... }
 ```
 
-Referensi formula: cross-track distance spherical dari [Movable Type Scripts](https://www.movable-type.co.uk/scripts/latlong.html#cross-track).
+Referensi formula cross-track spherical: bagian "Cross-track distance"
+di Movable Type Scripts link di atas.
 
 ### Testing — unit tests wajib
 
@@ -288,7 +316,7 @@ void _dispatchAlarmIfStateChanged(
 ) {
   if (prev == next) return;
   final alertSvc = ref.read(navigationAlertServiceProvider);
-  final settings = ref.read(userProfileProvider).asData?.value;
+  final settings = ref.read(appSettingsProvider).asData?.value;
 
   switch (next) {
     case _AlarmState.arrived:
@@ -359,34 +387,98 @@ dependencies:
 
 ---
 
-## 6. Settings — user toggle
+## 6. Settings — table `app_settings` tersendiri
 
-### 6.1 Schema migration
+Domain separation: `user_profiles` jawab "siapa user-nya" (nama,
+kapal, trawl width). `app_settings` jawab "preferensi aplikasi di
+device ini" (alarm, theme nanti kalau dipindah dari SharedPreferences,
+dll). Kalau nanti multi-user (v2 roadmap), user_profiles per user tapi
+app_settings tetap per-device.
 
-Tambah 2 kolom BOOL ke `user_profiles` table (schema v4 → v5):
+Lokasi file: `core/settings/` — bukan di `features/navigation/` karena
+table ini general, tidak hanya untuk navigasi.
+
+### 6.1 Schema migration (v4 → v5)
+
+Table baru dengan single-row pattern (id=1 sentinel), mirip
+`user_profiles`:
 
 ```sql
-ALTER TABLE user_profiles ADD COLUMN alarm_sound_enabled INTEGER NOT NULL DEFAULT 1;
-ALTER TABLE user_profiles ADD COLUMN alarm_vibrate_enabled INTEGER NOT NULL DEFAULT 1;
+CREATE TABLE app_settings (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  alarm_sound_enabled INTEGER NOT NULL DEFAULT 1,
+  alarm_vibrate_enabled INTEGER NOT NULL DEFAULT 1,
+  updated_at INTEGER NOT NULL  -- unix millis
+);
+
+-- Insert default row saat migration jalan, supaya query selalu
+-- menemukan row (tidak perlu null-handling di repo).
+INSERT OR IGNORE INTO app_settings
+  (id, alarm_sound_enabled, alarm_vibrate_enabled, updated_at)
+VALUES (1, 1, 1, strftime('%s','now') * 1000);
 ```
 
-Migration function di `AppDatabase.onUpgrade` — pattern sama dengan migration v3→v4 yang sudah ada.
+Migration step di `AppDatabase.onUpgrade` — pattern sama dengan
+migration v3→v4 (user_profiles) yang sudah ada. Existing users yang
+upgrade: table dibuat + seeded default true/true. Fresh install:
+`onCreate` bikin table sekaligus.
 
-### 6.2 UserProfile entity
+### 6.2 Entity & repository
 
 ```dart
-class UserProfile {
-  // existing fields ...
-  final bool alarmSoundEnabled;      // default true
-  final bool alarmVibrateEnabled;    // default true
+// core/settings/domain/entities/app_settings.dart
+class AppSettings {
+  const AppSettings({
+    required this.alarmSoundEnabled,
+    required this.alarmVibrateEnabled,
+    required this.updatedAt,
+  });
+  final bool alarmSoundEnabled;     // default true
+  final bool alarmVibrateEnabled;   // default true
+  final DateTime updatedAt;
+
+  AppSettings copyWith({...});
+
+  static const defaults = AppSettings(
+    alarmSoundEnabled: true,
+    alarmVibrateEnabled: true,
+    updatedAt: /* epoch */ ...,
+  );
 }
+
+// core/settings/data/app_settings_repository.dart
+class AppSettingsRepository {
+  AppSettingsRepository(this._dao);
+  final AppSettingsDao _dao;
+
+  Stream<AppSettings> watch() => _dao.watchSingle().map(_fromRow);
+  Future<AppSettings> get() async => _fromRow(await _dao.getSingle());
+  Future<void> setSoundEnabled(bool v) => _dao.updateSoundEnabled(v);
+  Future<void> setVibrateEnabled(bool v) => _dao.updateVibrateEnabled(v);
+}
+
+// Providers
+final appSettingsRepositoryProvider = Provider<AppSettingsRepository>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return AppSettingsRepository(db.appSettingsDao);
+});
+
+final appSettingsProvider = StreamProvider<AppSettings>((ref) {
+  final repo = ref.watch(appSettingsRepositoryProvider);
+  return repo.watch();
+});
 ```
 
-`copyWith` + validator updated.
+`UserProfile` entity **tidak disentuh** — keputusan ini membatalkan §
+6.2 versi pertama (`UserProfile` dengan field alarm). User profile
+tetap domain "siapa".
 
 ### 6.3 UI
 
-`ProfileEditScreen` — section baru "Alarm Navigasi":
+`ProfileEditScreen` → section baru "Alarm Navigasi" (atau bisa
+dipindah ke halaman Pengaturan umum nanti — untuk M11a tetap di profil
+supaya user gampang temu). Membaca dari `appSettingsProvider`, tulis
+via `appSettingsRepositoryProvider`:
 
 ```
 ┌─────────────────────────────────┐
@@ -401,7 +493,10 @@ class UserProfile {
 └─────────────────────────────────┘
 ```
 
-Dua `SwitchListTile` pakai `Switch.adaptive`. Save langsung ke DB saat toggle.
+Dua `SwitchListTile.adaptive`. Toggle langsung panggil
+`repo.setSoundEnabled(v)` / `setVibrateEnabled(v)` — tidak perlu save
+button, update langsung disimpan (pattern "setting toggle = direct
+write" yang user expect di mobile).
 
 ---
 
@@ -578,14 +673,127 @@ if (points.isNotEmpty) ...[
 ],
 ```
 
-### 8.4 TripDetailScreen
+### 8.4 TripDetailScreen — pilih haul, bukan gabung polyline
 
-Similar dengan haul detail — dua tombol untuk trip:
+Keputusan di § 0: follow-track untuk trip = pilih SATU haul dari trip,
+bukan gabungkan polyline semua haul. Alasan:
 
-- "Ikuti Jalur Trip" — gabungkan polyline semua haul di trip secara berurutan (by orderIndex)
-- "Pandu ke Akhir Trip" — titik akhir haul terakhir
+- Polyline gabungan multi-haul punya **gap spasial** antar-haul (kapal
+  pindah lokasi beberapa km untuk tebar haul berikut). Jalur "ikuti"
+  yang punya lompatan posisi confusing — user bingung "saya lagi di
+  segment mana, kenapa ada lompatan tiba-tiba".
+- Mental model "ikuti Haul #3 yang hasilnya bagus kemarin" lebih jelas
+  daripada "ikuti gabungan semua haul kemarin".
+- Logbook per-haul → user punya data per-haul untuk pilih yang mau
+  di-replay ("Haul #3 dapat 80 kg tenggiri → replay").
 
-Kalau trip punya hanya 1 haul, jatuh ke perilaku "Ikuti Jalur Tarikan" yang sama.
+#### UX flow
+
+1. User buka TripDetailScreen.
+2. Kalau trip **1 haul**: tombol "Ikuti Jalur Tarikan" langsung start
+   follow-track dengan polyline haul tsb. Perilaku sama dengan tombol
+   di HaulDetailScreen.
+3. Kalau trip **≥ 2 haul**: tombol "Ikuti Jalur Tarikan" → show bottom
+   sheet (`FollowHaulPickerSheet`) dengan daftar haul di trip, user
+   pilih satu, baru start follow-track.
+
+Tombol kedua "Pandu ke Akhir Trip" tetap ada (go-to titik akhir haul
+terakhir di trip, urut by orderIndex).
+
+#### FollowHaulPickerSheet
+
+Bottom sheet glass-3 dengan list haul dalam trip:
+
+```
+┌────────────────────────────────────┐
+│  Pilih Tarikan untuk Ikuti Jalur   │
+│  ─────────────────────────         │
+│                                    │
+│  ┌──────────────────────────────┐  │
+│  │ Tarikan #1  •  05:30 - 07:15 │  │
+│  │ 2.3 km  •  45 menit          │  │
+│  └──────────────────────────────┘  │
+│  ┌──────────────────────────────┐  │
+│  │ Tarikan #2  •  08:00 - 10:20 │  │
+│  │ 3.1 km  •  2 jam 20 menit    │  │
+│  └──────────────────────────────┘  │
+│  ┌──────────────────────────────┐  │
+│  │ Tarikan #3  •  11:00 - 13:45 │  │
+│  │ 4.2 km  •  2 jam 45 menit    │  │
+│  │  ● 80 kg tenggiri, udang     │  │  ← kalau haul punya logbook
+│  └──────────────────────────────┘  │
+│                                    │
+│              [ Batal ]              │
+└────────────────────────────────────┘
+```
+
+Setiap haul card tappable: tap → pop sheet + start follow-track +
+navigate ke `/` (map).
+
+Bonus kalau gampang: tiap card tampil summary logbook catch kalau ada
+(dari M5 entities) supaya user gampang pilih "yang hasilnya paling
+banyak". Ini nice-to-have, kalau scope M11b membengkak bisa drop.
+
+#### Code snippet — tombol di TripDetailScreen
+
+```dart
+if (hauls.isNotEmpty) ...[
+  const SizedBox(height: AppSizes.sp2),
+  Row(children: [
+    Expanded(
+      child: OutlinedButton.icon(
+        icon: Icon(PhosphorIconsBold.footprints),
+        label: Text('Ikuti Jalur Tarikan'),
+        onPressed: () async {
+          final picked = hauls.length == 1
+              ? hauls.first
+              : await FollowHaulPickerSheet.show(context, hauls: hauls);
+          if (picked == null || !context.mounted) return;
+          final points = await ref.read(
+            trackPointsByHaulProvider(picked.id).future,
+          );
+          if (!context.mounted) return;
+          ref.read(navigationControllerProvider.notifier).startFollowTrack(
+            FollowTrackTarget(
+              pathPoints: points.map((p) => p.latLng).toList(),
+              label: picked.displayName(),
+              sourceType: FollowTrackSource.haul, // haul dari trip
+              sourceId: picked.id,
+            ),
+          );
+          context.go(AppRoutes.map);
+        },
+      ),
+    ),
+    const SizedBox(width: AppSizes.sp2),
+    Expanded(
+      child: OutlinedButton.icon(
+        icon: Icon(PhosphorIconsBold.navigationArrow),
+        label: Text('Pandu ke Akhir'),
+        onPressed: () async {
+          final lastHaul = hauls.last; // sorted by orderIndex di provider
+          final points = await ref.read(
+            trackPointsByHaulProvider(lastHaul.id).future,
+          );
+          if (points.isEmpty || !context.mounted) return;
+          ref.read(navigationControllerProvider.notifier).startGoto(
+            GotoTarget(
+              position: points.last.latLng,
+              label: '${_tripTitle(trip)} (akhir)',
+            ),
+          );
+          context.go(AppRoutes.map);
+        },
+      ),
+    ),
+  ]),
+],
+```
+
+Catatan: `FollowTrackSource.trip` sebenarnya tidak terpakai lagi
+karena follow-track per-haul — tapi varian enum saya retain (dead-code
+tolerant) supaya PR M11b bisa refactor ke `FollowTrackSource { haul,
+trip }` kalau nanti ada use case "follow satu trip utuh" (v2).
 
 ---
 
@@ -621,18 +829,20 @@ Section baru "M. Navigasi":
 - M.1: Pandu ke marker (tap marker → sampai → notif + TTS + vibrasi)
 - M.2: Pandu via long-press (peta long-press → menu → pandu → sampai)
 - M.3: Ikuti haul (haul detail → ikuti → on-route → off-route > 30m 5s → alarm)
-- M.4: Ikuti trip multi-haul (gabung polyline)
+- M.4: Ikuti haul dari trip multi-haul (trip detail → tombol Ikuti → bottom sheet pilih haul → start)
+- M.4b: Ikuti haul dari trip single-haul (trip detail → tombol Ikuti → langsung start tanpa sheet)
 - M.5: Navigasi + tracking trawl (dua-duanya aktif bersamaan)
 - M.6: Settings: toggle suara off, toggle getar off (alarm diam saat kedua off)
 - M.7: Stop nav via X di panel
 - M.8: Stop nav via tombol di permission sheet kalau user revoke GPS di tengah
 - M.9: Kill app saat nav aktif → buka lagi → nav TIDAK resume (by design)
+- M.10: Fresh install → upgrade dari v4 → app_settings di-seed default true/true
 
 ---
 
 ## 10. Rencana PR
 
-### PR M11a — Foundation + Go-to (target ~700 LOC)
+### PR M11a — Foundation + Go-to (target ~750 LOC)
 
 Branch: `feat/m11-navigation-goto`
 
@@ -647,44 +857,74 @@ Files baru:
 - `features/navigation/presentation/widgets/navigation_polyline.dart`
 - `features/navigation/presentation/widgets/bearing_arrow.dart`
 - `features/navigation/presentation/widgets/long_press_menu.dart`
+- `core/settings/domain/entities/app_settings.dart`         ← NEW (§6)
+- `core/settings/data/app_settings_dao.dart`                ← NEW (§6)
+- `core/settings/data/app_settings_repository.dart`         ← NEW (§6)
+- `core/settings/application/app_settings_provider.dart`    ← NEW (§6)
 
 Files modified:
-- `core/utils/geo_calculator.dart` — tambah bearing + cross-track stub (crossTrack dites di M11a tapi baru dipakai di M11b — OK)
-- `features/onboarding/domain/entities/user_profile.dart` — tambah 2 field alarm
-- `data/database/tables.dart` + schema migration v4 → v5
-- `features/onboarding/data/user_profile_repository.dart` — persist field baru
-- `features/settings/presentation/profile_edit_screen.dart` — section toggle alarm
-- `features/map/presentation/map_screen.dart` — long-press handler + render navigation overlay/panel
-- `features/map/presentation/widgets/boat_marker.dart` — optional bearing arrow
-- `features/marker/presentation/widgets/marker_info_sheet.dart` — tombol "Pandu ke sini"
-- `app/pubspec.yaml` — add `flutter_tts: ^4.0.2`
+- `core/utils/geo_calculator.dart` — tambah bearing + cross-track stub
+  (crossTrack dites di M11a tapi baru dipakai di M11b — OK).
+- `data/database/tables.dart` — tambah class `AppSettings` drift
+  table + schema migration v4 → v5 (CREATE TABLE + INSERT default
+  row).
+- `data/database/app_database.dart` — register DAO, bump
+  `schemaVersion` ke 5, tambah migration step.
+- `features/settings/presentation/profile_edit_screen.dart` — section
+  "Alarm Navigasi" dengan dua SwitchListTile yang read/write
+  `appSettingsProvider` (bukan `userProfile` lagi).
+- `features/map/presentation/map_screen.dart` — long-press handler +
+  render navigation overlay/panel + bearing arrow.
+- `features/map/presentation/widgets/boat_marker.dart` — optional
+  bearingToTarget parameter + overlay panah.
+- `features/marker/presentation/widgets/marker_info_sheet.dart` —
+  tombol "Pandu ke sini".
+- `app/pubspec.yaml` — add `flutter_tts: ^4.0.2`.
+
+**Catatan**: `UserProfile` entity + `user_profile_repository` TIDAK
+disentuh di M11a (keputusan § 0.3). Tidak ada migration pada kolom
+user_profiles; migration v4→v5 adalah CREATE TABLE app_settings baru
+saja.
 
 Tests:
 - `test/core/utils/geo_calculator_bearing_test.dart` — baru
+- `test/core/settings/app_settings_test.dart` — baru (entity + repo)
 - `test/features/navigation/navigation_controller_goto_test.dart` — baru
 - `test/features/navigation/navigation_target_test.dart` — baru
 - `test/features/navigation/fake_navigation_alert_service.dart` — helper
+- `test/data/database/migration_test.dart` — extend: v4→v5 app_settings
+  created + seeded default row.
 
-### PR M11b — Follow-track (target ~500 LOC)
+### PR M11b — Follow-track (target ~550 LOC)
 
 Branch: `feat/m11-navigation-followtrack`
 
 Merge setelah M11a. Reuse semua foundation.
 
 Files baru:
-- (tidak ada — `FollowTrackTarget` digabung ke sealed class yang sudah ada di M11a)
+- `features/history/presentation/widgets/follow_haul_picker_sheet.dart` ← NEW (§8.4)
 
 Files modified:
-- `features/navigation/application/navigation_controller.dart` — cabang `startFollowTrack` + progress calc cross-track + alarm state machine offRoute
-- `features/navigation/presentation/widgets/navigation_panel.dart` — varian follow-track dengan progress bar + off-route badge
-- `features/navigation/presentation/widgets/navigation_polyline.dart` — cabang highlight polyline + start/end markers
-- `features/history/presentation/haul_detail_screen.dart` — dua tombol (Ikuti Jalur + Pandu ke Akhir)
-- `features/history/presentation/trip_detail_screen.dart` — sama untuk trip
-- `core/utils/geo_calculator.dart` — finalisasi cross-track + nearestPointOnPolyline + percentAlongPolyline
+- `features/navigation/application/navigation_controller.dart` —
+  cabang `startFollowTrack` + progress calc cross-track + alarm state
+  machine offRoute.
+- `features/navigation/presentation/widgets/navigation_panel.dart` —
+  varian follow-track dengan progress bar + off-route badge.
+- `features/navigation/presentation/widgets/navigation_polyline.dart`
+  — cabang highlight polyline + start/end markers.
+- `features/history/presentation/haul_detail_screen.dart` — dua
+  tombol (Ikuti Jalur + Pandu ke Akhir).
+- `features/history/presentation/trip_detail_screen.dart` — dua
+  tombol; kalau hauls.length >= 2, "Ikuti Jalur" buka
+  `FollowHaulPickerSheet` dulu sebelum start.
+- `core/utils/geo_calculator.dart` — finalisasi cross-track +
+  nearestPointOnPolyline + percentAlongPolyline.
 
 Tests:
 - `test/core/utils/geo_calculator_crosstrack_test.dart` — baru
 - `test/features/navigation/navigation_controller_followtrack_test.dart` — baru
+- `test/features/history/follow_haul_picker_sheet_test.dart` — baru
+  (widget test: tap haul → sheet pop dengan selected haul)
 
 ---
 
@@ -693,14 +933,14 @@ Tests:
 - PR M11a → QA internal → merge → release alpha
 - PR M11b → QA internal → merge → release
 - Beta testing: share ke nelayan group (liaison koperasi), collect feedback
-- Post-MVP: tune threshold dari real-device log, pertimbangkan smoothing ETA, tambah background foreground service kalau user butuh nav saat HP di saku lama
+- Post-MVP: tune threshold dari real-device log, pertimbangkan
+  smoothing ETA, tambah background foreground service kalau user butuh
+  nav saat HP di saku lama, pindah setting ke halaman "Pengaturan"
+  umum (tidak lagi di ProfileEditScreen) kalau ada setting lain yang
+  nongkrong di `app_settings`.
 
 ---
 
-Comment-able sections untuk review:
-
-- **§ 3 Math utilities** — apakah rumus cross-track OK atau lebih prefer Turf-like library?
-- **§ 4.3 Alarm state machine** — debounce 3s/5s reasonable?
-- **§ 6 Schema migration** — kolom ditempel di user_profiles atau bikin table settings tersendiri?
-- **§ 8.4 Trip follow-track** — gabung polyline haul atau offer pilih haul tertentu?
-- **§ 10 PR scope** — ada yang mau di-split lagi atau sudah nyaman?
+Semua open questions (§ 0) sudah resolved. Spec ini siap dijadikan
+kontrak eksekusi M11a. Kalau reviewer setuju, saya mulai koding PR
+M11a berikutnya.
