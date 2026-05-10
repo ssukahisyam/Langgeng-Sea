@@ -36,6 +36,12 @@ import '../../marker/domain/entities/marker.dart';
 import '../../marker/presentation/widgets/add_marker_dialog.dart';
 import '../../marker/presentation/widgets/marker_info_sheet.dart';
 import '../../marker/presentation/widgets/marker_pin.dart';
+import '../../navigation/application/navigation_controller.dart';
+import '../../navigation/application/navigation_state.dart';
+import '../../navigation/domain/entities/navigation_target.dart';
+import '../../navigation/presentation/widgets/long_press_menu.dart';
+import '../../navigation/presentation/widgets/navigation_panel.dart';
+import '../../navigation/presentation/widgets/navigation_polyline.dart';
 import '../../offline_map/data/tile_cache_service.dart';
 import '../../onboarding/data/user_profile_repository.dart';
 import '../application/all_history_visible_provider.dart';
@@ -265,6 +271,49 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   // ---------------------------------------------------------------------
+  // Navigation handlers
+  // ---------------------------------------------------------------------
+
+  /// Long-press on the map -> open [LongPressMenu] at the tapped
+  /// coordinate. The menu offers a shortcut to start go-to navigation
+  /// to the coord or drop a marker there.
+  Future<void> _onMapLongPress(LatLng point) async {
+    await _haptic();
+    if (!mounted) return;
+    await LongPressMenu.show(
+      context,
+      coord: point,
+      onNavigate: () {
+        Navigator.of(context).pop();
+        ref.read(navigationControllerProvider.notifier).startGoto(
+              GotoTarget(position: point, label: 'Titik Peta'),
+            );
+      },
+      onAddMarker: () async {
+        Navigator.of(context).pop();
+        // Pre-populate the AddMarker dialog at the long-pressed coord.
+        final draft = await showDialog<AppMarker>(
+          context: context,
+          builder: (_) => AddMarkerDialog(
+            latitude: point.latitude,
+            longitude: point.longitude,
+          ),
+        );
+        if (draft == null || !context.mounted) return;
+        await ref.read(markerRepositoryProvider).create(
+              name: draft.name,
+              category: draft.category,
+              latitude: draft.latitude,
+              longitude: draft.longitude,
+              notes: draft.notes,
+            );
+        if (!context.mounted) return;
+        ref.read(markersOverlayEnabledProvider.notifier).state = true;
+      },
+    );
+  }
+
+  // ---------------------------------------------------------------------
   // Haul lifecycle handlers
   // ---------------------------------------------------------------------
 
@@ -460,6 +509,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final trackingState = ref.watch(trackingControllerProvider);
     final isRecording = trackingState.isRecording;
 
+    // Navigation overlay state -- drives the top-of-map panel, the
+    // dashed go-to polyline, and the bearing arrow on the boat marker.
+    // Idle when the user has not picked a target.
+    final navState = ref.watch(navigationControllerProvider);
+    final navActive = navState is NavigationActive ? navState : null;
+    final navArrived =
+        navActive?.alarmState == NavigationAlarmState.arrived;
+
     final overlayMode = ref.watch(mapOverlayControllerProvider);
     final overlayAsync = _watchOverlayRender(overlayMode);
     final overlayActive = overlayMode is! MapOverlayNone;
@@ -611,6 +668,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   interactionOptions: const InteractionOptions(
                     flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
                   ),
+                  // Long-press anywhere on the map opens the LongPressMenu
+                  // with two primary actions: start navigation to the
+                  // tapped coord, or drop a marker there.
+                  onLongPress: (_, latLng) => _onMapLongPress(latLng),
                 ),
                 children: [
                   TileLayer(
@@ -634,6 +695,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     PolylineLayer<Object>(polylines: overlayPolylines),
                   // Active haul polyline (empty layer when not recording).
                   const ActiveHaulPolyline(),
+                  // Navigation polyline -- dashed go-to line to the
+                  // active target (empty layer when nav is idle).
+                  if (navActive != null)
+                    NavigationPolyline(state: navActive),
                   // User-placed markers — toggled by the pin icon in
                   // the top-right column. Rendered ABOVE the history
                   // polyline overlay but BELOW the boat marker so the
@@ -678,12 +743,18 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       markers: [
                         Marker(
                           point: reading.latLng,
-                          width: 64,
-                          height: 64,
+                          // Enlarged from 64 to 96 so the navigation
+                          // bearing arrow (orbits at r=26 around the
+                          // boat centre) doesn't clip on the edges.
+                          width: 96,
+                          height: 96,
                           alignment: Alignment.center,
                           child: BoatMarker(
                             reading: reading,
                             isTracking: isRecording,
+                            bearingToTarget:
+                                navActive?.progress.bearingDegrees,
+                            navArrived: navArrived,
                           ),
                         ),
                       ],
@@ -708,6 +779,20 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       onClear: () => ref
                           .read(mapOverlayControllerProvider.notifier)
                           .clear(),
+                    ),
+                  ],
+                  // Navigation panel sits under the top banner whenever
+                  // a target is active -- it does NOT replace the
+                  // recording banner / app bar because the user may be
+                  // navigating AND recording simultaneously (spec
+                  // acceptance M.5).
+                  if (navActive != null) ...[
+                    const SizedBox(height: AppSizes.sp2),
+                    NavigationPanel(
+                      state: navActive,
+                      onStop: () => ref
+                          .read(navigationControllerProvider.notifier)
+                          .stop(),
                     ),
                   ],
                 ],
