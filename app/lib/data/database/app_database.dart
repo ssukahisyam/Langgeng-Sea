@@ -53,7 +53,7 @@ part 'app_database.g.dart';
     CatchItems,
     Markers,
     UserProfiles,
-    AppSettings,
+    AppSettingsTable,
   ],
   daos: [
     TripDao,
@@ -119,7 +119,7 @@ class AppDatabase extends _$AppDatabase {
           // perspective; in actual codebase it lands at 6 because the
           // colour-picker migration took v5 first.
           if (from < 6) {
-            await m.createTable(appSettings);
+            await m.createTable(appSettingsTable);
             await _seedAppSettings();
           }
         },

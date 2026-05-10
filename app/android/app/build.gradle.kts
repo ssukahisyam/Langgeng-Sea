@@ -34,7 +34,13 @@ if (hasReleaseSigning) {
 
 android {
     namespace = "id.co.langgengsea"
-    compileSdk = flutter.compileSdkVersion
+    // flutter_tts 4.2.x bumped its Android target and requires
+    // compileSdk 36. Override Flutter's default (currently 35) so
+    // release builds stop failing with:
+    //   "flutter_tts compiles against Android SDK 36"
+    // The higher compileSdk is backward compatible (minSdk stays
+    // at 26 per PRD NFR-04, so no existing device is affected).
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

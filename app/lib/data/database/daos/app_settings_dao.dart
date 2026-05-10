@@ -5,14 +5,20 @@ import '../tables.dart';
 
 part 'app_settings_dao.g.dart';
 
-/// DAO for the single-row [AppSettings] table (device-local preferences).
+/// DAO for the single-row `app_settings` table (device-local preferences).
+///
+/// The Drift table class is [AppSettingsTable] (renamed from the
+/// original `AppSettings` to avoid clashing with the domain entity
+/// `core/settings/domain/entities/app_settings.dart` which is exposed
+/// to the UI layer). SQL table name is still `app_settings` via the
+/// pinned `tableName` override.
 ///
 /// Invariant: exactly one row with id = [kSettingsRowId] always exists.
 /// The migration seeds that row on first upgrade, so all reads are
 /// null-free. Tests that spin up a fresh `AppDatabase.forTesting`
 /// automatically get the seeded row via [ensureSeeded] on first
 /// access (defensive — migrations seed it via raw SQL too).
-@DriftAccessor(tables: [AppSettings])
+@DriftAccessor(tables: [AppSettingsTable])
 class AppSettingsDao extends DatabaseAccessor<AppDatabase>
     with _$AppSettingsDaoMixin {
   AppSettingsDao(super.db);
@@ -24,7 +30,7 @@ class AppSettingsDao extends DatabaseAccessor<AppDatabase>
   /// defaults (sound on, vibrate on) so callers don't null-check.
   Future<AppSettingsRow> getSingle() async {
     await ensureSeeded();
-    return (select(appSettings)
+    return (select(appSettingsTable)
           ..where((t) => t.id.equals(kSettingsRowId))
           ..limit(1))
         .getSingle();
@@ -35,7 +41,7 @@ class AppSettingsDao extends DatabaseAccessor<AppDatabase>
   /// a TTS/haptic alert).
   Stream<AppSettingsRow> watchSingle() async* {
     await ensureSeeded();
-    yield* (select(appSettings)
+    yield* (select(appSettingsTable)
           ..where((t) => t.id.equals(kSettingsRowId))
           ..limit(1))
         .watchSingle();
@@ -44,8 +50,9 @@ class AppSettingsDao extends DatabaseAccessor<AppDatabase>
   /// Set the "alarm sound (TTS) enabled" flag.
   Future<void> updateSoundEnabled(bool value) async {
     await ensureSeeded();
-    await (update(appSettings)..where((t) => t.id.equals(kSettingsRowId)))
-        .write(AppSettingsCompanion(
+    await (update(appSettingsTable)
+          ..where((t) => t.id.equals(kSettingsRowId)))
+        .write(AppSettingsTableCompanion(
       alarmSoundEnabled: Value(value),
       updatedAt: Value(DateTime.now()),
     ));
@@ -54,8 +61,9 @@ class AppSettingsDao extends DatabaseAccessor<AppDatabase>
   /// Set the "alarm vibrate enabled" flag.
   Future<void> updateVibrateEnabled(bool value) async {
     await ensureSeeded();
-    await (update(appSettings)..where((t) => t.id.equals(kSettingsRowId)))
-        .write(AppSettingsCompanion(
+    await (update(appSettingsTable)
+          ..where((t) => t.id.equals(kSettingsRowId)))
+        .write(AppSettingsTableCompanion(
       alarmVibrateEnabled: Value(value),
       updatedAt: Value(DateTime.now()),
     ));
@@ -68,12 +76,12 @@ class AppSettingsDao extends DatabaseAccessor<AppDatabase>
   /// INSERT isn't embedded there). Calling this on every read keeps the
   /// invariant at trivial cost (one WHERE on an int PK).
   Future<void> ensureSeeded() async {
-    final existing = await (select(appSettings)
+    final existing = await (select(appSettingsTable)
           ..where((t) => t.id.equals(kSettingsRowId))
           ..limit(1))
         .getSingleOrNull();
     if (existing != null) return;
-    await into(appSettings).insert(AppSettingsCompanion.insert(
+    await into(appSettingsTable).insert(AppSettingsTableCompanion.insert(
       id: const Value(kSettingsRowId),
       updatedAt: DateTime.now(),
     ));

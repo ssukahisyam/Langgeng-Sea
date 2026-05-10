@@ -203,11 +203,18 @@ class UserProfiles extends Table {
 /// v6 (M11) untuk menampung toggle alarm navigasi (TTS + getar).
 ///
 /// Domain separation: [UserProfiles] menjawab "siapa user-nya",
-/// [AppSettings] menjawab "preferensi aplikasi di device ini". Kalau
-/// multi-user datang di v2, [UserProfiles] akan per-user tapi
-/// [AppSettings] tetap per-device.
+/// domain entity `AppSettings` menjawab "preferensi aplikasi di
+/// device ini". Kalau multi-user datang di v2, [UserProfiles] akan
+/// per-user tapi app_settings tetap per-device.
+///
+/// Class di-rename `AppSettingsTable` (dengan [tableName] dipatok ke
+/// `app_settings`) supaya tidak bentrok nama dengan domain entity
+/// `core/settings/domain/entities/app_settings.dart` yang dipakai
+/// oleh repo + UI. SQL table name tetap `app_settings`, generated
+/// row class tetap `AppSettingsRow`, generated getter DB jadi
+/// `appSettingsTable`, companion jadi `AppSettingsTableCompanion`.
 @DataClassName('AppSettingsRow')
-class AppSettings extends Table {
+class AppSettingsTable extends Table {
   IntColumn get id => integer()();
   BoolColumn get alarmSoundEnabled =>
       boolean().withDefault(const Constant(true))();
@@ -217,4 +224,10 @@ class AppSettings extends Table {
 
   @override
   Set<Column<Object>> get primaryKey => {id};
+
+  // Pin SQL table name so the migration's raw INSERT / the migration
+  // test's sqlite_master lookup / future export tooling all see
+  // `app_settings` regardless of the Dart class name.
+  @override
+  String? get tableName => 'app_settings';
 }
