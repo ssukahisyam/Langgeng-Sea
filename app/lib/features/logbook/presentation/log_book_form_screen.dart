@@ -147,12 +147,15 @@ class _LogBookFormScreenState extends ConsumerState<LogBookFormScreen> {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
 
+    final isHaulScope = widget.haulId != null;
+    final titleText = isHaulScope ? 'Log Book Tarikan' : 'Log Book Trip';
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: const Text('Log Book'),
+        title: Text(titleText),
       ),
       body: AmbientBackground(
         child: _isLoading

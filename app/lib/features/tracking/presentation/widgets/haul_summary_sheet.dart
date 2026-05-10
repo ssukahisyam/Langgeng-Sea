@@ -16,12 +16,27 @@ import '../../domain/entities/haul.dart';
 import 'end_trip_dialog.dart';
 
 /// Post-recording summary. Shows metrics + lets user rename + pick a
-/// colour for this haul, then choose: save / end trip / close.
+/// colour for this haul, then choose: save / end trip / close / open
+/// log book.
 ///
 /// The user's action is returned to the caller as a [HaulSummaryAction]
 /// so the map screen can stay idle afterwards — starting another haul
 /// is triggered explicitly from the main "MULAI TEBAR" button.
-enum HaulSummaryAction { dismissed, saved, endTrip }
+enum HaulSummaryAction {
+  /// User dismissed the sheet (back gesture / scrim tap). Edits
+  /// persisted already.
+  dismissed,
+
+  /// User tapped "Simpan". Stay idle.
+  saved,
+
+  /// User tapped "Isi Log Book" — caller should push the log-book
+  /// route AFTER the sheet closes.
+  savedAndOpenLogBook,
+
+  /// User tapped "Akhiri Trip" and confirmed the EndTripDialog.
+  endTrip,
+}
 
 class HaulSummarySheet extends ConsumerStatefulWidget {
   const HaulSummarySheet({super.key, required this.completion});
@@ -198,13 +213,11 @@ class _HaulSummarySheetState extends ConsumerState<HaulSummarySheet> {
                     child: _SecondaryButton(
                       icon: PhosphorIconsRegular.notebook,
                       label: 'Isi Log Book',
-                      onPressed: () {
-                        // Log book arrives in M5. For now, just confirm.
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Log Book tersedia di M5'),
-                            duration: Duration(seconds: 2),
-                          ),
+                      onPressed: () async {
+                        await _persistEdits();
+                        if (!mounted) return;
+                        Navigator.of(context).pop(
+                          HaulSummaryAction.savedAndOpenLogBook,
                         );
                       },
                     ),

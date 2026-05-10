@@ -5,10 +5,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart' show ServiceStatus;
+import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../core/constants/app_strings.dart';
+import '../../../core/router/app_router.dart';
 import '../../../core/services/gps_reading.dart';
 import '../../../core/services/gps_service.dart';
 import '../../../core/theme/app_colors.dart';
@@ -246,6 +248,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
         await ref
             .read(trackingControllerProvider.notifier)
             .endTrip(forceTripId: completion.haul.tripId);
+      case HaulSummaryAction.savedAndOpenLogBook:
+        // Edits were persisted inside the sheet before pop. Now push
+        // the log-book form for this haul so the user can fill it in
+        // one flow.
+        if (context.mounted) {
+          context.push(AppRoutes.logBookForHaul(completion.haul.id));
+        }
       case HaulSummaryAction.saved:
         // Stay idle. User taps MULAI TEBAR again from the bottom panel
         // if they want another haul in the same trip.
