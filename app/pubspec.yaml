@@ -38,6 +38,13 @@ dependencies:
   flutter_background_service_android: ^6.2.7
   flutter_local_notifications: ^17.2.3
 
+  # Navigation (M11) — TTS for "sudah sampai" voice alerts. flutter_tts
+  # is a thin wrapper over the platform TTS engine (Android
+  # `TextToSpeech`, iOS `AVSpeechSynthesizer`); ~1 MB added to the APK,
+  # no extra runtime permissions required, language set to id-ID at
+  # service init. See m11-navigation-spec.md §5.
+  flutter_tts: ^4.0.2
+
   # Database
   drift: ^2.20.2
   sqlite3_flutter_libs: ^0.5.24
