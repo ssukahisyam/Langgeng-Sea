@@ -219,7 +219,9 @@ class NavigationController extends Notifier<NavigationState> {
       if (s is! NavigationActive) return;
       if (s.alarmState != NavigationAlarmState.arrivingCountdown) return;
       state = s.copyWith(alarmState: NavigationAlarmState.arrived);
-      _dispatchArrived(s.target);
+      // Fire-and-forget: the alert service swallows its own errors
+      // and a failed alert must never block the state machine.
+      unawaited(_dispatchArrived(s.target));
     });
   }
 
