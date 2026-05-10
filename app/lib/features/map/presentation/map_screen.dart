@@ -258,10 +258,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
         ),
         icon: Icon(PhosphorIconsFill.warningCircle,
             color: tokens.warning, size: 36),
-        title: Text('Haul Belum Selesai', style: text.titleLarge),
+        title: Text('Tarikan Belum Selesai', style: text.titleLarge),
         content: Text(
           '${orphan.displayName()} masih tercatat sedang merekam. '
-          'Anda bisa melanjutkan tracking atau menutup haul dengan data '
+          'Anda bisa melanjutkan tracking atau menutup tarikan dengan data '
           'yang sudah terkumpul.',
           style: text.bodyMedium?.copyWith(color: tokens.textSecondary),
         ),
@@ -713,7 +713,7 @@ class _OverlayContextChip extends ConsumerWidget {
         if (render == null) return ('Semua Riwayat', 'Memuat…');
         return (
           'Semua Riwayat',
-          '$tripHeadCount haul selesai',
+          '$tripHeadCount tarikan selesai',
         );
       case MapOverlaySingleTrip(tripId: final id):
         final tripAsync = ref.watch(tripByIdProvider(id));
@@ -721,14 +721,14 @@ class _OverlayContextChip extends ConsumerWidget {
         final titleBase = _tripTitle(trip);
         final countLabel = render == null
             ? 'Memuat…'
-            : '$tripHeadCount haul';
+            : '$tripHeadCount tarikan';
         return ('Trip: $titleBase', countLabel);
       case MapOverlaySingleHaul(haulId: final id):
         final haulAsync = ref.watch(haulByIdProvider(id));
         final haul = haulAsync.asData?.value;
         final title = haul == null
-            ? 'Haul'
-            : 'Haul #${haul.orderIndex}: ${haul.displayName()}';
+            ? 'Tarikan'
+            : 'Tarikan #${haul.orderIndex}: ${haul.displayName()}';
         final subtitle = haul == null
             ? 'Memuat…'
             : Formatters.sectionDate(haul.startedAt);
@@ -874,7 +874,7 @@ class _ActionPanel extends StatelessWidget {
             ),
             const SizedBox(height: AppSizes.sp3),
             Semantics(
-              label: 'Angkat trawl, selesaikan rekam haul',
+              label: 'Berhenti merekam tarikan',
               button: true,
               child: PrimaryActionButton(
                 label: AppStrings.stopTrawl,
@@ -932,7 +932,7 @@ class _ActionPanel extends StatelessWidget {
           ),
           const SizedBox(height: AppSizes.sp3),
           Semantics(
-            label: 'Mulai tebar trawl, rekam haul baru',
+            label: 'Mulai merekam tarikan baru',
             button: true,
             child: PrimaryActionButton(
               label: AppStrings.startTrawl,
@@ -954,7 +954,7 @@ class _ActionPanel extends StatelessWidget {
   }) {
     if (!hasPermission) return 'Aktifkan lokasi untuk merekam';
     if (!hasFix) return 'Menunggu sinyal GPS…';
-    if (state.hasTrip) return 'Tekan untuk haul berikutnya';
-    return 'Siap rekam haul pertama';
+    if (state.hasTrip) return 'Tekan untuk tarikan berikutnya';
+    return 'Siap rekam tarikan pertama';
   }
 }

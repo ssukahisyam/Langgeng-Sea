@@ -13,17 +13,17 @@ class AppStrings {
   static const String tabSettings = 'Pengaturan';
 
   // Tracking
-  static const String startTrawl = 'MULAI TEBAR TRAWL';
-  static const String stopTrawl = 'ANGKAT TRAWL';
+  static const String startTrawl = 'MULAI';
+  static const String stopTrawl = 'BERHENTI';
   static const String startTrip = 'MULAI TRIP';
   static const String endTrip = 'Akhiri Trip';
-  static const String nextHaul = 'Haul Berikutnya';
+  static const String nextHaul = 'Tarikan Berikutnya';
   static const String fillLogBook = 'Isi Log Book';
 
   // Status
   static const String noTrip = 'Belum Trip';
   static const String tripActive = 'Trip Aktif';
-  static const String recording = 'MEREKAM HAUL';
+  static const String recording = 'MEREKAM TARIKAN';
   static const String completed = 'Selesai';
   static const String readyToSail = 'Siap Melaut';
 
@@ -55,7 +55,7 @@ class AppStrings {
   // Empty states
   static const String emptyHistoryTitle = 'Belum Ada Trip';
   static const String emptyHistorySub = 'Mulai trip pertama Anda dari tab Peta.';
-  static const String emptyMarkersTitle = 'Belum Ada Marker';
+  static const String emptyMarkersTitle = 'Belum Ada Penanda';
   static const String emptyMarkersSub =
-      'Tekan lama di peta untuk menandai lokasi penting.';
+      'Tekan tombol + di peta untuk menandai lokasi penting.';
 }

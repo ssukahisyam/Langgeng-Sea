@@ -37,7 +37,7 @@ class Haul {
   /// 1-based position within the parent trip (Haul #1, #2, …).
   final int orderIndex;
 
-  /// Optional user-given name. Falls back to "Haul #N" in UI if null.
+  /// Optional user-given name. Falls back to "Tarikan #N" in UI if null.
   final String? name;
 
   final DateTime startedAt;
@@ -63,8 +63,8 @@ class Haul {
 
   Duration get duration => Duration(seconds: durationSeconds);
 
-  /// Display name: user-given or "Haul #N" fallback.
-  String displayName() => name ?? 'Haul #$orderIndex';
+  /// Display name: user-given or "Tarikan #N" fallback.
+  String displayName() => name ?? 'Tarikan #$orderIndex';
 
   bool get isRecording => status == HaulStatus.recording;
 

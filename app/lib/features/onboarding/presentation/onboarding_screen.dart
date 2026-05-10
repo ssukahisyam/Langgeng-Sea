@@ -41,7 +41,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     ),
     _OnboardingSlide(
       icon: PhosphorIconsFill.gps,
-      title: 'Multi-Haul Per Trip',
+      title: 'Multi-Tarikan Per Trip',
       body: 'Catat 2–5 tarikan per hari terpisah. Evaluasi spot mana yang '
           'paling produktif lewat dashboard.',
     ),

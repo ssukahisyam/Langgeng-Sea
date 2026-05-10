@@ -128,7 +128,7 @@ class TripDetailScreen extends ConsumerWidget {
         final confirmed = await DeleteConfirmDialog.show(
           context,
           title: 'Hapus Trip?',
-          body: 'Semua haul, titik GPS, dan log yang terkait akan '
+          body: 'Semua tarikan, titik GPS, dan log yang terkait akan '
               'ikut terhapus. Tindakan ini tidak dapat dibatalkan.',
         );
         if (!confirmed || !context.mounted) return;
@@ -215,7 +215,7 @@ class _Body extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: AppSizes.sp2),
           child: Text(
-            '${hauls.length} HAUL',
+            '${hauls.length} TARIKAN',
             style: text.labelSmall?.copyWith(
               color: tokens.textTertiary,
               letterSpacing: 1,
@@ -496,7 +496,7 @@ class _EmptyHauls extends StatelessWidget {
           const SizedBox(width: AppSizes.sp2),
           Expanded(
             child: Text(
-              'Trip ini belum punya haul.',
+              'Trip ini belum punya tarikan.',
               style: text.bodyMedium?.copyWith(color: tokens.textSecondary),
             ),
           ),

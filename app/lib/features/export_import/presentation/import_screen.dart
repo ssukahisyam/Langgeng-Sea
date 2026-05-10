@@ -300,7 +300,7 @@ class _PreviewCard extends StatelessWidget {
             children: [
               _StatItem(
                 icon: PhosphorIconsBold.anchor,
-                label: '${preview.haulCount} Haul',
+                label: '${preview.haulCount} Tarikan',
               ),
               const SizedBox(width: AppSizes.sp5),
               _StatItem(

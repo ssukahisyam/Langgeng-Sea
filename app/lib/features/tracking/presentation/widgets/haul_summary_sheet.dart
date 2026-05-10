@@ -145,7 +145,7 @@ class _HaulSummarySheetState extends ConsumerState<HaulSummarySheet> {
                         Icon(PhosphorIconsBold.checkCircle,
                             size: 14, color: tokens.success),
                         const SizedBox(width: 4),
-                        Text('HAUL SELESAI',
+                        Text('TARIKAN SELESAI',
                             style: text.labelSmall?.copyWith(
                               color: tokens.success,
                               fontWeight: FontWeight.w800,
@@ -163,7 +163,7 @@ class _HaulSummarySheetState extends ConsumerState<HaulSummarySheet> {
                 ],
               ),
               const SizedBox(height: AppSizes.sp3),
-              Text('Haul #${h.orderIndex}',
+              Text('Tarikan #${h.orderIndex}',
                   style: text.bodySmall?.copyWith(
                     color: tokens.textTertiary,
                     fontWeight: FontWeight.w600,
@@ -177,7 +177,7 @@ class _HaulSummarySheetState extends ConsumerState<HaulSummarySheet> {
                 decoration: InputDecoration(
                   isDense: true,
                   border: InputBorder.none,
-                  hintText: 'Nama haul (opsional)',
+                  hintText: 'Nama tarikan (opsional)',
                   hintStyle: text.headlineSmall?.copyWith(
                     color: tokens.textTertiary,
                     fontWeight: FontWeight.w600,
@@ -313,7 +313,7 @@ class _ColorPicker extends StatelessWidget {
         if (value == null) ...[
           const SizedBox(height: 6),
           Text(
-            'Pilih warna agar haul ini mudah dikenali di peta & riwayat.',
+            'Pilih warna agar tarikan ini mudah dikenali di peta & riwayat.',
             style: text.bodySmall?.copyWith(
               color: tokens.textTertiary,
               fontSize: 11,
@@ -340,7 +340,7 @@ class _ColorSwatch extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     return Semantics(
-      label: 'Warna haul: ${entry.label}',
+      label: 'Warna tarikan: ${entry.label}',
       selected: selected,
       button: true,
       child: InkWell(

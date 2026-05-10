@@ -72,7 +72,7 @@ class HaulDetailScreen extends ConsumerWidget {
         icon: const Icon(PhosphorIconsRegular.arrowLeft),
       ),
       title: Text(
-        'Haul Detail',
+        'Detail Tarikan',
         style: text.titleLarge?.copyWith(fontWeight: FontWeight.w800),
       ),
       actions: [
@@ -98,7 +98,7 @@ class HaulDetailScreen extends ConsumerWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-              'Selesaikan haul terlebih dulu (tekan "Angkat Trawl").'),
+              'Selesaikan tarikan terlebih dulu (tekan "Berhenti").'),
           duration: Duration(seconds: 2),
         ),
       );
@@ -117,7 +117,7 @@ class HaulDetailScreen extends ConsumerWidget {
       case ItemOption.rename:
         final newName = await RenameDialog.show(
           context,
-          title: 'Ubah Nama Haul',
+          title: 'Ubah Nama Tarikan',
           initial: haul.name ?? '',
           hint: 'Contoh: Spot Utara Pagi',
         );
@@ -128,8 +128,8 @@ class HaulDetailScreen extends ConsumerWidget {
       case ItemOption.delete:
         final confirmed = await DeleteConfirmDialog.show(
           context,
-          title: 'Hapus Haul?',
-          body: 'Semua titik GPS dan catatan yang terkait haul ini '
+          title: 'Hapus Tarikan?',
+          body: 'Semua titik GPS dan catatan yang terkait tarikan ini '
               'akan ikut terhapus. Tindakan ini tidak dapat dibatalkan.',
         );
         if (!confirmed || !context.mounted) return;
@@ -219,7 +219,7 @@ class _Hero extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'HAUL #${haul.orderIndex} · '
+            'TARIKAN #${haul.orderIndex} · '
             '${Formatters.sectionDate(haul.startedAt).toUpperCase()} · '
             '$startClock - $endClock',
             style: text.labelSmall?.copyWith(
@@ -494,7 +494,7 @@ class _ErrorState extends StatelessWidget {
           children: [
             Icon(PhosphorIconsFill.warning, size: 48, color: tokens.danger),
             const SizedBox(height: AppSizes.sp3),
-            Text('Gagal memuat haul', style: text.titleMedium),
+            Text('Gagal memuat tarikan', style: text.titleMedium),
             const SizedBox(height: AppSizes.sp2),
             Text(
               message,
@@ -526,10 +526,10 @@ class _NotFoundState extends StatelessWidget {
               color: tokens.textTertiary,
             ),
             const SizedBox(height: AppSizes.sp3),
-            Text('Haul tidak ditemukan', style: text.titleMedium),
+            Text('Tarikan tidak ditemukan', style: text.titleMedium),
             const SizedBox(height: AppSizes.sp2),
             Text(
-              'Haul ini mungkin sudah dihapus.',
+              'Tarikan ini mungkin sudah dihapus.',
               style: text.bodySmall?.copyWith(color: tokens.textSecondary),
             ),
           ],

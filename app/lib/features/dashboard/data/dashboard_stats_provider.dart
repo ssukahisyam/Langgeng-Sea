@@ -144,11 +144,11 @@ final dashboardStatsProvider = FutureProvider<DashboardStats>((ref) async {
       .toList()
     ..sort((a, b) => a.date.compareTo(b.date));
 
-  // Top 5 spots — haul name (or "Haul #N") ranked by catch from that haul
+  // Top 5 spots — haul name (or "Tarikan #N") ranked by catch from that haul
   final haulCatch = <String, double>{}; // haulId -> total kg
   final haulNames = <String, String>{}; // haulId -> display name
   for (final haul in hauls) {
-    haulNames[haul.id] = haul.name ?? 'Haul #${haul.orderIndex}';
+    haulNames[haul.id] = haul.name ?? 'Tarikan #${haul.orderIndex}';
   }
   // Map log entries by haulId to get catch per haul
   for (final entry in logEntries) {
@@ -166,7 +166,7 @@ final dashboardStatsProvider = FutureProvider<DashboardStats>((ref) async {
   final topSpots = haulCatch.entries
       .where((e) => e.value > 0)
       .map((e) => TopSpot(
-            name: haulNames[e.key] ?? 'Haul',
+            name: haulNames[e.key] ?? 'Tarikan',
             catchKg: e.value,
           ))
       .toList()

@@ -63,7 +63,7 @@ class TripCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '$startClock - $endClock · ${summary.haulCount} haul',
+                      '$startClock - $endClock · ${summary.haulCount} tarikan',
                       style: text.bodySmall?.copyWith(
                         color: tokens.textTertiary,
                         fontSize: 12,
