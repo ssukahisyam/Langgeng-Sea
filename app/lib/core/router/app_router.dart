@@ -110,7 +110,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: AppRoutes.map,
-            pageBuilder: (_, __) => _noTransition(const MapScreen()),
+            pageBuilder: (context, state) {
+              final focusId = state.uri.queryParameters['focusMarkerId'];
+              return _noTransition(MapScreen(focusMarkerId: focusId));
+            },
           ),
           GoRoute(
             path: AppRoutes.history,

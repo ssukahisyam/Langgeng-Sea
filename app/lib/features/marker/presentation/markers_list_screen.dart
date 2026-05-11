@@ -142,16 +142,9 @@ class _MarkersListScreenState extends ConsumerState<MarkersListScreen> {
     }
   }
 
-  /// Jump to map and start go-to navigation for this marker.
+  /// Jump to map and focus on this marker without starting navigation automatically.
   void _jumpToMarker(BuildContext context, AppMarker marker) {
-    ref.read(navigationControllerProvider.notifier).startGoto(
-          GotoTarget(
-            position: marker.latLng,
-            label: marker.name,
-            sourceMarkerId: marker.id,
-          ),
-        );
-    GoRouter.of(context).go(AppRoutes.map);
+    GoRouter.of(context).go('${AppRoutes.map}?focusMarkerId=${marker.id}');
   }
 }
 

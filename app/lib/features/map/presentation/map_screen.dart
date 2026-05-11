@@ -69,7 +69,13 @@ import 'widgets/tracking_bottom_sheet.dart';
 
 /// Home tab — map + live GPS position + haul recording controls.
 class MapScreen extends ConsumerStatefulWidget {
-  const MapScreen({super.key});
+  const MapScreen({
+    super.key,
+    this.focusMarkerId,
+  });
+
+  /// Optional marker ID to focus the camera on when the screen loads.
+  final String? focusMarkerId;
 
   @override
   ConsumerState<MapScreen> createState() => _MapScreenState();
@@ -157,6 +163,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
         if (!mounted || orphan == null) return;
         await _showRecoveryDialog(orphan);
       }
+
+      if (widget.focusMarkerId != null) {
+        _focusOnMarker(widget.focusMarkerId!);
+      }
     });
   }
 
@@ -166,6 +176,28 @@ class _MapScreenState extends ConsumerState<MapScreen>
     _serviceStatusSub?.cancel();
     _mapController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(MapScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.focusMarkerId != oldWidget.focusMarkerId &&
+        widget.focusMarkerId != null) {
+      _focusOnMarker(widget.focusMarkerId!);
+    }
+  }
+
+  Future<void> _focusOnMarker(String markerId) async {
+    try {
+      final markers = await ref.read(allMarkersProvider.future);
+      final marker = markers.firstWhere((m) => m.id == markerId);
+      if (mounted) {
+        setState(() => _followingUser = false);
+        _mapController.move(marker.latLng, 14.0);
+      }
+    } catch (e) {
+      // Marker not found or provider error, ignore.
+    }
   }
 
   @override
