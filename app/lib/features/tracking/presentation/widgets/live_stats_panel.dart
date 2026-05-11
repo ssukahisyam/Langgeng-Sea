@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -11,9 +12,8 @@ import '../../application/tracking_controller.dart';
 
 /// Top-bar glass panel shown during active haul recording.
 ///
-/// Three live metrics: duration, distance, current speed. Duration updates
-/// on a 1 Hz timer independent of the GPS stream so the counter stays
-/// smooth even between fixes.
+/// Features a prominent 2x2 grid (duration, distance, speed) so the user
+/// can see metrics clearly at the top of the map.
 class LiveStatsPanel extends ConsumerStatefulWidget {
   const LiveStatsPanel({super.key});
 
@@ -40,6 +40,12 @@ class _LiveStatsPanelState extends ConsumerState<LiveStatsPanel> {
     super.dispose();
   }
 
+  static String _formatDistanceKm(double meters) {
+    if (meters.isNaN || meters.isInfinite) return '— km';
+    final km = meters / 1000.0;
+    return '${km.toStringAsFixed(2)} km';
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(trackingControllerProvider);
@@ -50,81 +56,110 @@ class _LiveStatsPanelState extends ConsumerState<LiveStatsPanel> {
         ? Duration.zero
         : DateTime.now().difference(haul.startedAt);
 
-    return GlassCard(
-      level: GlassLevel.level2,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSizes.sp3,
-        vertical: AppSizes.sp3 + 2,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _Stat(
-              label: 'Durasi',
-              value: Formatters.duration(duration),
-            ),
-          ),
-          _Sep(color: tokens.border),
-          Expanded(
-            child: _Stat(
-              label: 'Jarak',
-              value: Formatters.distance(state.metrics.distanceMeters),
-            ),
-          ),
-          _Sep(color: tokens.border),
-          Expanded(
-            child: _Stat(
-              label: 'Kecepatan',
-              value: Formatters.knots(state.metrics.currentSpeedKnots),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Stat extends StatelessWidget {
-  const _Stat({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.tokens;
-    final text = context.text;
     return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          label.toUpperCase(),
-          style: text.labelSmall?.copyWith(
-            color: tokens.textTertiary,
-            fontSize: 10,
-            letterSpacing: 0.5,
-            fontWeight: FontWeight.w600,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: _Tile(
+                icon: PhosphorIconsBold.timer,
+                iconBg: tokens.accentSoft,
+                iconColor: context.colors.secondary,
+                value: Formatters.duration(duration),
+                label: 'Durasi',
+              ),
+            ),
+            const SizedBox(width: AppSizes.sp2),
+            Expanded(
+              child: _Tile(
+                icon: PhosphorIconsBold.ruler,
+                iconBg: tokens.primarySoft,
+                iconColor: context.colors.primary,
+                value: _formatDistanceKm(state.metrics.distanceMeters),
+                label: 'Jarak tempuh',
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: text.titleMedium?.copyWith(
-            fontSize: 17,
-            fontWeight: FontWeight.w800,
-            fontFeatures: const [FontFeature.tabularFigures()],
-          ),
+        const SizedBox(height: AppSizes.sp2),
+        Row(
+          children: [
+            Expanded(
+              child: _Tile(
+                icon: PhosphorIconsBold.speedometer,
+                iconBg: tokens.primarySoft,
+                iconColor: context.colors.primary,
+                value: Formatters.knots(state.metrics.currentSpeedKnots),
+                label: 'Kecepatan terakhir',
+              ),
+            ),
+            const SizedBox(width: AppSizes.sp2),
+            // Empty expanded space to keep the speedometer tile the same width as the top row
+            const Expanded(child: SizedBox.shrink()),
+          ],
         ),
       ],
     );
   }
 }
 
-class _Sep extends StatelessWidget {
-  const _Sep({required this.color});
-  final Color color;
+class _Tile extends StatelessWidget {
+  const _Tile({
+    required this.icon,
+    required this.iconBg,
+    required this.iconColor,
+    required this.value,
+    required this.label,
+  });
+
+  final IconData icon;
+  final Color iconBg;
+  final Color iconColor;
+  final String value;
+  final String label;
 
   @override
-  Widget build(BuildContext context) =>
-      Container(width: 1, height: 28, color: color);
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final text = context.text;
+    return GlassCard(
+      level: GlassLevel.level1,
+      padding: const EdgeInsets.all(AppSizes.sp3 + 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: iconBg,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 16, color: iconColor),
+          ),
+          const SizedBox(height: AppSizes.sp2),
+          Text(
+            value,
+            style: text.titleLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: text.bodySmall?.copyWith(
+              color: tokens.textTertiary,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

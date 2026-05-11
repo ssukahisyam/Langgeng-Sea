@@ -42,6 +42,7 @@ import '../../tracking/domain/entities/haul.dart';
 import '../../tracking/domain/entities/trip.dart';
 import '../../tracking/presentation/widgets/active_haul_polyline.dart';
 import '../../tracking/presentation/widgets/haul_summary_sheet.dart';
+import '../../tracking/presentation/widgets/live_stats_panel.dart';
 import '../../tracking/presentation/widgets/recording_banner.dart';
 import '../application/all_history_visible_provider.dart';
 import '../application/current_reading_provider.dart';
@@ -53,7 +54,6 @@ import '../application/map_overlay_state.dart';
 import '../application/markers_overlay_provider.dart';
 import 'providers/location_permission_provider.dart';
 import 'widgets/boat_marker.dart';
-import 'widgets/collapsed_tracking_mini.dart';
 import 'widgets/gps_accuracy_chip.dart';
 import 'widgets/gps_error_banner.dart';
 import 'widgets/history_overlay_controls.dart';
@@ -61,9 +61,7 @@ import 'widgets/history_polyline_layer.dart';
 import 'widgets/location_permission_sheet.dart';
 import 'widgets/map_attribution.dart';
 import 'widgets/map_controls.dart';
-import 'widgets/map_overflow_menu.dart';
 import 'widgets/track_popup.dart';
-import 'widgets/tracking_bottom_sheet.dart';
 
 /// Home tab — map + live GPS position + haul recording controls.
 class MapScreen extends ConsumerStatefulWidget {
@@ -520,32 +518,21 @@ class _MapScreenState extends ConsumerState<MapScreen>
     required bool hasPermission,
     required bool hasFix,
     required NavigationActive? navActive,
-    required bool allHistoryOn,
-    required AsyncValue<HistoryOverlayRender>? allHistoryAsync,
   }) {
-    // When navigating, the full NavigationPanel is at the top.
-    // If also tracking, CollapsedTrackingMini is under NavPanel.
-    // So the bottom should show either the old _ActionPanel or nothing.
-    if (navActive != null) {
-      // Navigating mode — bottom controls hidden (NavPanel is up top).
-      // But if NOT recording, show the idle "start haul" CTA so the
-      // user can begin tracking while navigating.
-      if (!isRecording) {
-        return _ActionPanel(
-          key: const ValueKey(MapMode.navigating),
-          isRecording: false,
-          state: trackingState,
-          onStart: _onStartHaulPressed,
-          onStop: _onStopHaulPressed,
-          onEndTrip: () =>
-              ref.read(trackingControllerProvider.notifier).endTrip(),
-          hasPermission: hasPermission,
-          hasFix: hasFix,
-        );
-      }
-      // Navigating + tracking: bottom is empty since
-      // CollapsedTrackingMini is shown under NavPanel at top.
-      return const SizedBox.shrink(key: ValueKey('nav-tracking'));
+    // When navigating + tracking, or just tracking, we show the action panel
+    // with the stop controls.
+    if (isRecording) {
+      return _ActionPanel(
+        key: const ValueKey('recording'),
+        isRecording: true,
+        state: trackingState,
+        onStart: _onStartHaulPressed,
+        onStop: _onStopHaulPressed,
+        onEndTrip: () =>
+            ref.read(trackingControllerProvider.notifier).endTrip(),
+        hasPermission: hasPermission,
+        hasFix: hasFix,
+      );
     }
 
     return switch (mode) {
@@ -560,10 +547,16 @@ class _MapScreenState extends ConsumerState<MapScreen>
         hasPermission: hasPermission,
         hasFix: hasFix,
       ),
-      MapMode.tracking => TrackingBottomSheet(
+      MapMode.tracking => _ActionPanel(
         key: const ValueKey(MapMode.tracking),
-        initiallyExpanded: false,
-        onStopPressed: _onStopHaulPressed,
+        isRecording: true,
+        state: trackingState,
+        onStart: _onStartHaulPressed,
+        onStop: _onStopHaulPressed,
+        onEndTrip: () =>
+            ref.read(trackingControllerProvider.notifier).endTrip(),
+        hasPermission: hasPermission,
+        hasFix: hasFix,
       ),
       MapMode.viewingHistory => HistoryOverlayControls(
         key: const ValueKey(MapMode.viewingHistory),
@@ -834,6 +827,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
               child: Column(
                 children: [
                   isRecording ? const RecordingBanner() : _IdleAppBar(),
+                  if (isRecording) ...[
+                    const SizedBox(height: AppSizes.sp2),
+                    const LiveStatsPanel(),
+                  ],
                   if (overlayActive && overlayAsync != null) ...[
                     const SizedBox(height: AppSizes.sp2),
                     _OverlayContextChip(
@@ -852,26 +849,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
                           .read(navigationControllerProvider.notifier)
                           .stop(),
                     ),
-                    if (isRecording) ...[
-                      const SizedBox(height: AppSizes.sp2),
-                      CollapsedTrackingMini(
-                        onStop: _onStopHaulPressed,
-                      ),
-                    ],
                   ],
                 ],
               ),
             ),
 
             // --- Right-side floating controls (GPS chip + toggles) ---
-            // Positioned separately so they don't bloat the top Column
-            // or block touch events on the bottom sheet. During active
-            // tracking the toggles and overflow menu are hidden because
-            // they are irrelevant and clutter the UI.
             Positioned(
               top: () {
-                // Dynamically offset below whatever top panels are shown.
-                double t = AppSizes.sp3 + (isRecording ? 54 : 68);
+                double t = AppSizes.sp3 + (isRecording ? 104 : 68);
                 if (overlayActive) t += 56;
                 if (navActive != null) {
                   t += 104;
@@ -884,44 +870,24 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   const GpsAccuracyChip(),
-                  // Hide toggles + overflow menu during tracking —
-                  // the user doesn't need history/marker toggles while
-                  // actively recording a haul.
-                  if (!isRecording) ...[
-                    const SizedBox(height: AppSizes.sp2),
-                    _AllHistoryToggle(
-                      on: allHistoryOn,
-                      onTap: () {
-                        final notifier =
-                            ref.read(allHistoryVisibleProvider.notifier);
-                        notifier.state = !notifier.state;
-                      },
-                    ),
-                    const SizedBox(height: AppSizes.sp2),
-                    _MarkersToggle(
-                      on: markersOn,
-                      onTap: () {
-                        final notifier =
-                            ref.read(markersOverlayEnabledProvider.notifier);
-                        notifier.state = !notifier.state;
-                      },
-                    ),
-                    const SizedBox(height: AppSizes.sp2),
-                    MapOverflowMenu(
-                      onAddMarkerHere: hasPermission
-                          ? () => _onAddMarkerPressed(context, ref)
-                          : null,
-                      onFitAll: allHistoryOn
-                          ? () {
-                              final bounds = allHistoryAsync
-                                  ?.asData?.value.bounds;
-                              if (bounds != null) {
-                                _cameraController.fitCameraExplicit(bounds);
-                              }
-                            }
-                          : null,
-                    ),
-                  ],
+                  const SizedBox(height: AppSizes.sp2),
+                  _AllHistoryToggle(
+                    on: allHistoryOn,
+                    onTap: () {
+                      final notifier =
+                          ref.read(allHistoryVisibleProvider.notifier);
+                      notifier.state = !notifier.state;
+                    },
+                  ),
+                  const SizedBox(height: AppSizes.sp2),
+                  _MarkersToggle(
+                    on: markersOn,
+                    onTap: () {
+                      final notifier =
+                          ref.read(markersOverlayEnabledProvider.notifier);
+                      notifier.state = !notifier.state;
+                    },
+                  ),
                 ],
               ),
             ),
@@ -1009,8 +975,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       hasPermission: hasPermission,
                       hasFix: reading != null,
                       navActive: navActive,
-                      allHistoryOn: allHistoryOn,
-                      allHistoryAsync: allHistoryAsync,
                     ),
                   ),
                 ],
@@ -1461,10 +1425,10 @@ class _ActionPanel extends StatelessWidget {
             ),
             const SizedBox(height: AppSizes.sp3),
             Semantics(
-              label: 'Berhenti merekam tarikan',
+              label: 'Berhenti tracking',
               button: true,
               child: PrimaryActionButton(
-                label: AppStrings.stopTrawl,
+                label: 'Berhenti tracking',
                 icon: PhosphorIconsFill.stopCircle,
                 variant: ActionButtonVariant.danger,
                 critical: true,
@@ -1519,10 +1483,10 @@ class _ActionPanel extends StatelessWidget {
           ),
           const SizedBox(height: AppSizes.sp3),
           Semantics(
-            label: 'Mulai merekam tarikan baru',
+            label: 'Mulai tracking',
             button: true,
             child: PrimaryActionButton(
-              label: AppStrings.startTrawl,
+              label: 'Mulai tracking',
               icon: PhosphorIconsFill.playCircle,
               variant: ActionButtonVariant.success,
               critical: true,
