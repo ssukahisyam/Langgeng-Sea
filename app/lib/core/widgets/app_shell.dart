@@ -106,31 +106,30 @@ class _AppShellState extends State<AppShell> {
 
     return Scaffold(
       extendBody: true,
-      body: MediaQuery(
-        // Tell the child screens that the viewport's effective bottom
-        // inset already accounts for the floating nav. They can keep
-        // using SafeArea / padding.bottom without knowing the magic
-        // nav height.
-        data: mq.copyWith(
-          padding: mq.padding.copyWith(bottom: navClearance),
-        ),
-        child: _TabTransition(
-          direction: direction,
-          index: currentIndex,
-          child: widget.child,
-        ),
-      ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSizes.sp3,
-            0,
-            AppSizes.sp3,
-            AppSizes.sp3,
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        children: [
+          MediaQuery(
+            // Tell the child screens that the viewport's effective bottom
+            // inset already accounts for the floating nav. They can keep
+            // using SafeArea / padding.bottom without knowing the magic
+            // nav height.
+            data: mq.copyWith(
+              padding: mq.padding.copyWith(bottom: navClearance),
+            ),
+            child: _TabTransition(
+              direction: direction,
+              index: currentIndex,
+              child: widget.child,
+            ),
           ),
-          child: _NavBar(currentIndex: currentIndex, tokens: tokens),
-        ),
+          Positioned(
+            left: AppSizes.sp3,
+            right: AppSizes.sp3,
+            bottom: AppSizes.sp3 + mq.padding.bottom,
+            child: _NavBar(currentIndex: currentIndex, tokens: tokens),
+          ),
+        ],
       ),
     );
   }

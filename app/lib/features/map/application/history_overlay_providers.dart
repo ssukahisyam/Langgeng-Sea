@@ -73,7 +73,7 @@ List<HaulTrackRender> _simplifyBatch(List<_SimplifyInput> inputs) {
     if (input.points.length < 2) continue;
     final simplified = PolylineSimplifier.simplify(
       input.points,
-      toleranceMeters: input.toleranceMeters,
+      toleranceMeters: 1.0, // 1 meter tolerance for high accuracy
     );
     if (simplified.length < 2) continue;
     out.add(

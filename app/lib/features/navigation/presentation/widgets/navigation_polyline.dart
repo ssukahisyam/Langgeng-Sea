@@ -50,7 +50,7 @@ class NavigationPolyline {
   /// see `ActiveHaulPolyline`) so that when the user is recording
   /// *and* following, the reference track reads as the dominant
   /// guidance layer, not a peer.
-  static const double _followTrackStrokeWidth = 6.0;
+  static const double _followTrackStrokeWidth = 8.0;
 
   /// Build the list of map layers for the active navigation target.
   /// Returns an empty list when there is nothing reasonable to draw
@@ -66,7 +66,7 @@ class NavigationPolyline {
 
     if (target is GotoTarget) {
       if (userReading == null) return const [];
-      return [_GotoDashedLayer(from: userReading.latLng, to: target.position)];
+      return [_GotoSolidLayer(from: userReading.latLng, to: target.position)];
     }
 
     if (target is FollowTrackTarget) {
@@ -83,71 +83,30 @@ class NavigationPolyline {
 }
 
 // ===========================================================================
-// Go-to — dashed polyline from user to target
+// Go-to — solid polyline from user to target
 // ===========================================================================
 
-class _GotoDashedLayer extends StatelessWidget {
-  const _GotoDashedLayer({required this.from, required this.to});
+class _GotoSolidLayer extends StatelessWidget {
+  const _GotoSolidLayer({required this.from, required this.to});
 
   final LatLng from;
   final LatLng to;
 
   @override
   Widget build(BuildContext context) {
-    final dashes = _dashedSegments(from, to);
     final color = context.colors.primary;
     return PolylineLayer<Object>(
       polylines: [
-        for (final seg in dashes)
-          Polyline(
-            points: seg,
-            strokeWidth: 6.0,
-            color: color.withValues(alpha: 0.95),
-          ),
+        Polyline(
+          points: [from, to],
+          strokeWidth: 8.0,
+          color: color.withValues(alpha: 0.95),
+          borderStrokeWidth: 1.5,
+          borderColor: Colors.white.withValues(alpha: 0.5),
+        ),
       ],
     );
   }
-
-  /// Split the great-circle line user→target into roughly equal
-  /// dashes + gaps. Uses linear interpolation in (lat, lng) space
-  /// which is good enough below ~100 km at our typical latitudes —
-  /// the visible artefact of pretending the line is straight on a
-  /// Mercator tile is sub-pixel.
-  static List<List<LatLng>> _dashedSegments(LatLng from, LatLng to) {
-    if (from == to) return const [];
-
-    const mPerDegLat = 111000.0;
-    final avgLatRad = (from.latitude + to.latitude) / 2 * math.pi / 180.0;
-    final mPerDegLng = mPerDegLat * math.cos(avgLatRad);
-
-    final dLat = (to.latitude - from.latitude) * mPerDegLat;
-    final dLng = (to.longitude - from.longitude) * mPerDegLng;
-    final totalMeters = math.sqrt(dLat * dLat + dLng * dLng);
-    if (totalMeters < 1) return const [];
-
-    // Target 8 dashes for mid-range, min 2, max 40.
-    final approxDashCount =
-        (totalMeters / NavigationPolyline._gotoDashSpacingMeters)
-            .clamp(2.0, 40.0)
-            .round();
-    final step = 1.0 / (approxDashCount * 2); // each dash + gap
-    final segments = <List<LatLng>>[];
-    for (var i = 0; i < approxDashCount * 2; i += 2) {
-      final t0 = i * step;
-      final t1 = (i + 1) * step;
-      segments.add([
-        _lerpLatLng(from, to, t0),
-        _lerpLatLng(from, to, t1),
-      ]);
-    }
-    return segments;
-  }
-
-  static LatLng _lerpLatLng(LatLng a, LatLng b, double t) {
-    return LatLng(
-      a.latitude + (b.latitude - a.latitude) * t,
-      a.longitude + (b.longitude - a.longitude) * t,
-    );
   }
 }
 

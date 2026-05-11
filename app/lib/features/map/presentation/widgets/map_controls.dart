@@ -35,7 +35,6 @@ class MapControls extends StatelessWidget {
               stream: mapController!.mapEventStream,
               builder: (context, snapshot) {
                 final rotation = mapController!.camera.rotation;
-                if (rotation == 0.0) return const SizedBox.shrink();
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [

@@ -200,7 +200,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
       final marker = markers.firstWhere((m) => m.id == markerId);
       if (mounted) {
         setState(() => _followingUser = false);
-        _mapController.move(marker.latLng, 14.0);
+        _mapController.move(marker.latLng, 16.0);
       }
     } catch (e) {
       // Marker not found or provider error, ignore.
@@ -940,7 +940,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       mode == MapMode.tracking ||
                       isRecording)
                   ? 130.0
-                  : 16.0,
+                  : 4.0,
               child: const MapAttribution(),
             ),
 
