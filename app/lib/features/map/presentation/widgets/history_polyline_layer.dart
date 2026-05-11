@@ -54,12 +54,39 @@ class _HistoryPolylineLayerState extends State<HistoryPolylineLayer> {
     if (widget.tracks.isEmpty) return const SizedBox.shrink();
 
     final polylines = <Polyline<HaulTrackRender>>[];
+    final startEndCircles = <CircleMarker>[];
 
     for (final track in widget.tracks) {
+      if (track.points.isEmpty) continue;
       final color = AppColors.resolveHaulColor(
         colorValue: track.colorValue,
         orderIndex: track.orderIndex,
       );
+
+      // --- Start and End points ---
+      final startPoint = track.points.first;
+      final endPoint = track.points.last;
+
+      startEndCircles.add(
+        CircleMarker(
+          point: startPoint,
+          radius: 5,
+          color: Colors.greenAccent.shade400,
+          borderColor: Colors.white,
+          borderStrokeWidth: 1.5,
+        ),
+      );
+      if (track.points.length > 1) {
+        startEndCircles.add(
+          CircleMarker(
+            point: endPoint,
+            radius: 5,
+            color: Colors.redAccent.shade400,
+            borderColor: Colors.white,
+            borderStrokeWidth: 1.5,
+          ),
+        );
+      }
 
       if (widget.isBackground) {
         // Background layer: visible but subdued so focused tracks stand out.
@@ -99,9 +126,14 @@ class _HistoryPolylineLayerState extends State<HistoryPolylineLayer> {
 
     return GestureDetector(
       onTapUp: _onTap,
-      child: PolylineLayer<HaulTrackRender>(
-        polylines: polylines,
-        hitNotifier: _hitNotifier,
+      child: Stack(
+        children: [
+          PolylineLayer<HaulTrackRender>(
+            polylines: polylines,
+            hitNotifier: _hitNotifier,
+          ),
+          CircleLayer(circles: startEndCircles),
+        ],
       ),
     );
   }

@@ -78,8 +78,8 @@ class UserProfile {
     );
   }
 
-  /// Header friendly: "Pak Hasan".
-  String get friendlyGreeting => 'Pak $name';
+  /// Header friendly.
+  String get friendlyGreeting => name;
 
   @override
   bool operator ==(Object other) {

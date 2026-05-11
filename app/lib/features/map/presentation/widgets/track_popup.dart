@@ -42,9 +42,11 @@ class TrackPopup extends StatelessWidget {
     required this.track,
     required this.storedName,
     required this.startedAt,
+    required this.tappedPoint,
     required this.kind,
     required this.onClose,
-    required this.onNavigate,
+    required this.onNavigateTo,
+    required this.onFollowTrack,
   });
 
   /// The rendered track this popup refers to — used for the colour
@@ -65,14 +67,19 @@ class TrackPopup extends StatelessWidget {
   /// Trip. Drives the body icon + label copy.
   final TrackKind kind;
 
+  /// The exact coordinate where the user tapped the track.
+  final LatLng tappedPoint;
+
   /// Called when the user dismisses the popup via the (X) button.
   /// MapScreen clears its `_activePopup` slot in response.
   final VoidCallback onClose;
 
-  /// Called when the user taps the "Navigasi ke sini" CTA. Wiring to
-  /// NavigationController.startFollowTrack lives in task 8.5 — this
-  /// widget just surfaces the intent.
-  final VoidCallback onNavigate;
+  /// Called when the user chooses a point to navigate to.
+  final void Function(LatLng targetLatLng, String label) onNavigateTo;
+
+  /// Called when the user chooses to follow the track. 
+  /// [reverse] is true if they want to follow it from end to start.
+  final void Function(bool reverse) onFollowTrack;
 
   /// Tight enough to read on small phones without stealing the whole
   /// map, wide enough to fit a two-line title + CTA comfortably.
@@ -187,36 +194,154 @@ class TrackPopup extends StatelessWidget {
               ),
               const SizedBox(height: AppSizes.sp4),
 
-              // Primary CTA. ElevatedButton (Material 3) gives us a
-              // clear affordance without the full-width critical styling
-              // of PrimaryActionButton, which would dominate the popup.
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: onNavigate,
-                  icon: const Icon(
-                    PhosphorIconsBold.navigationArrow,
-                    size: 18,
-                  ),
-                  label: const Text('Navigasi ke sini'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: AppSizes.sp3,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppSizes.radiusMd),
-                    ),
-                    textStyle: text.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
+              // Primary CTAs: Navigasi and Ikuti
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => _showNavigateOptions(context, tokens, text),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppSizes.sp3,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(AppSizes.radiusMd),
+                        ),
+                        textStyle: text.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      child: const Text('Navigasi'),
                     ),
                   ),
-                ),
+                  const SizedBox(width: AppSizes.sp2),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => _showFollowOptions(context, tokens, text),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppSizes.sp3,
+                        ),
+                        backgroundColor: tokens.primary,
+                        foregroundColor: tokens.onPrimary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(AppSizes.radiusMd),
+                        ),
+                        textStyle: text.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      child: const Text('Ikuti Jalur'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _showNavigateOptions(
+    BuildContext context,
+    AppColorTokens tokens,
+    TextTheme text,
+  ) async {
+    final startPoint = track.points.first;
+    final endPoint = track.points.last;
+    final name = storedName ?? Formatters.shortDate(startedAt);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: tokens.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppSizes.radiusLg)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(AppSizes.sp4),
+                child: Text('Tujuan Navigasi', style: text.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+              ),
+              ListTile(
+                leading: Icon(PhosphorIconsRegular.target, color: tokens.primary),
+                title: Text('Titik yang dipilih (Tap)', style: text.bodyLarge),
+                onTap: () {
+                  Navigator.pop(context);
+                  onNavigateTo(tappedPoint, 'Titik Terpilih ($name)');
+                },
+              ),
+              ListTile(
+                leading: Icon(PhosphorIconsRegular.flag, color: tokens.primary),
+                title: Text('Titik Awal (Dimulai)', style: text.bodyLarge),
+                onTap: () {
+                  Navigator.pop(context);
+                  onNavigateTo(startPoint, 'Awal ($name)');
+                },
+              ),
+              if (track.points.length > 1)
+                ListTile(
+                  leading: Icon(PhosphorIconsRegular.flagCheckered, color: tokens.primary),
+                  title: Text('Titik Akhir (Selesai)', style: text.bodyLarge),
+                  onTap: () {
+                    Navigator.pop(context);
+                    onNavigateTo(endPoint, 'Akhir ($name)');
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showFollowOptions(
+    BuildContext context,
+    AppColorTokens tokens,
+    TextTheme text,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: tokens.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppSizes.radiusLg)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(AppSizes.sp4),
+                child: Text('Arah Mengikuti Jalur', style: text.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+              ),
+              ListTile(
+                leading: Icon(PhosphorIconsRegular.arrowRight, color: tokens.primary),
+                title: Text('Mulai dari Titik Awal', style: text.bodyLarge),
+                onTap: () {
+                  Navigator.pop(context);
+                  onFollowTrack(false);
+                },
+              ),
+              if (track.points.length > 1)
+                ListTile(
+                  leading: Icon(PhosphorIconsRegular.arrowLeft, color: tokens.primary),
+                  title: Text('Mulai dari Titik Akhir (Dibalik)', style: text.bodyLarge),
+                  onTap: () {
+                    Navigator.pop(context);
+                    onFollowTrack(true);
+                  },
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

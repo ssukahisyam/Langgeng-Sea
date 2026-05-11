@@ -88,6 +88,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   /// Active popup for tapped polyline track. Null when no popup is shown.
   HaulTrackRender? _activePopupTrack;
+  LatLng? _activePopupLatLng;
 
   /// Tracks the current map zoom so the marker layer can decide
   /// whether to show name labels (see MarkerPin.labelZoomThreshold).
@@ -260,17 +261,24 @@ class _MapScreenState extends ConsumerState<MapScreen>
       return;
     }
     setState(() => _followingUser = true);
-    _mapController.move(reading.latLng, 15);
+    _mapController.move(reading.latLng, 18);
   }
 
   /// Handle polyline tap from HistoryPolylineLayer.
-  void _onTrackTap(HaulTrackRender track, Offset _) {
-    setState(() => _activePopupTrack = track);
+  void _onTrackTap(HaulTrackRender track, Offset tapPosition) {
+    final latLng = _mapController.camera.pointToLatLng(math.Point(tapPosition.dx, tapPosition.dy));
+    setState(() {
+      _activePopupTrack = track;
+      _activePopupLatLng = latLng;
+    });
   }
 
   /// Dismiss the active track popup.
   void _dismissPopup() {
-    setState(() => _activePopupTrack = null);
+    setState(() {
+      _activePopupTrack = null;
+      _activePopupLatLng = null;
+    });
   }
 
 
@@ -629,25 +637,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
       }
     });
 
-    // Auto-zoom via MapCameraController — maybeInitialFit is gated by the
-    // internal latch so it only fires once per activation cycle. Calling it
-    // here on every data-ready build is safe: the latch no-ops after the
-    // first successful fit, and user gestures suppress it permanently.
-    if (overlayActive && overlayAsync != null) {
-      overlayAsync.whenData((render) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted || render.bounds == null) return;
-          _cameraController.maybeInitialFit(render.bounds!);
-        });
-      });
-    } else if (allHistoryOn && allHistoryAsync != null) {
-      allHistoryAsync.whenData((render) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted || render.bounds == null) return;
-          _cameraController.maybeInitialFit(render.bounds!);
-        });
-      });
-    }
 
     // Compose polyline layers using HistoryPolylineLayer for tap detection.
     // All-history is the background layer, pinned overlay is the focused layer.
@@ -980,7 +969,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
             ),
 
             // --- Track popup (shown when a polyline track is tapped) ---
-            if (_activePopupTrack != null)
+            if (_activePopupTrack != null && _activePopupLatLng != null)
               Positioned(
                 top: MediaQuery.of(context).padding.top + 120,
                 left: AppSizes.sp4,
@@ -990,6 +979,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     track: _activePopupTrack!,
                     storedName: _activePopupTrack!.storedName,
                     startedAt: _activePopupTrack!.startedAt,
+                    tappedPoint: _activePopupLatLng!,
                     kind: TrackKind.haul,
                     onClose: _dismissPopup,
                     onNavigate: () {
