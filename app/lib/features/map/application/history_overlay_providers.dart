@@ -84,7 +84,7 @@ List<HaulTrackRender> _simplifyBatch(List<_SimplifyInput> inputs) {
       points: simplified,
       storedName: input.storedName,
       startedAt: input.startedAt,
-    ));
+    ),);
   }
   return out;
 }
@@ -170,7 +170,7 @@ final tripRenderProvider = FutureProvider.autoDispose
   }
 
   final tracks = <HaulTrackRender>[];
-  var allBoundsSource = <LatLng>[];
+  final allBoundsSource = <LatLng>[];
   for (final h in hauls) {
     final points = await pointsRepo.getByHaul(h.id);
     if (points.length < 2) continue;
@@ -191,7 +191,7 @@ final tripRenderProvider = FutureProvider.autoDispose
       points: simplified,
       storedName: h.name,
       startedAt: h.startedAt,
-    ));
+    ),);
   }
 
   return HistoryOverlayRender(
@@ -217,8 +217,8 @@ final haulRenderProvider = FutureProvider.autoDispose
   }
   final points = await pointsRepo.getByHaul(haulId);
   if (points.length < 2) {
-    return HistoryOverlayRender(
-      tracks: const [],
+    return const HistoryOverlayRender(
+      tracks: [],
       bounds: null,
       sourceHaulCount: 1,
     );
@@ -228,8 +228,8 @@ final haulRenderProvider = FutureProvider.autoDispose
     toleranceMeters: 3.0,
   );
   if (simplified.length < 2) {
-    return HistoryOverlayRender(
-      tracks: const [],
+    return const HistoryOverlayRender(
+      tracks: [],
       bounds: null,
       sourceHaulCount: 1,
     );

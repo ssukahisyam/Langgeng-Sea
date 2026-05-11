@@ -8,7 +8,7 @@ import '../../../../core/widgets/primary_action_button.dart';
 import '../../../onboarding/data/user_profile_repository.dart';
 import '../../../onboarding/domain/entities/user_profile.dart';
 import '../../../tracking/application/tracking_controller.dart';
-import '../application/all_history_visible_provider.dart';
+import '../../application/all_history_visible_provider.dart';
 
 /// Idle-mode control cluster for `MapScreen`.
 ///

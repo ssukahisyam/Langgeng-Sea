@@ -1,4 +1,3 @@
-import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -103,7 +102,7 @@ class HaulDetailScreen extends ConsumerWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-              'Selesaikan tarikan terlebih dulu (tekan "Berhenti").'),
+              'Selesaikan tarikan terlebih dulu (tekan "Berhenti").',),
           duration: Duration(seconds: 2),
         ),
       );
@@ -266,7 +265,7 @@ class _Hero extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(PhosphorIconsFill.record,
-                      size: 10, color: tokens.danger),
+                      size: 10, color: tokens.danger,),
                   const SizedBox(width: 5),
                   Text(
                     'MASIH MEREKAM',
@@ -320,7 +319,7 @@ class _MetricGrid extends StatelessWidget {
               label: 'Durasi',
             ),
           ),
-        ]),
+        ],),
         const SizedBox(height: AppSizes.sp2),
         Row(children: [
           Expanded(
@@ -342,7 +341,7 @@ class _MetricGrid extends StatelessWidget {
               label: 'Arah dominan',
             ),
           ),
-        ]),
+        ],),
         const SizedBox(height: AppSizes.sp2),
         _Tile(
           icon: PhosphorIconsBold.frameCorners,
@@ -436,10 +435,10 @@ class _HaulLogBookCard extends ConsumerWidget {
     final async = ref.watch(logBookByHaulProvider(haulId));
 
     return async.when(
-      loading: () => _LogBookCardShell(
+      loading: () => const _LogBookCardShell(
         title: 'Log Book Tarikan',
         subtitle: 'Memuat…',
-        trailing: const SizedBox(
+        trailing: SizedBox(
           width: 18,
           height: 18,
           child: CircularProgressIndicator(strokeWidth: 2),

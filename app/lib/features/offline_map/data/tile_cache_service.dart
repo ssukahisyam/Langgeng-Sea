@@ -105,7 +105,7 @@ class FmtcTileCacheService implements TileCacheService {
 
   @override
   Stream<TileDownloadProgress> downloadRegion(OfflineRegion region) async* {
-    final store = const FMTCStore(TileEndpoints.osmStore);
+    const store = FMTCStore(TileEndpoints.osmStore);
 
     final rect = RectangleRegion(region.bounds).toDownloadable(
       minZoom: region.minZoom,

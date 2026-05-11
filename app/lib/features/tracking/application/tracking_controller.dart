@@ -221,7 +221,7 @@ class TrackingController extends Notifier<TrackingState> {
     _replayHeadingSpeed(existing.map((p) => (
           p.headingDegrees,
           p.speedMps,
-        )));
+        ),),);
 
     _retryCount = 0;
 

@@ -2,16 +2,14 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter_background_service/flutter_background_service.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../../core/observability/logger.dart';
-import '../../../core/services/gps_reading.dart';
 import '../../../data/database/app_database.dart';
+import '../domain/entities/track_point.dart';
 import 'background_tracking_service.dart';
 import 'mappers.dart';
-import '../domain/entities/track_point.dart';
 
 /// Notification channel used for the persistent foreground-service
 /// notification on Android.

@@ -58,7 +58,7 @@ void main() {
           filterMarkersByCategory(testMarkers, MarkerCategory.productive);
       expect(result.length, 2);
       expect(result.every((m) => m.category == MarkerCategory.productive),
-          isTrue);
+          isTrue,);
       expect(result[0].name, 'Spot Udang');
       expect(result[1].name, 'Spot Tenggiri');
     });
@@ -115,7 +115,7 @@ void main() {
 
     test('fromStorageKey parses correctly', () {
       expect(
-          MarkerCategory.fromStorageKey('productive'), MarkerCategory.productive);
+          MarkerCategory.fromStorageKey('productive'), MarkerCategory.productive,);
       expect(MarkerCategory.fromStorageKey('hazard'), MarkerCategory.hazard);
       expect(MarkerCategory.fromStorageKey('port'), MarkerCategory.port);
       expect(MarkerCategory.fromStorageKey('other'), MarkerCategory.other);

@@ -1,4 +1,3 @@
-import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,8 +9,6 @@ import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ambient_background.dart';
 import '../../../core/widgets/glass_card.dart';
-import '../../navigation/application/navigation_controller.dart';
-import '../../navigation/domain/entities/navigation_target.dart';
 import '../data/marker_repository.dart';
 import '../domain/entities/marker.dart';
 import 'widgets/add_marker_dialog.dart';
@@ -66,21 +63,21 @@ class _MarkersListScreenState extends ConsumerState<MarkersListScreen> {
                         selected:
                             _selectedCategory == MarkerCategory.productive,
                         onTap: () => setState(
-                            () => _selectedCategory = MarkerCategory.productive),
+                            () => _selectedCategory = MarkerCategory.productive,),
                       ),
                       const SizedBox(width: AppSizes.sp2),
                       _FilterChip(
                         label: 'Karang',
                         selected: _selectedCategory == MarkerCategory.hazard,
                         onTap: () => setState(
-                            () => _selectedCategory = MarkerCategory.hazard),
+                            () => _selectedCategory = MarkerCategory.hazard,),
                       ),
                       const SizedBox(width: AppSizes.sp2),
                       _FilterChip(
                         label: 'Pelabuhan',
                         selected: _selectedCategory == MarkerCategory.port,
                         onTap: () => setState(
-                            () => _selectedCategory = MarkerCategory.port),
+                            () => _selectedCategory = MarkerCategory.port,),
                       ),
                     ],
                   ),

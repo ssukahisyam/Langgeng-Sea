@@ -16,7 +16,7 @@
 // strategy. We create the v1 tables and set user_version=1 there, then
 // Drift reads user_version, sees schemaVersion=7, and runs onUpgrade.
 
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:langgeng_sea/data/database/app_database.dart';
@@ -89,7 +89,7 @@ void main() {
           ..execute(_v1CreateTrackPoints);
 
         raw.execute(
-          "INSERT INTO trips (id, name, started_at, status, "
+          'INSERT INTO trips (id, name, started_at, status, '
           'created_at, updated_at) '
           "VALUES ('trip-1', 'Test Trip', ?, 'completed', ?, ?);",
           [now, now, now],
@@ -107,7 +107,7 @@ void main() {
           "VALUES ('haul-1', -7.2, 113.4, ?);",
           [now],
         );
-      }));
+      },),);
     });
 
     tearDown(() async {
@@ -129,7 +129,7 @@ void main() {
     test('existing trip row survives the migration', () async {
       final trips = await db
           .customSelect(
-              "SELECT id, name, status FROM trips WHERE id = 'trip-1'")
+              "SELECT id, name, status FROM trips WHERE id = 'trip-1'",)
           .get();
       expect(trips, hasLength(1));
       expect(trips.single.data['name'], 'Test Trip');
@@ -147,9 +147,9 @@ void main() {
       final haul = hauls.single.data;
       expect(haul['trip_id'], 'trip-1');
       expect((haul['distance_meters'] as num).toDouble(),
-          closeTo(1234.5, 0.01));
+          closeTo(1234.5, 0.01),);
       expect((haul['swept_area_m2'] as num).toDouble(),
-          closeTo(24690.0, 0.01));
+          closeTo(24690.0, 0.01),);
     });
 
     test('existing track point survives the migration', () async {
@@ -242,7 +242,7 @@ void main() {
           )
           .get();
       expect(rows, hasLength(1),
-          reason: 'migration should seed exactly one app_settings row');
+          reason: 'migration should seed exactly one app_settings row',);
       final r = rows.single.data;
       // Drift stores bool as 0/1 via custom SQL, but the seed uses
       // literal 1 values so we compare against the numeric form.
@@ -284,7 +284,7 @@ void main() {
       );
       final profile = await db
           .customSelect(
-              'SELECT name, vessel_name FROM user_profiles WHERE id = 1')
+              'SELECT name, vessel_name FROM user_profiles WHERE id = 1',)
           .getSingle();
       expect(profile.data['name'], 'Pak Hasan');
       expect(profile.data['vessel_name'], 'KM Harapan');
@@ -296,7 +296,7 @@ void main() {
 Future<void> _expectTableExists(AppDatabase db, String name) async {
   final rows = await db
       .customSelect(
-        "SELECT name FROM sqlite_master "
+        'SELECT name FROM sqlite_master '
         "WHERE type='table' AND name = ?",
         variables: [Variable.withString(name)],
       )

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -184,10 +183,10 @@ class _CollapsedBody extends StatelessWidget {
         child: Row(
           children: [
             Icon(PhosphorIconsFill.record,
-                size: 10, color: tokens.danger),
+                size: 10, color: tokens.danger,),
             const SizedBox(width: AppSizes.sp2),
             Icon(PhosphorIconsBold.timer,
-                size: 16, color: tokens.textSecondary),
+                size: 16, color: tokens.textSecondary,),
             const SizedBox(width: 6),
             Text(
               Formatters.duration(duration),
@@ -198,7 +197,7 @@ class _CollapsedBody extends StatelessWidget {
             ),
             const SizedBox(width: AppSizes.sp4),
             Icon(PhosphorIconsBold.ruler,
-                size: 16, color: tokens.textSecondary),
+                size: 16, color: tokens.textSecondary,),
             const SizedBox(width: 6),
             Flexible(
               child: Text(
@@ -332,7 +331,7 @@ class _ExpandedBody extends StatelessWidget {
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: AppSizes.sp3, vertical: 6),
+                    horizontal: AppSizes.sp3, vertical: 6,),
                 decoration: BoxDecoration(
                   color: tokens.danger.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(AppSizes.radiusPill),
@@ -341,7 +340,7 @@ class _ExpandedBody extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(PhosphorIconsFill.record,
-                        size: 10, color: tokens.danger),
+                        size: 10, color: tokens.danger,),
                     const SizedBox(width: 5),
                     Text(
                       'TRACKING AKTIF',

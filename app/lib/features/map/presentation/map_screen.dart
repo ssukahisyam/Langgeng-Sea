@@ -13,7 +13,6 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/services/gps_reading.dart';
 import '../../../core/services/gps_service.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
@@ -21,17 +20,6 @@ import '../../../core/widgets/ambient_background.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../../../core/widgets/status_chip.dart';
-import '../../tracking/application/tracking_controller.dart';
-import '../../tracking/application/tracking_state.dart';
-import '../../tracking/data/background_tracking_service.dart';
-import '../../tracking/data/haul_repository.dart';
-import '../../tracking/data/trip_repository.dart';
-import '../../tracking/domain/entities/haul.dart';
-import '../../tracking/domain/entities/trip.dart';
-import '../../tracking/presentation/widgets/active_haul_polyline.dart';
-import '../../tracking/presentation/widgets/haul_summary_sheet.dart';
-import '../../tracking/presentation/widgets/live_stats_panel.dart';
-import '../../tracking/presentation/widgets/recording_banner.dart';
 import '../../marker/data/marker_repository.dart';
 import '../../marker/domain/entities/marker.dart';
 import '../../marker/presentation/widgets/add_marker_dialog.dart';
@@ -45,6 +33,17 @@ import '../../navigation/presentation/widgets/navigation_panel.dart';
 import '../../navigation/presentation/widgets/navigation_polyline.dart';
 import '../../offline_map/data/tile_cache_service.dart';
 import '../../onboarding/data/user_profile_repository.dart';
+import '../../tracking/application/tracking_controller.dart';
+import '../../tracking/application/tracking_state.dart';
+import '../../tracking/data/background_tracking_service.dart';
+import '../../tracking/data/haul_repository.dart';
+import '../../tracking/data/trip_repository.dart';
+import '../../tracking/domain/entities/haul.dart';
+import '../../tracking/domain/entities/trip.dart';
+import '../../tracking/presentation/widgets/active_haul_polyline.dart';
+import '../../tracking/presentation/widgets/haul_summary_sheet.dart';
+import '../../tracking/presentation/widgets/live_stats_panel.dart';
+import '../../tracking/presentation/widgets/recording_banner.dart';
 import '../application/all_history_visible_provider.dart';
 import '../application/current_reading_provider.dart';
 import '../application/history_overlay_providers.dart';
@@ -433,7 +432,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
           borderRadius: BorderRadius.circular(AppSizes.radiusXl),
         ),
         icon: Icon(PhosphorIconsFill.warningCircle,
-            color: tokens.warning, size: 36),
+            color: tokens.warning, size: 36,),
         title: Text('Tarikan Belum Selesai', style: text.titleLarge),
         content: Text(
           '${orphan.displayName()} masih tercatat sedang merekam. '
@@ -455,7 +454,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 style: text.labelMedium?.copyWith(
                   color: context.colors.primary,
                   fontWeight: FontWeight.w700,
-                )),
+                ),),
           ),
         ],
       ),
@@ -547,7 +546,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
       }
       // Navigating + tracking: bottom is empty since
       // CollapsedTrackingMini is shown under NavPanel at top.
-      return SizedBox.shrink(key: const ValueKey('nav-tracking'));
+      return const SizedBox.shrink(key: ValueKey('nav-tracking'));
     }
 
     return switch (mode) {
@@ -1446,7 +1445,7 @@ class _ActionPanel extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text('${haul.displayName()} aktif',
-                          style: text.titleMedium),
+                          style: text.titleMedium,),
                       const SizedBox(height: 2),
                       Text(
                         'GPS sedang merekam jejak trawl',
@@ -1498,7 +1497,7 @@ class _ActionPanel extends StatelessWidget {
                       _subtitle(
                           state: state,
                           hasPermission: hasPermission,
-                          hasFix: hasFix),
+                          hasFix: hasFix,),
                       style: text.bodySmall?.copyWith(
                         color: tokens.textTertiary,
                       ),
@@ -1513,7 +1512,7 @@ class _ActionPanel extends StatelessWidget {
                       style: text.labelMedium?.copyWith(
                         color: tokens.danger,
                         fontWeight: FontWeight.w700,
-                      )),
+                      ),),
                 ),
             ],
           ),

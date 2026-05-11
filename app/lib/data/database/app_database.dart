@@ -17,6 +17,14 @@ import 'daos/trip_dao.dart';
 import 'daos/user_profile_dao.dart';
 import 'tables.dart';
 
+export 'daos/app_settings_dao.dart';
+export 'daos/haul_dao.dart';
+export 'daos/log_book_dao.dart';
+export 'daos/marker_dao.dart';
+export 'daos/offline_region_dao.dart';
+export 'daos/track_point_dao.dart';
+export 'daos/trip_dao.dart';
+export 'daos/user_profile_dao.dart';
 // Re-export tables + DAOs so that repository files can import a single
 // barrel (app_database.dart) and get every type they need:
 //   - DAO classes (HaulDao, TripDao, …) live in the dao files below.
@@ -27,14 +35,6 @@ import 'tables.dart';
 // `app_database.dart` fail to compile with
 // "Type 'HaulDao' not found" / "Type 'HaulRow' not found".
 export 'tables.dart';
-export 'daos/app_settings_dao.dart';
-export 'daos/haul_dao.dart';
-export 'daos/log_book_dao.dart';
-export 'daos/marker_dao.dart';
-export 'daos/offline_region_dao.dart';
-export 'daos/track_point_dao.dart';
-export 'daos/trip_dao.dart';
-export 'daos/user_profile_dao.dart';
 
 part 'app_database.g.dart';
 
@@ -70,7 +70,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   /// Test-only constructor that uses an in-memory SQLite.
-  AppDatabase.forTesting(QueryExecutor executor) : super(executor);
+  AppDatabase.forTesting(super.executor);
 
   @override
   int get schemaVersion => 7;

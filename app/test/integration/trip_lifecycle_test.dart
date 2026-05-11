@@ -18,8 +18,8 @@ import 'package:langgeng_sea/core/services/gps_service.dart';
 import 'package:langgeng_sea/data/database/app_database.dart';
 import 'package:langgeng_sea/features/onboarding/data/user_profile_repository.dart';
 import 'package:langgeng_sea/features/tracking/application/tracking_controller.dart';
-import 'package:langgeng_sea/features/tracking/domain/entities/trip.dart';
 import 'package:langgeng_sea/features/tracking/data/trip_repository.dart';
+import 'package:langgeng_sea/features/tracking/domain/entities/trip.dart';
 
 import '../helpers/fake_gps_service.dart';
 
@@ -38,7 +38,7 @@ void main() {
       container = ProviderContainer(overrides: [
         appDatabaseProvider.overrideWithValue(db),
         gpsServiceProvider.overrideWithValue(fakeGps),
-      ]);
+      ],);
 
       // Seed a user profile so the real app flow would be satisfied.
       // Not strictly required by the tracking controller (trawl width is
@@ -75,7 +75,7 @@ void main() {
 
         final tripRow = await db.tripDao.findActive();
         expect(tripRow, isNotNull,
-            reason: 'startHaul should create the active trip');
+            reason: 'startHaul should create the active trip',);
         expect(tripRow!.status, 'active');
 
         final haul1Row = await db.haulDao.findById(haul1.id);
@@ -95,7 +95,7 @@ void main() {
             accuracyMeters: 6,
             speedMps: 2.5,
             headingDegrees: 45,
-          ));
+          ),);
           // Give the stream microtask a chance to land.
           await Future<void>.delayed(Duration.zero);
         }
@@ -113,7 +113,7 @@ void main() {
         final haul1Final = await db.haulDao.findById(haul1.id);
         expect(haul1Final!.status, 'completed');
         expect(haul1Final.distanceMeters, greaterThan(0),
-            reason: 'pairwise haversine should produce a positive distance');
+            reason: 'pairwise haversine should produce a positive distance',);
         expect(haul1Final.durationSeconds, greaterThan(0));
         expect(haul1Final.sweptAreaM2, greaterThan(0));
         expect(haul1Final.avgSpeedKnots, isNotNull);
@@ -128,9 +128,9 @@ void main() {
         // ================================================================
         final haul2 = await controller.startHaul(trawlWidthMeters: 20);
         expect(haul2.tripId, tripAfter1.id,
-            reason: 'a second haul must reuse the still-active trip');
+            reason: 'a second haul must reuse the still-active trip',);
         expect(haul2.orderIndex, 2,
-            reason: 'order_index should auto-increment within the trip');
+            reason: 'order_index should auto-increment within the trip',);
 
         // A few points for haul #2 too so it has non-zero metrics.
         for (var i = 0; i < 5; i++) {
@@ -141,7 +141,7 @@ void main() {
             accuracyMeters: 8,
             speedMps: 2.0,
             headingDegrees: 50,
-          ));
+          ),);
           await Future<void>.delayed(Duration.zero);
         }
 
@@ -156,9 +156,9 @@ void main() {
 
         final finalTrip = await db.tripDao.findById(tripAfter1.id);
         expect(finalTrip!.status, 'completed',
-            reason: 'endTrip should close the trip row');
+            reason: 'endTrip should close the trip row',);
         expect(await tripRepo.getActiveTrip(), isNull,
-            reason: 'no trip should be active after endTrip');
+            reason: 'no trip should be active after endTrip',);
 
         // ================================================================
         // TripSummary aggregate check
@@ -169,7 +169,7 @@ void main() {
         final summary = summaries.single;
         expect(summary.trip.id, tripAfter1.id);
         expect(summary.haulCount, 2,
-            reason: 'both hauls should contribute to the summary');
+            reason: 'both hauls should contribute to the summary',);
         expect(
           summary.totalDistanceMeters,
           closeTo(
@@ -202,7 +202,7 @@ void main() {
         accuracyMeters: 5,
         speedMps: 2.2,
         headingDegrees: 90,
-      ));
+      ),);
       await Future<void>.delayed(Duration.zero);
 
       // Don't call stopHaul first — endTrip should do it.
@@ -210,7 +210,7 @@ void main() {
 
       final haulRow = await db.haulDao.findById(haul.id);
       expect(haulRow!.status, 'completed',
-          reason: 'endTrip should cascade-stop an active haul');
+          reason: 'endTrip should cascade-stop an active haul',);
 
       final tripRow = await db.tripDao.findById(haul.tripId);
       expect(tripRow!.status, 'completed');

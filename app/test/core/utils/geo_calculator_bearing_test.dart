@@ -107,9 +107,9 @@ void main() {
       const leftOfLine = LatLng(-0.001, 0.1); // South of equator line.
       const rightOfLine = LatLng(0.001, 0.1); // North of equator line.
       final l = GeoCalculator.crossTrackDistanceMeters(
-          leftOfLine, segStart, segEnd);
+          leftOfLine, segStart, segEnd,);
       final r = GeoCalculator.crossTrackDistanceMeters(
-          rightOfLine, segStart, segEnd);
+          rightOfLine, segStart, segEnd,);
       expect(l, greaterThanOrEqualTo(0));
       expect(r, greaterThanOrEqualTo(0));
       // By symmetry of the equator they should be roughly equal.

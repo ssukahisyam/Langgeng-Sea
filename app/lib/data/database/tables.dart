@@ -34,7 +34,7 @@ class Hauls extends Table {
   TextColumn get id => text()();
 
   TextColumn get tripId => text().references(Trips, #id,
-      onUpdate: KeyAction.cascade, onDelete: KeyAction.cascade)();
+      onUpdate: KeyAction.cascade, onDelete: KeyAction.cascade,)();
 
   TextColumn get name => text().nullable()();
 
@@ -81,7 +81,7 @@ class TrackPoints extends Table {
   IntColumn get id => integer().autoIncrement()();
 
   TextColumn get haulId => text().references(Hauls, #id,
-      onUpdate: KeyAction.cascade, onDelete: KeyAction.cascade)();
+      onUpdate: KeyAction.cascade, onDelete: KeyAction.cascade,)();
 
   RealColumn get latitude => real()();
   RealColumn get longitude => real()();
@@ -158,7 +158,7 @@ class CatchItems extends Table {
   TextColumn get id => text()();
 
   TextColumn get logBookEntryId => text().references(LogBookEntries, #id,
-      onUpdate: KeyAction.cascade, onDelete: KeyAction.cascade)();
+      onUpdate: KeyAction.cascade, onDelete: KeyAction.cascade,)();
 
   TextColumn get species => text()();
   RealColumn get weightKg => real().nullable()();

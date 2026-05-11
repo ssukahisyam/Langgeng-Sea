@@ -17,6 +17,7 @@ import 'package:langgeng_sea/core/utils/geo_calculator.dart';
 import 'package:langgeng_sea/data/database/app_database.dart';
 import 'package:langgeng_sea/features/tracking/application/tracking_controller.dart';
 import 'package:langgeng_sea/features/tracking/data/haul_repository.dart';
+import 'package:langgeng_sea/features/tracking/data/track_point_repository.dart';
 import 'package:langgeng_sea/features/tracking/data/trip_repository.dart';
 import 'package:langgeng_sea/features/tracking/domain/entities/haul.dart';
 import 'package:latlong2/latlong.dart';
@@ -36,7 +37,7 @@ void main() {
     container = ProviderContainer(overrides: [
       appDatabaseProvider.overrideWithValue(db),
       gpsServiceProvider.overrideWithValue(fakeGps),
-    ]);
+    ],);
   });
 
   tearDown(() async {
@@ -74,7 +75,7 @@ void main() {
 
       final second = await controller.startHaul(trawlWidthMeters: 20);
       expect(second.tripId, first.tripId,
-          reason: 'second haul should reuse the active trip');
+          reason: 'second haul should reuse the active trip',);
       expect(second.orderIndex, 2);
 
       // Only one trip ever existed.
@@ -110,7 +111,7 @@ void main() {
           accuracyMeters: 5,
           speedMps: 2.0,
           headingDegrees: 135,
-        ));
+        ),);
         await Future<void>.delayed(Duration.zero);
       }
 
@@ -125,7 +126,7 @@ void main() {
         reason: 'stored distance should equal pairwise haversine sum',
       );
       expect(haulRow.sweptAreaM2,
-          closeTo(expected * haul.trawlWidthMeters, 0.5));
+          closeTo(expected * haul.trawlWidthMeters, 0.5),);
     });
   });
 
@@ -148,7 +149,7 @@ void main() {
           accuracyMeters: 5,
           speedMps: 2.0,
           headingDegrees: h,
-        ));
+        ),);
         await Future<void>.delayed(Duration.zero);
       }
 
@@ -181,7 +182,7 @@ void main() {
           accuracyMeters: 5,
           speedMps: 2.0,
           headingDegrees: h,
-        ));
+        ),);
         await Future<void>.delayed(Duration.zero);
       }
       await controller.stopHaul();
@@ -212,7 +213,7 @@ void main() {
           accuracyMeters: 5,
           speedMps: 2,
           headingDegrees: 90,
-        ));
+        ),);
         await Future<void>.delayed(Duration.zero);
         fakeGps.emit(GpsReading(
           latitude: -7.2000,
@@ -221,7 +222,7 @@ void main() {
           accuracyMeters: 5,
           speedMps: 2,
           headingDegrees: 90,
-        ));
+        ),);
         await Future<void>.delayed(Duration.zero);
 
         // Bad point — far away but accuracy > 25m. Should be stored but
@@ -233,7 +234,7 @@ void main() {
           accuracyMeters: 50,
           speedMps: 2,
           headingDegrees: 90,
-        ));
+        ),);
         await Future<void>.delayed(Duration.zero);
 
         // Another good point — distance should resume from the 2nd good point.
@@ -244,7 +245,7 @@ void main() {
           accuracyMeters: 6,
           speedMps: 2,
           headingDegrees: 90,
-        ));
+        ),);
         await Future<void>.delayed(Duration.zero);
 
         await controller.stopHaul();
@@ -319,7 +320,7 @@ void main() {
 
         // Emit one more reading to confirm distance keeps accumulating
         // from the resumed baseline.
-        final extra = const LatLng(-7.2015, 113.4015);
+        const extra = LatLng(-7.2015, 113.4015);
         fakeGps.emit(GpsReading(
           latitude: extra.latitude,
           longitude: extra.longitude,
@@ -327,7 +328,7 @@ void main() {
           accuracyMeters: 6,
           speedMps: 2,
           headingDegrees: 135,
-        ));
+        ),);
         await Future<void>.delayed(Duration.zero);
 
         await controller.stopHaul();

@@ -47,7 +47,7 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
       text: init?.vesselGtOptional == null
           ? ''
           : init!.vesselGtOptional!.toStringAsFixed(
-              init.vesselGtOptional! % 1 == 0 ? 0 : 1),
+              init.vesselGtOptional! % 1 == 0 ? 0 : 1,),
     );
     _width = TextEditingController(
       text: (init?.trawlWidthMeters ?? UserProfile.defaultTrawlWidthMeters)
@@ -125,7 +125,7 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _FieldLabel('Nama Anda'),
+                const _FieldLabel('Nama Anda'),
                 const SizedBox(height: AppSizes.sp2),
                 Semantics(
                   label: 'Input nama nelayan',
@@ -143,7 +143,7 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
                   ),
                 ),
                 const SizedBox(height: AppSizes.sp4),
-                _FieldLabel('Nama Kapal'),
+                const _FieldLabel('Nama Kapal'),
                 const SizedBox(height: AppSizes.sp2),
                 Semantics(
                   label: 'Input nama kapal',
@@ -161,7 +161,7 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
                   ),
                 ),
                 const SizedBox(height: AppSizes.sp4),
-                _FieldLabel('GT Kapal (opsional)'),
+                const _FieldLabel('GT Kapal (opsional)'),
                 const SizedBox(height: AppSizes.sp2),
                 Semantics(
                   label: 'Input Gross Tonnage kapal, opsional',
@@ -188,7 +188,7 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _FieldLabel('Lebar Bukaan Trawl (meter)'),
+                const _FieldLabel('Lebar Bukaan Trawl (meter)'),
                 const SizedBox(height: AppSizes.sp1),
                 Text(
                   'Default 20m — ganti sesuai ukuran trawl Anda',
@@ -221,7 +221,7 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
                   ),
                 ),
                 const SizedBox(height: AppSizes.sp4),
-                _FieldLabel('Pelabuhan Asal (opsional)'),
+                const _FieldLabel('Pelabuhan Asal (opsional)'),
                 const SizedBox(height: AppSizes.sp2),
                 Semantics(
                   label: 'Input pelabuhan asal, opsional',

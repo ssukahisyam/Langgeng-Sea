@@ -4,7 +4,6 @@ import 'package:uuid/uuid.dart';
 
 import '../../../core/observability/logger.dart';
 import '../../../data/database/app_database.dart';
-import '../../../data/database/daos/marker_dao.dart';
 import '../domain/entities/marker.dart';
 
 /// Repository untuk operasi CRUD marker kustom.
@@ -64,7 +63,7 @@ class MarkerRepository {
       longitude: marker.longitude,
       notes: Value(marker.notes),
       createdAt: now,
-    ));
+    ),);
 
     return marker;
   }

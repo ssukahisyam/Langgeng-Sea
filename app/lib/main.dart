@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -108,7 +107,7 @@ void main() async {
       try {
         const NoopCrashReporter().recordError(error, stack, context: const {
           'source': 'runZonedGuarded',
-        });
+        },);
       } catch (_) {
         // Swallow — we've already logged above.
       }
