@@ -1,7 +1,6 @@
 import 'package:drift/drift.dart';
 
 import '../app_database.dart';
-import '../tables.dart';
 
 part 'app_settings_dao.g.dart';
 
@@ -55,7 +54,7 @@ class AppSettingsDao extends DatabaseAccessor<AppDatabase>
         .write(AppSettingsTableCompanion(
       alarmSoundEnabled: Value(value),
       updatedAt: Value(DateTime.now()),
-    ));
+    ),);
   }
 
   /// Set the "alarm vibrate enabled" flag.
@@ -66,7 +65,7 @@ class AppSettingsDao extends DatabaseAccessor<AppDatabase>
         .write(AppSettingsTableCompanion(
       alarmVibrateEnabled: Value(value),
       updatedAt: Value(DateTime.now()),
-    ));
+    ),);
   }
 
   /// Idempotent: inserts the sentinel row if missing. The schema
@@ -84,6 +83,6 @@ class AppSettingsDao extends DatabaseAccessor<AppDatabase>
     await into(appSettingsTable).insert(AppSettingsTableCompanion.insert(
       id: const Value(kSettingsRowId),
       updatedAt: DateTime.now(),
-    ));
+    ),);
   }
 }

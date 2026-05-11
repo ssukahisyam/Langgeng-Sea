@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -12,9 +12,8 @@ import '../../application/tracking_controller.dart';
 
 /// Top-bar glass panel shown during active haul recording.
 ///
-/// Three live metrics: duration, distance, current speed. Duration updates
-/// on a 1 Hz timer independent of the GPS stream so the counter stays
-/// smooth even between fixes.
+/// Features a prominent 2x2 grid (duration, distance, speed) so the user
+/// can see metrics clearly at the top of the map.
 class LiveStatsPanel extends ConsumerStatefulWidget {
   const LiveStatsPanel({super.key});
 
@@ -22,62 +21,130 @@ class LiveStatsPanel extends ConsumerStatefulWidget {
   ConsumerState<LiveStatsPanel> createState() => _LiveStatsPanelState();
 }
 
-class _LiveStatsPanelState extends ConsumerState<LiveStatsPanel> {
+class _LiveStatsPanelState extends ConsumerState<LiveStatsPanel>
+    with SingleTickerProviderStateMixin {
   Timer? _ticker;
+  late final AnimationController _pulseController;
 
   @override
   void initState() {
     super.initState();
-    // 1 Hz tick so the duration counter keeps incrementing between GPS
-    // fixes. Cheap — it only calls setState.
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
   }
 
   @override
   void dispose() {
     _ticker?.cancel();
+    _pulseController.dispose();
     super.dispose();
+  }
+
+  static String _formatDistanceM(double meters) {
+    if (meters.isNaN || meters.isInfinite) return '— m';
+    return '${meters.toStringAsFixed(0)} m';
   }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(trackingControllerProvider);
     final tokens = context.tokens;
+    final text = context.text;
 
     final haul = state.haul;
-    final duration = haul == null
-        ? Duration.zero
-        : DateTime.now().difference(haul.startedAt);
+    if (haul == null) return const SizedBox.shrink();
+
+    final duration = DateTime.now().difference(haul.startedAt);
 
     return GlassCard(
-      level: GlassLevel.level2,
+      level: GlassLevel.level3,
       padding: const EdgeInsets.symmetric(
         horizontal: AppSizes.sp3,
-        vertical: AppSizes.sp3 + 2,
+        vertical: AppSizes.sp3,
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: _Stat(
-              label: 'Durasi',
-              value: Formatters.duration(duration),
-            ),
+          // Banner row
+          Row(
+            children: [
+              AnimatedBuilder(
+                animation: _pulseController,
+                builder: (_, __) {
+                  final t = _pulseController.value;
+                  final spread = 8 * (1 - t);
+                  return Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: tokens.danger,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: tokens.danger.withValues(alpha: (1 - t) * 0.6),
+                          blurRadius: spread,
+                          spreadRadius: spread * 0.3,
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(width: AppSizes.sp2),
+              Text(
+                'MEREKAM ${haul.displayName().toUpperCase()}',
+                style: text.labelMedium?.copyWith(
+                  color: tokens.danger,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const Spacer(),
+              Icon(PhosphorIconsBold.ruler, size: 14, color: tokens.textTertiary),
+              const SizedBox(width: 4),
+              Text(
+                '${haul.trawlWidthMeters.toStringAsFixed(0)} m',
+                style: text.bodySmall?.copyWith(
+                  color: tokens.textSecondary,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 11,
+                ),
+              ),
+            ],
           ),
-          _Sep(color: tokens.border),
-          Expanded(
-            child: _Stat(
-              label: 'Jarak',
-              value: Formatters.distance(state.metrics.distanceMeters),
-            ),
-          ),
-          _Sep(color: tokens.border),
-          Expanded(
-            child: _Stat(
-              label: 'Kecepatan',
-              value: Formatters.knots(state.metrics.currentSpeedKnots),
-            ),
+          const SizedBox(height: AppSizes.sp2),
+          Divider(color: tokens.border, height: 1),
+          const SizedBox(height: AppSizes.sp2),
+          // Stats row
+          Row(
+            children: [
+              Expanded(
+                child: _Stat(
+                  label: 'Durasi',
+                  value: Formatters.duration(duration),
+                ),
+              ),
+              _Sep(color: tokens.border),
+              Expanded(
+                child: _Stat(
+                  label: 'Jarak',
+                  value: _formatDistanceM(state.metrics.distanceMeters),
+                ),
+              ),
+              _Sep(color: tokens.border),
+              Expanded(
+                child: _Stat(
+                  label: 'Kecepatan',
+                  value: '${(state.metrics.currentSpeedKnots ?? 0.0).toStringAsFixed(1)} kn',
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -111,7 +178,7 @@ class _Stat extends StatelessWidget {
         Text(
           value,
           style: text.titleMedium?.copyWith(
-            fontSize: 17,
+            fontSize: 16,
             fontWeight: FontWeight.w800,
             fontFeatures: const [FontFeature.tabularFigures()],
           ),

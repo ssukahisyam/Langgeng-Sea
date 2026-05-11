@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
-import 'app_sizes.dart';
 import 'app_typography.dart';
 
 /// ThemeData for Langgeng Sea - Clean Liquid Glass.

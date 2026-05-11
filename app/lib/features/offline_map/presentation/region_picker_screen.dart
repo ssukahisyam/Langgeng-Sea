@@ -57,7 +57,7 @@ class _RegionPickerScreenState extends ConsumerState<RegionPickerScreen> {
   /// screen using the current camera.
   void _recomputeBounds() {
     if (!mounted || _viewportSize == Size.zero) return;
-    final topLeft = math.Point<double>(_horizontalInset, _topInset);
+    const topLeft = math.Point<double>(_horizontalInset, _topInset);
     final bottomRight = math.Point<double>(
       _viewportSize.width - _horizontalInset,
       _viewportSize.height - _bottomInset,
@@ -199,7 +199,7 @@ class _RegionPickerScreenState extends ConsumerState<RegionPickerScreen> {
               ),
             ],
           );
-        }),
+        },),
       ),
     );
   }
@@ -234,7 +234,7 @@ class _SelectionOverlayPainter extends CustomPainter {
     final full = ui.Path()..addRect(Offset.zero & size);
     final inner = ui.Path()
       ..addRRect(RRect.fromRectAndRadius(selectionRect,
-          const Radius.circular(AppSizes.radiusMd)));
+          const Radius.circular(AppSizes.radiusMd),),);
     final shade = ui.Path.combine(ui.PathOperation.difference, full, inner);
     canvas.drawPath(shade, Paint()..color = shadeColor);
 
@@ -245,7 +245,7 @@ class _SelectionOverlayPainter extends CustomPainter {
       ..color = borderColor;
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-          selectionRect, const Radius.circular(AppSizes.radiusMd)),
+          selectionRect, const Radius.circular(AppSizes.radiusMd),),
       border,
     );
 
@@ -343,7 +343,7 @@ class _ConfigPanel extends ConsumerWidget {
           Row(
             children: [
               Icon(PhosphorIconsRegular.info,
-                  size: 14, color: tokens.textTertiary),
+                  size: 14, color: tokens.textTertiary,),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
@@ -572,7 +572,7 @@ class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
             ),
             const SizedBox(height: AppSizes.sp4),
             Text(
-              'Zoom ${_minZoom} – ${_maxZoom}',
+              'Zoom $_minZoom – $_maxZoom',
               style: text.labelMedium,
             ),
             RangeSlider(
@@ -591,7 +591,7 @@ class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
             Row(
               children: [
                 Icon(PhosphorIconsRegular.database,
-                    size: 14, color: tokens.textTertiary),
+                    size: 14, color: tokens.textTertiary,),
                 const SizedBox(width: 6),
                 Text(
                   _formatEstimate(newEstimate),

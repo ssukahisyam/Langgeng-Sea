@@ -61,7 +61,7 @@ void main() {
       // so currentReadingProvider below emits immediately.
       currentReadingProvider
           .overrideWith((ref) => gpsStream.stream),
-    ]);
+    ],);
 
     // Prime appSettings so the alarm dispatch reads a non-null value.
     container.read(appSettingsProvider);
@@ -81,7 +81,7 @@ void main() {
   group('lifecycle', () {
     test('defaults to NavigationIdle', () {
       expect(container.read(navigationControllerProvider),
-          isA<NavigationIdle>());
+          isA<NavigationIdle>(),);
     });
 
     test('startGoto transitions to NavigationActive', () {
@@ -103,10 +103,10 @@ void main() {
       ctrl.startGoto(const GotoTarget(
         position: LatLng(-7.2, 113.4),
         label: 'X',
-      ));
+      ),);
       ctrl.stop();
       expect(container.read(navigationControllerProvider),
-          isA<NavigationIdle>());
+          isA<NavigationIdle>(),);
     });
   });
 
@@ -120,7 +120,7 @@ void main() {
       ctrl.startGoto(const GotoTarget(
         position: LatLng(0, 0.001),
         label: 'Target',
-      ));
+      ),);
 
       gpsStream.add(_reading(const LatLng(0, 0), speed: 2.0));
       // Riverpod delivers stream events on microtasks.
@@ -140,7 +140,7 @@ void main() {
       ctrl.startGoto(const GotoTarget(
         position: LatLng(0, 0.001),
         label: 'Target',
-      ));
+      ),);
 
       gpsStream.add(_reading(const LatLng(0, 0), speed: 0.05));
       await Future<void>.delayed(Duration.zero);
@@ -165,13 +165,13 @@ void main() {
         ctrl.startGoto(const GotoTarget(
           position: LatLng(0, 0),
           label: 'Dermaga',
-        ));
+        ),);
 
         // Emit a fix within 5 metres of the target.
         gpsStream.add(_reading(
           const LatLng(0, 0.000045), // ~5 m east of (0,0)
           speed: 1.5,
-        ));
+        ),);
         async.flushMicrotasks();
 
         expect(
@@ -206,7 +206,7 @@ void main() {
         ctrl.startGoto(const GotoTarget(
           position: LatLng(0, 0),
           label: 'X',
-        ));
+        ),);
 
         // Enter radius.
         gpsStream.add(_reading(const LatLng(0, 0.00004), speed: 1.5));
@@ -241,7 +241,7 @@ void main() {
       ctrl.startGoto(const GotoTarget(
         position: LatLng(0, 0),
         label: 'X',
-      ));
+      ),);
 
       gpsStream.add(_reading(const LatLng(0, 0.00003), speed: 1.5));
       async.elapse(const Duration(seconds: 4));
@@ -264,7 +264,7 @@ void main() {
       ctrl.startGoto(const GotoTarget(
         position: LatLng(0, 0),
         label: 'X',
-      ));
+      ),);
 
       gpsStream.add(_reading(const LatLng(0, 0.00003), speed: 1.5));
       async.flushMicrotasks();
@@ -273,7 +273,7 @@ void main() {
       async.flushMicrotasks();
 
       expect(container.read(navigationControllerProvider),
-          isA<NavigationIdle>());
+          isA<NavigationIdle>(),);
       expect(fakeAlerts.countOf('arrived'), 0);
     });
   });

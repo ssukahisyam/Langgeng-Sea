@@ -20,6 +20,16 @@ typedef HaulTrackRender = ({
   int orderIndex,
   int? colorValue,
   List<LatLng> points,
+
+  /// Raw user-given name from the haul row. `null` when the user
+  /// never named this haul — UI callers fall back to a date-based
+  /// label (see `trackDisplayLabel`).
+  String? storedName,
+
+  /// Start timestamp of the haul that produced this polyline. Used
+  /// by `TrackPopup` / `trackDisplayLabel` to format the default
+  /// label and show "Dimulai ..." metadata.
+  DateTime startedAt,
 });
 
 /// Bundle surfaced to UI: the simplified polylines + pre-computed
@@ -51,6 +61,8 @@ typedef _SimplifyInput = ({
   int orderIndex,
   int? colorValue,
   List<LatLng> points,
+  String? storedName,
+  DateTime startedAt,
   double toleranceMeters,
 });
 
@@ -70,7 +82,9 @@ List<HaulTrackRender> _simplifyBatch(List<_SimplifyInput> inputs) {
       orderIndex: input.orderIndex,
       colorValue: input.colorValue,
       points: simplified,
-    ));
+      storedName: input.storedName,
+      startedAt: input.startedAt,
+    ),);
   }
   return out;
 }
@@ -115,6 +129,8 @@ final allHistoryRenderProvider =
         orderIndex: b.haul.orderIndex,
         colorValue: b.haul.colorValue,
         points: [for (final p in b.points) p.latLng],
+        storedName: b.haul.name,
+        startedAt: b.haul.startedAt,
         // 20 m tolerance is the sweet spot: the polyline stays visually
         // indistinguishable at typical fishing-area zoom while cutting
         // point count by 80-95% on real traces.
@@ -154,7 +170,7 @@ final tripRenderProvider = FutureProvider.autoDispose
   }
 
   final tracks = <HaulTrackRender>[];
-  var allBoundsSource = <LatLng>[];
+  final allBoundsSource = <LatLng>[];
   for (final h in hauls) {
     final points = await pointsRepo.getByHaul(h.id);
     if (points.length < 2) continue;
@@ -173,7 +189,9 @@ final tripRenderProvider = FutureProvider.autoDispose
       orderIndex: h.orderIndex,
       colorValue: h.colorValue,
       points: simplified,
-    ));
+      storedName: h.name,
+      startedAt: h.startedAt,
+    ),);
   }
 
   return HistoryOverlayRender(
@@ -199,8 +217,8 @@ final haulRenderProvider = FutureProvider.autoDispose
   }
   final points = await pointsRepo.getByHaul(haulId);
   if (points.length < 2) {
-    return HistoryOverlayRender(
-      tracks: const [],
+    return const HistoryOverlayRender(
+      tracks: [],
       bounds: null,
       sourceHaulCount: 1,
     );
@@ -210,8 +228,8 @@ final haulRenderProvider = FutureProvider.autoDispose
     toleranceMeters: 3.0,
   );
   if (simplified.length < 2) {
-    return HistoryOverlayRender(
-      tracks: const [],
+    return const HistoryOverlayRender(
+      tracks: [],
       bounds: null,
       sourceHaulCount: 1,
     );
@@ -224,6 +242,8 @@ final haulRenderProvider = FutureProvider.autoDispose
         orderIndex: haul.orderIndex,
         colorValue: haul.colorValue,
         points: simplified,
+        storedName: haul.name,
+        startedAt: haul.startedAt,
       ),
     ],
     bounds: LatLngBoundsUtil.fromPoints(simplified),

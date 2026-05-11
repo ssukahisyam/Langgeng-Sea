@@ -1,5 +1,6 @@
 import 'package:latlong2/latlong.dart';
 
+import '../data/background_tracking_service.dart';
 import '../domain/entities/haul.dart';
 import '../domain/entities/haul_metrics.dart';
 import '../domain/entities/trip.dart';
@@ -15,13 +16,15 @@ class TrackingState {
     required this.haul,
     required this.metrics,
     required this.livePoints,
+    this.backgroundStatus = BackgroundTrackingStatus.stopped,
   });
 
   const TrackingState.idle()
       : activeTrip = null,
         haul = null,
         metrics = HaulMetrics.empty,
-        livePoints = const [];
+        livePoints = const [],
+        backgroundStatus = BackgroundTrackingStatus.stopped;
 
   /// Non-null while user has started a trip. A trip may exist without an
   /// active haul (between tebar/angkat cycles).
@@ -37,14 +40,24 @@ class TrackingState {
   /// polyline without re-querying the DB on every rebuild.
   final List<LatLng> livePoints;
 
+  /// Current status of the background tracking service.
+  /// [BackgroundTrackingStatus.stopped] when idle.
+  final BackgroundTrackingStatus backgroundStatus;
+
   bool get isRecording => haul != null;
   bool get hasTrip => activeTrip != null;
+
+  /// Whether the background service is experiencing issues.
+  bool get backgroundDegraded =>
+      backgroundStatus == BackgroundTrackingStatus.restarting ||
+      backgroundStatus == BackgroundTrackingStatus.failed;
 
   TrackingState copyWith({
     Trip? activeTrip,
     Haul? haul,
     HaulMetrics? metrics,
     List<LatLng>? livePoints,
+    BackgroundTrackingStatus? backgroundStatus,
     bool clearHaul = false,
     bool clearTrip = false,
   }) {
@@ -53,6 +66,7 @@ class TrackingState {
       haul: clearHaul ? null : (haul ?? this.haul),
       metrics: metrics ?? this.metrics,
       livePoints: livePoints ?? this.livePoints,
+      backgroundStatus: backgroundStatus ?? this.backgroundStatus,
     );
   }
 }

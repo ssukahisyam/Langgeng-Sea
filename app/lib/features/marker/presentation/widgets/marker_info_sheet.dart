@@ -1,4 +1,3 @@
-import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,6 +12,7 @@ import '../../../navigation/application/navigation_controller.dart';
 import '../../../navigation/domain/entities/navigation_target.dart';
 import '../../data/marker_repository.dart';
 import '../../domain/entities/marker.dart';
+import 'edit_marker_category_sheet.dart';
 
 /// Bottom sheet surfaced when the user taps a marker pin on the live
 /// map. Shows category, name, formatted coords, notes, plus actions
@@ -188,6 +188,27 @@ class _MarkerInfoBody extends ConsumerWidget {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
+                    onPressed: () => _onChangeCategoryPressed(context, ref),
+                    icon: const Icon(
+                      PhosphorIconsBold.tag,
+                      size: 18,
+                    ),
+                    label: Text(
+                      'Kategori',
+                      style: text.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSizes.sp3,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSizes.sp2),
+                Expanded(
+                  child: OutlinedButton.icon(
                     onPressed: () => _onDeletePressed(context, ref),
                     icon: Icon(
                       PhosphorIconsBold.trash,
@@ -203,27 +224,6 @@ class _MarkerInfoBody extends ConsumerWidget {
                     ),
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(color: tokens.danger),
-                      padding: const EdgeInsets.symmetric(
-                        vertical: AppSizes.sp3,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: AppSizes.sp2),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(
-                      PhosphorIconsBold.xCircle,
-                      size: 18,
-                    ),
-                    label: Text(
-                      'Tutup',
-                      style: text.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
                         vertical: AppSizes.sp3,
                       ),
@@ -260,6 +260,26 @@ class _MarkerInfoBody extends ConsumerWidget {
     if (!confirmed || !context.mounted) return;
     await ref.read(markerRepositoryProvider).delete(marker.id);
     if (!context.mounted) return;
+    Navigator.of(context).pop();
+  }
+
+  Future<void> _onChangeCategoryPressed(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final picked = await EditMarkerCategorySheet.show(
+      context,
+      currentCategory: marker.category,
+      markerName: marker.name,
+    );
+    if (picked == null || !context.mounted) return;
+    if (picked == marker.category) return; // no change
+    await ref.read(markerRepositoryProvider).updateCategory(
+          marker.id,
+          picked,
+        );
+    if (!context.mounted) return;
+    // Close the info sheet so the map refreshes with the new category icon.
     Navigator.of(context).pop();
   }
 

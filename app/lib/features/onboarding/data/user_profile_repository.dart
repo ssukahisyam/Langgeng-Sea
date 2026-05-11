@@ -2,8 +2,6 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/database/app_database.dart';
-import '../../../data/database/daos/user_profile_dao.dart';
-import '../../../data/database/tables.dart';
 import '../domain/entities/user_profile.dart';
 
 /// Repository: converts [UserProfileRow] ↔ [UserProfile] and hides DAO
@@ -49,7 +47,7 @@ class UserProfileRepository {
       trawlWidthMeters: Value(trawlWidthMeters),
       createdAt: Value(createdAt),
       updatedAt: Value(now),
-    ));
+    ),);
 
     return UserProfile(
       name: name.trim(),

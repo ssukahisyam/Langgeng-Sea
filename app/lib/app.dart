@@ -16,13 +16,14 @@ class LangengSeaApp extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
     final router = ref.watch(appRouterProvider);
 
-    // Transparent system bars - content extends under them for full-bleed look.
+    // Transparent system bars and hide them for immersive full-bleed map experience.
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         systemNavigationBarColor: Colors.transparent,
       ),
     );
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
     return MaterialApp.router(
       title: AppStrings.appName,

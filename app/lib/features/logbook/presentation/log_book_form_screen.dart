@@ -69,7 +69,7 @@ class _LogBookFormScreenState extends ConsumerState<LogBookFormScreen> {
               weightController: TextEditingController(
                 text: c.weightKg?.toString() ?? '',
               ),
-            )));
+            ),),);
       });
     }
 
@@ -92,7 +92,7 @@ class _LogBookFormScreenState extends ConsumerState<LogBookFormScreen> {
         id: _uuid.v4(),
         speciesController: TextEditingController(),
         weightController: TextEditingController(),
-      ));
+      ),);
     });
   }
 
@@ -110,7 +110,7 @@ class _LogBookFormScreenState extends ConsumerState<LogBookFormScreen> {
               id: r.id,
               species: r.speciesController.text.trim(),
               weightKg: double.tryParse(r.weightController.text.trim()),
-            ))
+            ),)
         .toList();
 
     final scope =
@@ -167,7 +167,7 @@ class _LogBookFormScreenState extends ConsumerState<LogBookFormScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // --- Catch Items ---
-                      _SectionHeader(
+                      const _SectionHeader(
                         icon: PhosphorIconsBold.fish,
                         title: 'Hasil Tangkapan (opsional)',
                       ),
@@ -183,7 +183,7 @@ class _LogBookFormScreenState extends ConsumerState<LogBookFormScreen> {
                       const SizedBox(height: AppSizes.sp6),
 
                       // --- Weather ---
-                      _SectionHeader(
+                      const _SectionHeader(
                         icon: PhosphorIconsBold.sun,
                         title: 'Cuaca (opsional)',
                       ),
@@ -193,7 +193,7 @@ class _LogBookFormScreenState extends ConsumerState<LogBookFormScreen> {
                       const SizedBox(height: AppSizes.sp6),
 
                       // --- Wave ---
-                      _SectionHeader(
+                      const _SectionHeader(
                         icon: PhosphorIconsBold.waves,
                         title: 'Gelombang (opsional)',
                       ),
@@ -203,7 +203,7 @@ class _LogBookFormScreenState extends ConsumerState<LogBookFormScreen> {
                       const SizedBox(height: AppSizes.sp6),
 
                       // --- Notes ---
-                      _SectionHeader(
+                      const _SectionHeader(
                         icon: PhosphorIconsBold.notepad,
                         title: 'Catatan (opsional)',
                       ),

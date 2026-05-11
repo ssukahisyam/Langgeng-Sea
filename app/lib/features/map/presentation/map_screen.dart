@@ -1,5 +1,5 @@
 import 'dart:async';
-
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -13,7 +13,6 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/services/gps_reading.dart';
 import '../../../core/services/gps_service.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
@@ -21,16 +20,6 @@ import '../../../core/widgets/ambient_background.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../../../core/widgets/status_chip.dart';
-import '../../tracking/application/tracking_controller.dart';
-import '../../tracking/application/tracking_state.dart';
-import '../../tracking/data/haul_repository.dart';
-import '../../tracking/data/trip_repository.dart';
-import '../../tracking/domain/entities/haul.dart';
-import '../../tracking/domain/entities/trip.dart';
-import '../../tracking/presentation/widgets/active_haul_polyline.dart';
-import '../../tracking/presentation/widgets/haul_summary_sheet.dart';
-import '../../tracking/presentation/widgets/live_stats_panel.dart';
-import '../../tracking/presentation/widgets/recording_banner.dart';
 import '../../marker/data/marker_repository.dart';
 import '../../marker/domain/entities/marker.dart';
 import '../../marker/presentation/widgets/add_marker_dialog.dart';
@@ -44,22 +33,44 @@ import '../../navigation/presentation/widgets/navigation_panel.dart';
 import '../../navigation/presentation/widgets/navigation_polyline.dart';
 import '../../offline_map/data/tile_cache_service.dart';
 import '../../onboarding/data/user_profile_repository.dart';
+import '../../tracking/application/tracking_controller.dart';
+import '../../tracking/application/tracking_state.dart';
+import '../../tracking/data/background_tracking_service.dart';
+import '../../tracking/data/haul_repository.dart';
+import '../../tracking/data/trip_repository.dart';
+import '../../tracking/domain/entities/haul.dart';
+import '../../tracking/domain/entities/trip.dart';
+import '../../tracking/presentation/widgets/active_haul_polyline.dart';
+import '../../tracking/presentation/widgets/haul_summary_sheet.dart';
+import '../../tracking/presentation/widgets/live_stats_panel.dart';
 import '../application/all_history_visible_provider.dart';
 import '../application/current_reading_provider.dart';
 import '../application/history_overlay_providers.dart';
+import '../application/map_camera_controller.dart';
+import '../application/map_mode.dart';
+import '../application/map_mode_provider.dart';
 import '../application/map_overlay_state.dart';
 import '../application/markers_overlay_provider.dart';
 import 'providers/location_permission_provider.dart';
 import 'widgets/boat_marker.dart';
 import 'widgets/gps_accuracy_chip.dart';
 import 'widgets/gps_error_banner.dart';
+import 'widgets/history_overlay_controls.dart';
+import 'widgets/history_polyline_layer.dart';
 import 'widgets/location_permission_sheet.dart';
 import 'widgets/map_attribution.dart';
 import 'widgets/map_controls.dart';
+import 'widgets/track_popup.dart';
 
 /// Home tab — map + live GPS position + haul recording controls.
 class MapScreen extends ConsumerStatefulWidget {
-  const MapScreen({super.key});
+  const MapScreen({
+    super.key,
+    this.focusMarkerId,
+  });
+
+  /// Optional marker ID to focus the camera on when the screen loads.
+  final String? focusMarkerId;
 
   @override
   ConsumerState<MapScreen> createState() => _MapScreenState();
@@ -71,19 +82,18 @@ class _MapScreenState extends ConsumerState<MapScreen>
   static const _initialZoom = 9.0;
 
   final MapController _mapController = MapController();
+  late final MapCameraController _cameraController;
   bool _followingUser = true;
   bool _checkedRecovery = false;
 
+  /// Active popup for tapped polyline track. Null when no popup is shown.
+  HaulTrackRender? _activePopupTrack;
+  LatLng? _activePopupLatLng;
+
   /// Tracks the current map zoom so the marker layer can decide
   /// whether to show name labels (see MarkerPin.labelZoomThreshold).
-  /// Updated every time onPositionChanged fires; stored in state so
-  /// rebuilds re-run the MarkerPin.geometry helpers with a fresh
-  /// showLabel flag.
   double _currentZoom = _initialZoom;
 
-  // Tracks the overlay whose bounds we already fitted the camera to, so
-  // pulling to refresh doesn't keep snapping the user's view.
-  Object? _fittedOverlayKey;
 
   // Subscribes to the OS-level location service toggle. When the user
   // flips GPS on from the system shade / Settings and returns to the
@@ -103,7 +113,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-
+    _cameraController = MapCameraController(_mapController);
     // Service-status stream runs for the lifetime of the map tab —
     // it's cheap (one platform-channel callback) and lets us react
     // immediately to GPS-toggle changes even while the app is
@@ -149,6 +159,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
         if (!mounted || orphan == null) return;
         await _showRecoveryDialog(orphan);
       }
+
+      if (widget.focusMarkerId != null) {
+        _focusOnMarker(widget.focusMarkerId!);
+      }
     });
   }
 
@@ -158,6 +172,28 @@ class _MapScreenState extends ConsumerState<MapScreen>
     _serviceStatusSub?.cancel();
     _mapController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(MapScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.focusMarkerId != oldWidget.focusMarkerId &&
+        widget.focusMarkerId != null) {
+      _focusOnMarker(widget.focusMarkerId!);
+    }
+  }
+
+  Future<void> _focusOnMarker(String markerId) async {
+    try {
+      final markers = await ref.read(allMarkersProvider.future);
+      final marker = markers.firstWhere((m) => m.id == markerId);
+      if (mounted) {
+        setState(() => _followingUser = false);
+        _mapController.move(marker.latLng, 14.0);
+      }
+    } catch (e) {
+      // Marker not found or provider error, ignore.
+    }
   }
 
   @override
@@ -225,10 +261,27 @@ class _MapScreenState extends ConsumerState<MapScreen>
       return;
     }
     setState(() => _followingUser = true);
-    _mapController.move(reading.latLng, 15);
+    _mapController.move(reading.latLng, 18);
   }
 
-  // ---------------------------------------------------------------------
+  /// Handle polyline tap from HistoryPolylineLayer.
+  void _onTrackTap(HaulTrackRender track, Offset tapPosition) {
+    final latLng = _mapController.camera.pointToLatLng(math.Point(tapPosition.dx, tapPosition.dy));
+    setState(() {
+      _activePopupTrack = track;
+      _activePopupLatLng = latLng;
+    });
+  }
+
+  /// Dismiss the active track popup.
+  void _dismissPopup() {
+    setState(() {
+      _activePopupTrack = null;
+      _activePopupLatLng = null;
+    });
+  }
+
+
   // Marker handlers
   // ---------------------------------------------------------------------
 
@@ -383,7 +436,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
           borderRadius: BorderRadius.circular(AppSizes.radiusXl),
         ),
         icon: Icon(PhosphorIconsFill.warningCircle,
-            color: tokens.warning, size: 36),
+            color: tokens.warning, size: 36,),
         title: Text('Tarikan Belum Selesai', style: text.titleLarge),
         content: Text(
           '${orphan.displayName()} masih tercatat sedang merekam. '
@@ -405,7 +458,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 style: text.labelMedium?.copyWith(
                   color: context.colors.primary,
                   fontWeight: FontWeight.w700,
-                )),
+                ),),
           ),
         ],
       ),
@@ -452,41 +505,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
     };
   }
 
-  void _fitOverlayBounds(MapOverlayMode mode, HistoryOverlayRender render) {
-    if (render.bounds == null) return;
-    final key = _overlayKey(mode);
-    if (_fittedOverlayKey == key) return;
-    _fittedOverlayKey = key;
-    _followingUser = false;
-    _mapController.fitCamera(
-      CameraFit.bounds(
-        bounds: render.bounds!,
-        padding: const EdgeInsets.all(64),
-      ),
-    );
-  }
-
-  /// Fit the camera to the all-history footprints bounds. Only called
-  /// when the footprints toggle just turned ON and no pinned overlay
-  /// is active — otherwise the pinned overlay would fight for camera
-  /// control and the user's drill-down zoom would get yanked away.
-  ///
-  /// Re-uses [_fittedOverlayKey] (stamped with a sentinel string) so
-  /// subsequent rebuilds don't re-snap on every provider tick.
-  void _fitAllHistoryBounds(HistoryOverlayRender render) {
-    if (render.bounds == null) return;
-    const key = 'all-history:on';
-    if (_fittedOverlayKey == key) return;
-    _fittedOverlayKey = key;
-    _followingUser = false;
-    _mapController.fitCamera(
-      CameraFit.bounds(
-        bounds: render.bounds!,
-        padding: const EdgeInsets.all(64),
-      ),
-    );
-  }
-
   Object _overlayKey(MapOverlayMode mode) => switch (mode) {
         MapOverlayNone() => 'none',
         MapOverlaySingleTrip(tripId: final id) => 'trip:$id',
@@ -496,6 +514,66 @@ class _MapScreenState extends ConsumerState<MapScreen>
   // ---------------------------------------------------------------------
   // Build
   // ---------------------------------------------------------------------
+
+  /// Build the mode-appropriate bottom controls widget.
+  ///
+  /// Key on the [MapMode] value so [AnimatedSwitcher] detects swaps.
+  Widget _buildModeControls({
+    required MapMode mode,
+    required bool isRecording,
+    required TrackingState trackingState,
+    required bool hasPermission,
+    required bool hasFix,
+    required NavigationActive? navActive,
+  }) {
+    // When navigating + tracking, or just tracking, we show the action panel
+    // with the stop controls.
+    if (isRecording) {
+      return _ActionPanel(
+        key: const ValueKey('recording'),
+        isRecording: true,
+        state: trackingState,
+        onStart: _onStartHaulPressed,
+        onStop: _onStopHaulPressed,
+        onEndTrip: () =>
+            ref.read(trackingControllerProvider.notifier).endTrip(),
+        hasPermission: hasPermission,
+        hasFix: hasFix,
+      );
+    }
+
+    return switch (mode) {
+      MapMode.idle => _ActionPanel(
+        key: const ValueKey(MapMode.idle),
+        isRecording: false,
+        state: trackingState,
+        onStart: _onStartHaulPressed,
+        onStop: _onStopHaulPressed,
+        onEndTrip: () =>
+            ref.read(trackingControllerProvider.notifier).endTrip(),
+        hasPermission: hasPermission,
+        hasFix: hasFix,
+      ),
+      MapMode.tracking => _ActionPanel(
+        key: const ValueKey(MapMode.tracking),
+        isRecording: true,
+        state: trackingState,
+        onStart: _onStartHaulPressed,
+        onStop: _onStopHaulPressed,
+        onEndTrip: () =>
+            ref.read(trackingControllerProvider.notifier).endTrip(),
+        hasPermission: hasPermission,
+        hasFix: hasFix,
+      ),
+      MapMode.viewingHistory => HistoryOverlayControls(
+        key: const ValueKey(MapMode.viewingHistory),
+        cameraController: _cameraController,
+      ),
+      MapMode.navigating => const SizedBox.shrink(
+        key: ValueKey('nav-fallback'),
+      ),
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -508,6 +586,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final hasPermission = permState == LocationPermissionState.ready;
     final trackingState = ref.watch(trackingControllerProvider);
     final isRecording = trackingState.isRecording;
+    final mode = ref.watch(mapModeProvider);
 
     // Navigation overlay state -- drives the top-of-map panel, the
     // dashed go-to polyline, and the bearing arrow on the boat marker.
@@ -537,86 +616,36 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final markersAsync =
         markersOn ? ref.watch(allMarkersProvider) : null;
 
-    // Reset remembered fit when the pinned overlay is cleared so the
-    // next time a pinned overlay becomes active, the camera re-fits.
-    if (!overlayActive) {
-      _fittedOverlayKey = null;
-    }
-    // Also reset when the footprints toggle is OFF so that flipping
-    // it back ON triggers a fresh camera fit instead of the old one
-    // being remembered.
-    if (!allHistoryOn && _fittedOverlayKey == 'all-history:on') {
-      _fittedOverlayKey = null;
-    }
-
-    // Auto-zoom priority:
-    //   1. A freshly-pinned single trip / haul always wins — that's
-    //      the user's explicit "zoom to this thing" intent.
-    //   2. Otherwise, when the footprints toggle flips from OFF to
-    //      ON and no pinned overlay exists, fit the camera to the
-    //      full-history bounds.
-    // _fittedOverlayKey remembers the last thing we fitted so the
-    // same overlay doesn't re-snap on every rebuild.
-    overlayAsync?.whenData((render) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        _fitOverlayBounds(overlayMode, render);
-      });
+    // Camera controller lifecycle — use ref.listen so activate/deactivate
+    // fire ONLY on state transitions, not every rebuild. This prevents
+    // the snap-back bug where activate() reset _userLatched on every
+    // frame, making zoom/pan impossible while history was active.
+    ref.listen<MapOverlayMode>(mapOverlayControllerProvider, (prev, next) {
+      if (next is! MapOverlayNone) {
+        _cameraController.activate(_overlayKey(next));
+      } else if (prev is! MapOverlayNone) {
+        _cameraController.deactivate();
+      }
     });
-    if (!overlayActive && allHistoryOn) {
-      allHistoryAsync?.whenData((render) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          _fitAllHistoryBounds(render);
-        });
-      });
-    }
-
-    // Compose polylines from both overlays. Order matters: we draw
-    // all-history first (as background, lighter alpha) so the pinned
-    // overlay renders on top with the more saturated colour. That
-    // keeps the user-drilled-into thing visually dominant even when
-    // it shares geography with other history.
-    final overlayPolylines = <Polyline>[];
-
-    if (allHistoryOn) {
-      final tracks = allHistoryAsync?.asData?.value.tracks ?? const [];
-      for (final t in tracks) {
-        final color = AppColors.resolveHaulColor(
-          colorValue: t.colorValue,
-          orderIndex: t.orderIndex,
-        );
-        overlayPolylines.add(
-          Polyline(
-            points: t.points,
-            strokeWidth: 3,
-            // Lower alpha + thinner stroke for the "context" layer so
-            // it reads as background. The pinned overlay below uses a
-            // heavier stroke and higher alpha.
-            color: color.withValues(alpha: 0.28),
-          ),
-        );
+    ref.listen<bool>(allHistoryVisibleProvider, (prev, next) {
+      // Only manage camera when no pinned overlay is active (pinned wins).
+      if (overlayActive) return;
+      if (prev == false && next == true) {
+        _cameraController.activate('all-history:on');
+      } else if (prev == true && next == false) {
+        _cameraController.deactivate();
       }
-    }
+    });
 
-    if (overlayAsync != null) {
-      final tracks = overlayAsync.asData?.value.tracks ?? const [];
-      for (final t in tracks) {
-        final color = AppColors.resolveHaulColor(
-          colorValue: t.colorValue,
-          orderIndex: t.orderIndex,
-        );
-        overlayPolylines.add(
-          Polyline(
-            points: t.points,
-            strokeWidth: 4,
-            color: color.withValues(alpha: 0.55),
-            borderStrokeWidth: 0.6,
-            borderColor: Colors.white.withValues(alpha: 0.35),
-          ),
-        );
-      }
-    }
+
+    // Compose polyline layers using HistoryPolylineLayer for tap detection.
+    // All-history is the background layer, pinned overlay is the focused layer.
+    final allHistoryTracks = allHistoryOn
+        ? (allHistoryAsync?.asData?.value.tracks ?? const <HaulTrackRender>[])
+        : const <HaulTrackRender>[];
+    final pinnedTracks = overlayAsync != null
+        ? (overlayAsync.asData?.value.tracks ?? const <HaulTrackRender>[])
+        : const <HaulTrackRender>[];
 
     return AmbientBackground(
       showBlobs: false,
@@ -647,10 +676,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   // compared to the alternative of clamping the view.
                   maxZoom: 20,
                   onPositionChanged: (pos, hasGesture) {
-                    // Keep the label-visibility zoom in state. Only
-                    // setState when we actually cross the threshold
-                    // (or by a whole integer) to avoid rebuilding the
-                    // whole Stack on every pan pixel.
                     final z = pos.zoom;
                     final wasShowing =
                         _currentZoom >= MarkerPin.labelZoomThreshold;
@@ -661,8 +686,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     } else {
                       _currentZoom = z;
                     }
-                    if (hasGesture && _followingUser) {
-                      setState(() => _followingUser = false);
+                    if (hasGesture) {
+                      _cameraController.onUserGesture();
+                      if (_followingUser) {
+                        setState(() => _followingUser = false);
+                      }
                     }
                   },
                   interactionOptions: const InteractionOptions(
@@ -691,8 +719,18 @@ class _MapScreenState extends ConsumerState<MapScreen>
                         'https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png',
                     userAgentPackageName: 'id.co.langgengsea',
                   ),
-                  if (overlayPolylines.isNotEmpty)
-                    PolylineLayer<Object>(polylines: overlayPolylines),
+                  if (allHistoryTracks.isNotEmpty)
+                    HistoryPolylineLayer(
+                      tracks: allHistoryTracks,
+                      onTrackTap: _onTrackTap,
+                      isBackground: true,
+                    ),
+                  if (pinnedTracks.isNotEmpty)
+                    HistoryPolylineLayer(
+                      tracks: pinnedTracks,
+                      onTrackTap: _onTrackTap,
+                      isBackground: false,
+                    ),
                   // Active haul polyline (empty layer when not recording).
                   const ActiveHaulPolyline(),
                   // Navigation layers -- dashed go-to line to the
@@ -769,14 +807,17 @@ class _MapScreenState extends ConsumerState<MapScreen>
               ),
             ),
 
-            // --- Top panel (swaps between vessel info and recording banner) ---
+            // --- Top panel (mode-aware) ---
             Positioned(
               top: AppSizes.sp3,
               left: AppSizes.sp4,
               right: AppSizes.sp4,
               child: Column(
                 children: [
-                  isRecording ? const RecordingBanner() : _IdleAppBar(),
+                  if (isRecording)
+                    const LiveStatsPanel()
+                  else
+                    _IdleAppBar(),
                   if (overlayActive && overlayAsync != null) ...[
                     const SizedBox(height: AppSizes.sp2),
                     _OverlayContextChip(
@@ -787,11 +828,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
                           .clear(),
                     ),
                   ],
-                  // Navigation panel sits under the top banner whenever
-                  // a target is active -- it does NOT replace the
-                  // recording banner / app bar because the user may be
-                  // navigating AND recording simultaneously (spec
-                  // acceptance M.5).
                   if (navActive != null) ...[
                     const SizedBox(height: AppSizes.sp2),
                     NavigationPanel(
@@ -805,19 +841,18 @@ class _MapScreenState extends ConsumerState<MapScreen>
               ),
             ),
 
-            // --- Live stats (only while recording) ---
-            if (isRecording)
-              const Positioned(
-                top: 80,
-                left: AppSizes.sp4,
-                right: AppSizes.sp4,
-                child: LiveStatsPanel(),
-              ),
-
-            // --- GPS accuracy chip + Footprints toggle (top-right column) ---
+            // --- Right-side floating controls (GPS chip + toggles) ---
             Positioned(
-              top: isRecording ? 170 : 100,
-              right: AppSizes.sp5,
+              top: () {
+                double t = AppSizes.sp3 + (isRecording ? 104 : 68);
+                if (overlayActive) t += 56;
+                if (navActive != null) {
+                  t += 104;
+                  if (isRecording) t += 62;
+                }
+                return t;
+              }(),
+              right: AppSizes.sp4,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -871,7 +906,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               child: MapAttribution(),
             ),
 
-            // --- Bottom action panel ---
+            // --- Bottom action panel (mode-driven via AnimatedSwitcher) ---
             Positioned(
               left: AppSizes.sp4,
               right: AppSizes.sp4,
@@ -879,21 +914,104 @@ class _MapScreenState extends ConsumerState<MapScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Background tracking degradation warning
+                  if (isRecording && trackingState.backgroundDegraded)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSizes.sp2),
+                      child: GlassCard(
+                        level: GlassLevel.level1,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSizes.sp3,
+                          vertical: AppSizes.sp2,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              PhosphorIconsFill.warning,
+                              size: 16,
+                              color: context.tokens.warning,
+                            ),
+                            const SizedBox(width: AppSizes.sp2),
+                            Expanded(
+                              child: Text(
+                                trackingState.backgroundStatus ==
+                                        BackgroundTrackingStatus.restarting
+                                    ? 'Background GPS restarting…'
+                                    : 'Background GPS gagal. Tetap merekam di foreground.',
+                                style: context.text.bodySmall?.copyWith(
+                                  color: context.tokens.warning,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   const GpsErrorBanner(),
                   const SizedBox(height: AppSizes.sp2),
-                  _ActionPanel(
-                    isRecording: isRecording,
-                    state: trackingState,
-                    onStart: _onStartHaulPressed,
-                    onStop: _onStopHaulPressed,
-                    onEndTrip: () =>
-                        ref.read(trackingControllerProvider.notifier).endTrip(),
-                    hasPermission: hasPermission,
-                    hasFix: reading != null,
+                  // Mode-driven bottom controls (Task 9.6)
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 250),
+                    switchInCurve: Curves.easeOut,
+                    switchOutCurve: Curves.easeIn,
+                    child: _buildModeControls(
+                      mode: mode,
+                      isRecording: isRecording,
+                      trackingState: trackingState,
+                      hasPermission: hasPermission,
+                      hasFix: reading != null,
+                      navActive: navActive,
+                    ),
                   ),
                 ],
               ),
             ),
+
+            // --- Track popup (shown when a polyline track is tapped) ---
+            if (_activePopupTrack != null && _activePopupLatLng != null)
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 120,
+                left: AppSizes.sp4,
+                right: AppSizes.sp4,
+                child: Center(
+                  child: TrackPopup(
+                    track: _activePopupTrack!,
+                    storedName: _activePopupTrack!.storedName,
+                    startedAt: _activePopupTrack!.startedAt,
+                    tappedPoint: _activePopupLatLng!,
+                    kind: TrackKind.haul,
+                    onClose: _dismissPopup,
+                    onNavigateTo: (targetLatLng, label) {
+                      _dismissPopup();
+                      ref
+                          .read(navigationControllerProvider.notifier)
+                          .startGoto(
+                            GotoTarget(
+                              position: targetLatLng,
+                              label: label,
+                            ),
+                          );
+                    },
+                    onFollowTrack: (reversed) {
+                      final track = _activePopupTrack!;
+                      _dismissPopup();
+                      final points = reversed ? track.points.reversed.toList() : track.points;
+                      ref
+                          .read(navigationControllerProvider.notifier)
+                          .startFollowTrack(
+                            FollowTrackTarget(
+                              pathPoints: points,
+                              label: track.storedName ??
+                                  Formatters.shortDate(track.startedAt),
+                              sourceType: FollowTrackSource.haul,
+                              sourceId: track.haulId,
+                            ),
+                          );
+                    },
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -1254,6 +1372,7 @@ class _IdleAppBar extends ConsumerWidget {
 
 class _ActionPanel extends StatelessWidget {
   const _ActionPanel({
+    super.key,
     required this.isRecording,
     required this.state,
     required this.onStart,
@@ -1277,46 +1396,18 @@ class _ActionPanel extends StatelessWidget {
     final text = context.text;
 
     if (isRecording) {
-      final haul = state.haul!;
-      return GlassCard(
-        level: GlassLevel.level2,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('${haul.displayName()} aktif',
-                          style: text.titleMedium),
-                      const SizedBox(height: 2),
-                      Text(
-                        'GPS sedang merekam jejak trawl',
-                        style: text.bodySmall?.copyWith(
-                          color: tokens.textTertiary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSizes.sp3),
-            Semantics(
-              label: 'Berhenti merekam tarikan',
-              button: true,
-              child: PrimaryActionButton(
-                label: AppStrings.stopTrawl,
-                icon: PhosphorIconsFill.stopCircle,
-                variant: ActionButtonVariant.danger,
-                critical: true,
-                onPressed: onStop,
-              ),
-            ),
-          ],
+      return SafeArea(
+        top: false,
+        child: Semantics(
+          label: 'Berhenti tracking',
+          button: true,
+          child: PrimaryActionButton(
+            label: 'Berhenti tracking',
+            icon: PhosphorIconsFill.stopCircle,
+            variant: ActionButtonVariant.danger,
+            critical: true,
+            onPressed: onStop,
+          ),
         ),
       );
     }
@@ -1343,7 +1434,7 @@ class _ActionPanel extends StatelessWidget {
                       _subtitle(
                           state: state,
                           hasPermission: hasPermission,
-                          hasFix: hasFix),
+                          hasFix: hasFix,),
                       style: text.bodySmall?.copyWith(
                         color: tokens.textTertiary,
                       ),
@@ -1358,16 +1449,16 @@ class _ActionPanel extends StatelessWidget {
                       style: text.labelMedium?.copyWith(
                         color: tokens.danger,
                         fontWeight: FontWeight.w700,
-                      )),
+                      ),),
                 ),
             ],
           ),
           const SizedBox(height: AppSizes.sp3),
           Semantics(
-            label: 'Mulai merekam tarikan baru',
+            label: 'Mulai tracking',
             button: true,
             child: PrimaryActionButton(
-              label: AppStrings.startTrawl,
+              label: 'Mulai tracking',
               icon: PhosphorIconsFill.playCircle,
               variant: ActionButtonVariant.success,
               critical: true,

@@ -1,4 +1,3 @@
-import 'dart:ui';
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
@@ -8,7 +7,6 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/ambient_background.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../data/dashboard_stats_provider.dart';
@@ -45,9 +43,9 @@ class DashboardScreen extends ConsumerWidget {
             const SizedBox(height: AppSizes.sp3),
 
             // Period switcher
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSizes.sp5),
-              child: const _PeriodSwitcher(),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: AppSizes.sp5),
+              child: _PeriodSwitcher(),
             ),
             const SizedBox(height: AppSizes.sp4),
 

@@ -1,4 +1,3 @@
-import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -144,7 +143,7 @@ class _HaulSummarySheetState extends ConsumerState<HaulSummarySheet> {
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: AppSizes.sp3, vertical: 6),
+                        horizontal: AppSizes.sp3, vertical: 6,),
                     decoration: BoxDecoration(
                       color: tokens.success.withValues(alpha: 0.12),
                       borderRadius:
@@ -154,7 +153,7 @@ class _HaulSummarySheetState extends ConsumerState<HaulSummarySheet> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(PhosphorIconsBold.checkCircle,
-                            size: 14, color: tokens.success),
+                            size: 14, color: tokens.success,),
                         const SizedBox(width: 4),
                         Text('TARIKAN SELESAI',
                             style: text.labelSmall?.copyWith(
@@ -162,7 +161,7 @@ class _HaulSummarySheetState extends ConsumerState<HaulSummarySheet> {
                               fontWeight: FontWeight.w800,
                               fontSize: 11,
                               letterSpacing: 0.5,
-                            )),
+                            ),),
                       ],
                     ),
                   ),
@@ -179,7 +178,7 @@ class _HaulSummarySheetState extends ConsumerState<HaulSummarySheet> {
                     color: tokens.textTertiary,
                     fontWeight: FontWeight.w600,
                     fontSize: 11,
-                  )),
+                  ),),
               const SizedBox(height: 2),
               TextField(
                 controller: _nameCtl,
@@ -468,7 +467,7 @@ class _MetricGrid extends StatelessWidget {
               label: 'Durasi',
             ),
           ),
-        ]),
+        ],),
         const SizedBox(height: AppSizes.sp2),
         Row(children: [
           Expanded(
@@ -490,7 +489,7 @@ class _MetricGrid extends StatelessWidget {
               label: 'Arah dominan',
             ),
           ),
-        ]),
+        ],),
         const SizedBox(height: AppSizes.sp2),
         _Tile(
           wide: true,

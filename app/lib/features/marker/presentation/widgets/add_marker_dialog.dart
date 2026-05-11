@@ -102,7 +102,7 @@ class _AddMarkerDialogState extends State<AddMarkerDialog> {
                   .map((cat) => DropdownMenuItem(
                         value: cat,
                         child: Text(cat.displayLabel),
-                      ))
+                      ),)
                   .toList(),
               onChanged: (val) {
                 if (val != null) setState(() => _category = val);

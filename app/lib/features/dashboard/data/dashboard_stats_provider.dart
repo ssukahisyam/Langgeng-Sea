@@ -2,7 +2,6 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/database/app_database.dart';
-import '../../../data/database/tables.dart';
 
 /// Period filter for the dashboard aggregation.
 enum DashboardPeriod { today, week7, month30, total }
@@ -168,7 +167,7 @@ final dashboardStatsProvider = FutureProvider<DashboardStats>((ref) async {
       .map((e) => TopSpot(
             name: haulNames[e.key] ?? 'Tarikan',
             catchKg: e.value,
-          ))
+          ),)
       .toList()
     ..sort((a, b) => b.catchKg.compareTo(a.catchKg));
 

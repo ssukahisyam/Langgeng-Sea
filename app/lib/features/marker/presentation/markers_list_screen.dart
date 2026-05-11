@@ -1,9 +1,10 @@
-import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
+import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ambient_background.dart';
@@ -11,6 +12,7 @@ import '../../../core/widgets/glass_card.dart';
 import '../data/marker_repository.dart';
 import '../domain/entities/marker.dart';
 import 'widgets/add_marker_dialog.dart';
+import 'widgets/edit_marker_category_sheet.dart';
 
 /// Layar daftar marker kustom dengan filter kategori.
 class MarkersListScreen extends ConsumerStatefulWidget {
@@ -61,21 +63,21 @@ class _MarkersListScreenState extends ConsumerState<MarkersListScreen> {
                         selected:
                             _selectedCategory == MarkerCategory.productive,
                         onTap: () => setState(
-                            () => _selectedCategory = MarkerCategory.productive),
+                            () => _selectedCategory = MarkerCategory.productive,),
                       ),
                       const SizedBox(width: AppSizes.sp2),
                       _FilterChip(
                         label: 'Karang',
                         selected: _selectedCategory == MarkerCategory.hazard,
                         onTap: () => setState(
-                            () => _selectedCategory = MarkerCategory.hazard),
+                            () => _selectedCategory = MarkerCategory.hazard,),
                       ),
                       const SizedBox(width: AppSizes.sp2),
                       _FilterChip(
                         label: 'Pelabuhan',
                         selected: _selectedCategory == MarkerCategory.port,
                         onTap: () => setState(
-                            () => _selectedCategory = MarkerCategory.port),
+                            () => _selectedCategory = MarkerCategory.port,),
                       ),
                     ],
                   ),
@@ -96,8 +98,10 @@ class _MarkersListScreenState extends ConsumerState<MarkersListScreen> {
                       itemCount: filtered.length,
                       separatorBuilder: (_, __) =>
                           const SizedBox(height: AppSizes.sp3),
-                      itemBuilder: (context, i) =>
-                          _MarkerTile(marker: filtered[i]),
+                      itemBuilder: (context, i) => _MarkerTile(
+                          marker: filtered[i],
+                          onTap: () => _jumpToMarker(context, filtered[i]),
+                      ),
                     );
                   },
                   loading: () =>
@@ -133,6 +137,11 @@ class _MarkersListScreenState extends ConsumerState<MarkersListScreen> {
             notes: marker.notes,
           );
     }
+  }
+
+  /// Jump to map and focus on this marker without starting navigation automatically.
+  void _jumpToMarker(BuildContext context, AppMarker marker) {
+    GoRouter.of(context).go('${AppRoutes.map}?focusMarkerId=${marker.id}');
   }
 }
 
@@ -177,15 +186,17 @@ class _FilterChip extends StatelessWidget {
   }
 }
 
-class _MarkerTile extends StatelessWidget {
-  const _MarkerTile({required this.marker});
+class _MarkerTile extends ConsumerWidget {
+  const _MarkerTile({required this.marker, this.onTap});
 
   final AppMarker marker;
+  final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final tokens = context.tokens;
     return GlassCard(
+      onTap: onTap,
       child: Row(
         children: [
           Container(
@@ -241,9 +252,87 @@ class _MarkerTile extends StatelessWidget {
               ),
             ),
           ),
+          // Three-dot menu for marker actions (Task 13.5)
+          PopupMenuButton<_MarkerAction>(
+            tooltip: 'Opsi penanda',
+            icon: Icon(
+              PhosphorIconsRegular.dotsThreeVertical,
+              size: 18,
+              color: tokens.textTertiary,
+            ),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            position: PopupMenuPosition.under,
+            onSelected: (action) => _handleAction(context, ref, action),
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: _MarkerAction.editCategory,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(PhosphorIconsRegular.tag, size: 18),
+                    SizedBox(width: 12),
+                    Text('Ubah kategori'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: _MarkerAction.delete,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(PhosphorIconsRegular.trash, size: 18),
+                    SizedBox(width: 12),
+                    Text('Hapus'),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _handleAction(
+    BuildContext context,
+    WidgetRef ref,
+    _MarkerAction action,
+  ) async {
+    switch (action) {
+      case _MarkerAction.editCategory:
+        final newCategory = await EditMarkerCategorySheet.show(
+          context,
+          currentCategory: marker.category,
+          markerName: marker.name,
+        );
+        if (newCategory != null && newCategory != marker.category) {
+          await ref
+              .read(markerRepositoryProvider)
+              .updateCategory(marker.id, newCategory);
+        }
+      case _MarkerAction.delete:
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Hapus Penanda?'),
+            content: Text('Penanda "${marker.name}" akan dihapus.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Batal'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Hapus'),
+              ),
+            ],
+          ),
+        );
+        if (confirmed == true) {
+          await ref.read(markerRepositoryProvider).delete(marker.id);
+        }
+    }
   }
 
   Color _categoryColor(MarkerCategory cat) => switch (cat) {
@@ -260,6 +349,8 @@ class _MarkerTile extends StatelessWidget {
         MarkerCategory.other => PhosphorIconsBold.mapPin,
       };
 }
+
+enum _MarkerAction { editCategory, delete }
 
 class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.hasFilter});

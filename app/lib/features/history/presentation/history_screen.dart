@@ -116,9 +116,9 @@ class _Scaffold extends StatelessWidget {
               Text(AppStrings.tabHistory, style: text.headlineLarge),
               // Filter coming in M6 polish. Kept visually so the layout
               // doesn't jump when enabled.
-              IconButton(
+              const IconButton(
                 onPressed: null,
-                icon: const Icon(PhosphorIconsRegular.funnel),
+                icon: Icon(PhosphorIconsRegular.funnel),
                 tooltip: 'Filter (segera)',
               ),
             ],

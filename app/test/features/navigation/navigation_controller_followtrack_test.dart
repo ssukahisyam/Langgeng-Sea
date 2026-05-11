@@ -76,7 +76,7 @@ void main() {
       gpsServiceProvider.overrideWithValue(fakeGps),
       navigationAlertServiceProvider.overrideWithValue(fakeAlerts),
       currentReadingProvider.overrideWith((ref) => gpsStream.stream),
-    ]);
+    ],);
 
     // Prime app settings so alarm dispatch reads a non-null value.
     container.read(appSettingsProvider);
@@ -102,7 +102,7 @@ void main() {
             label: 'Haul Test',
             sourceType: FollowTrackSource.haul,
             sourceId: 'h-1',
-          ));
+          ),);
       final state = container.read(navigationControllerProvider);
       expect(state, isA<NavigationActive>());
       final active = state as NavigationActive;
@@ -118,7 +118,7 @@ void main() {
           label: 'H',
           sourceType: FollowTrackSource.haul,
           sourceId: 'h-1',
-        ));
+        ),);
         // Emit a reading 50m off the line -> enters offRouteCountdown.
         gpsStream.add(_reading(_offsetNorth(const LatLng(0, 0.0005), 50)));
         async.flushMicrotasks();
@@ -134,7 +134,7 @@ void main() {
         async.flushMicrotasks();
 
         expect(container.read(navigationControllerProvider),
-            isA<NavigationIdle>());
+            isA<NavigationIdle>(),);
         expect(fakeAlerts.countOf('offRoute'), 0);
       });
     });
@@ -152,7 +152,7 @@ void main() {
         label: 'H',
         sourceType: FollowTrackSource.haul,
         sourceId: 'h-1',
-      ));
+      ),);
 
       // Quarter of the way along the leg, on the line.
       gpsStream.add(_reading(const LatLng(0, 0.00025), speed: 2.0));
@@ -176,13 +176,13 @@ void main() {
         label: 'H',
         sourceType: FollowTrackSource.haul,
         sourceId: 'h-1',
-      ));
+      ),);
 
       // 40 m north of the mid-leg point.
       gpsStream.add(_reading(
         _offsetNorth(const LatLng(0, 0.0005), 40),
         speed: 2.0,
-      ));
+      ),);
       await Future<void>.delayed(Duration.zero);
 
       final state =
@@ -205,7 +205,7 @@ void main() {
           label: 'Haul X',
           sourceType: FollowTrackSource.haul,
           sourceId: 'h-1',
-        ));
+        ),);
 
         // First reading on-line -> stay normal.
         gpsStream.add(_reading(const LatLng(0, 0.00025), speed: 1.5));
@@ -220,7 +220,7 @@ void main() {
         gpsStream.add(_reading(
           _offsetNorth(const LatLng(0, 0.0005), 50),
           speed: 1.5,
-        ));
+        ),);
         async.flushMicrotasks();
         expect(
           (container.read(navigationControllerProvider) as NavigationActive)
@@ -253,13 +253,13 @@ void main() {
           label: 'H',
           sourceType: FollowTrackSource.haul,
           sourceId: 'h-1',
-        ));
+        ),);
 
         // Drift 50 m off-route -> countdown.
         gpsStream.add(_reading(
           _offsetNorth(const LatLng(0, 0.0005), 50),
           speed: 1.5,
-        ));
+        ),);
         async.flushMicrotasks();
         expect(
           (container.read(navigationControllerProvider) as NavigationActive)
@@ -295,13 +295,13 @@ void main() {
           label: 'H',
           sourceType: FollowTrackSource.haul,
           sourceId: 'h-1',
-        ));
+        ),);
 
         // Commit to off-route first.
         gpsStream.add(_reading(
           _offsetNorth(const LatLng(0, 0.0005), 50),
           speed: 1.5,
-        ));
+        ),);
         async.elapse(const Duration(seconds: 6));
         async.flushMicrotasks();
         expect(fakeAlerts.countOf('offRoute'), 1);
@@ -341,13 +341,13 @@ void main() {
           label: 'H',
           sourceType: FollowTrackSource.haul,
           sourceId: 'h-1',
-        ));
+        ),);
 
         // Commit offRoute.
         gpsStream.add(_reading(
           _offsetNorth(const LatLng(0, 0.0005), 50),
           speed: 1.5,
-        ));
+        ),);
         async.elapse(const Duration(seconds: 6));
         async.flushMicrotasks();
 
@@ -366,7 +366,7 @@ void main() {
         gpsStream.add(_reading(
           _offsetNorth(const LatLng(0, 0.0005), 50),
           speed: 1.5,
-        ));
+        ),);
         async.flushMicrotasks();
         expect(
           (container.read(navigationControllerProvider) as NavigationActive)

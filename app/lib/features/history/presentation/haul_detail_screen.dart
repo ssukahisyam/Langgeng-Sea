@@ -1,4 +1,3 @@
-import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,6 +19,7 @@ import '../../tracking/data/haul_repository.dart';
 import '../../tracking/data/track_point_repository.dart';
 import '../../tracking/domain/entities/haul.dart';
 import '../../tracking/domain/entities/track_point.dart';
+import '../../tracking/presentation/widgets/color_picker_sheet.dart';
 import 'widgets/delete_confirm_dialog.dart';
 import 'widgets/item_options_sheet.dart';
 import 'widgets/multi_haul_map.dart';
@@ -102,7 +102,7 @@ class HaulDetailScreen extends ConsumerWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-              'Selesaikan tarikan terlebih dulu (tekan "Berhenti").'),
+              'Selesaikan tarikan terlebih dulu (tekan "Berhenti").',),
           duration: Duration(seconds: 2),
         ),
       );
@@ -129,6 +129,14 @@ class HaulDetailScreen extends ConsumerWidget {
         await ref
             .read(haulRepositoryProvider)
             .rename(haul.id, newName.isEmpty ? null : newName);
+      case ItemOption.changeColor:
+        final color = await ColorPickerSheet.show(
+          context,
+          currentColorValue: haul.colorValue,
+        );
+        if (!context.mounted) return;
+        // color == null means "reset to auto", an int means a picked ARGB value.
+        await ref.read(haulRepositoryProvider).setColor(haul.id, color);
       case ItemOption.delete:
         final confirmed = await DeleteConfirmDialog.show(
           context,
@@ -257,7 +265,7 @@ class _Hero extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(PhosphorIconsFill.record,
-                      size: 10, color: tokens.danger),
+                      size: 10, color: tokens.danger,),
                   const SizedBox(width: 5),
                   Text(
                     'MASIH MEREKAM',
@@ -311,7 +319,7 @@ class _MetricGrid extends StatelessWidget {
               label: 'Durasi',
             ),
           ),
-        ]),
+        ],),
         const SizedBox(height: AppSizes.sp2),
         Row(children: [
           Expanded(
@@ -333,7 +341,7 @@ class _MetricGrid extends StatelessWidget {
               label: 'Arah dominan',
             ),
           ),
-        ]),
+        ],),
         const SizedBox(height: AppSizes.sp2),
         _Tile(
           icon: PhosphorIconsBold.frameCorners,
@@ -427,10 +435,10 @@ class _HaulLogBookCard extends ConsumerWidget {
     final async = ref.watch(logBookByHaulProvider(haulId));
 
     return async.when(
-      loading: () => _LogBookCardShell(
+      loading: () => const _LogBookCardShell(
         title: 'Log Book Tarikan',
         subtitle: 'Memuat…',
-        trailing: const SizedBox(
+        trailing: SizedBox(
           width: 18,
           height: 18,
           child: CircularProgressIndicator(strokeWidth: 2),

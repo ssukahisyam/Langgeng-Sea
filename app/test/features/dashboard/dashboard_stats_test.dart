@@ -40,7 +40,7 @@ void main() {
         DashboardPeriod.week7,
         DashboardPeriod.month30,
         DashboardPeriod.total,
-      ]));
+      ]),);
     });
   });
 

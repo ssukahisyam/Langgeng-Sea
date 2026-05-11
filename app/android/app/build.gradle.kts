@@ -57,7 +57,11 @@ android {
         applicationId = "id.co.langgengsea"
         // Min SDK 26 (Android 8.0) per PRD NFR-04
         minSdk = 26
-        targetSdk = flutter.targetSdkVersion
+        // Target SDK 34 (Android 14) — pinned explicitly so the
+        // foreground-service-type location contract declared in
+        // AndroidManifest.xml is enforced against the API level we
+        // actually test against. Requirement 1 AC 10.
+        targetSdk = 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }

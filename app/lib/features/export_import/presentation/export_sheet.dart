@@ -102,7 +102,7 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
                   child: _FormatItem(
                     label: 'Langgeng Sea',
                     subtitle: '.lsea.json',
-                    icon: PhosphorIconsBold.fileJson,
+                    icon: PhosphorIconsBold.fileCode,
                     isActive: _selectedFormat == ExportFormat.lseaJson,
                     onTap: () => setState(() {
                       _selectedFormat = ExportFormat.lseaJson;
@@ -136,15 +136,15 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _ShareAppIcon(
+                const _ShareAppIcon(
                   icon: PhosphorIconsBold.whatsappLogo,
                   label: 'WhatsApp',
-                  color: const Color(0xFF25D366),
+                  color: Color(0xFF25D366),
                 ),
-                _ShareAppIcon(
+                const _ShareAppIcon(
                   icon: PhosphorIconsBold.telegramLogo,
                   label: 'Telegram',
-                  color: const Color(0xFF0088CC),
+                  color: Color(0xFF0088CC),
                 ),
                 _ShareAppIcon(
                   icon: PhosphorIconsBold.envelope,

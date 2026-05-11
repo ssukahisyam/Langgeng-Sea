@@ -74,6 +74,23 @@ class TripRepository {
     );
   }
 
+  /// Persist the user-picked polyline colour for a trip.
+  ///
+  /// Pass `colorValue: null` to clear the colour (polyline falls back
+  /// to the auto-assigned palette entry). Mirrors
+  /// [HaulRepository.setColor].
+  Future<void> setColor(String tripId, int? colorValue) async {
+    final existing = await getById(tripId);
+    if (existing == null) return;
+    final updated = colorValue == null
+        ? existing.copyWith(clearColor: true)
+        : existing.copyWith(colorValue: colorValue);
+    await _dao.updateTrip(
+      tripId,
+      TripMapper.toUpdateCompanion(updated),
+    );
+  }
+
   Future<void> deleteTrip(String tripId) => _dao.deleteTrip(tripId);
 
   /// Returns the active trip, or creates a new one atomically. Used by

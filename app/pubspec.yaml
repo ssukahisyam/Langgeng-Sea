@@ -4,7 +4,7 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.5.0
+  sdk: ">=3.5.0 <4.0.0"
   flutter: ">=3.24.0"
 
 dependencies:
@@ -18,6 +18,7 @@ dependencies:
   google_fonts: ^6.2.1
   phosphor_flutter: ^2.1.0
   fl_chart: ^0.68.0
+  flutter_colorpicker: ^1.1.0
 
   # State management
   flutter_riverpod: ^2.5.1
@@ -38,6 +39,11 @@ dependencies:
   flutter_background_service_android: ^6.2.7
   flutter_local_notifications: ^17.2.3
 
+  # Device info — used by TrackingPermissionFlow to read Android SDK
+  # level (so we can gate ACCESS_BACKGROUND_LOCATION on API 29+ and
+  # POST_NOTIFICATIONS on API 33+). See Requirement 1 AC 5, 6, 10.
+  device_info_plus: ^10.1.2
+
   # Navigation (M11) — TTS for "sudah sampai" voice alerts. flutter_tts
   # is a thin wrapper over the platform TTS engine (Android
   # `TextToSpeech`, iOS `AVSpeechSynthesizer`); ~1 MB added to the APK,
@@ -52,7 +58,7 @@ dependencies:
   path: ^1.9.0
 
   # Models & serialization
-  freezed_annotation: ^2.4.4
+  freezed_annotation: ^3.0.0
   json_annotation: ^4.9.0
   uuid: ^4.4.2
 
@@ -62,7 +68,7 @@ dependencies:
   xml: ^6.5.0
 
   # Utils
-  intl: ^0.19.0
+  intl: ">=0.19.0 <1.0.0"
   collection: ^1.18.0
   logger: ^2.4.0
 
@@ -78,12 +84,12 @@ dev_dependencies:
 
   # Code generation
   build_runner: ^2.4.12
-  freezed: ^2.5.7
+  freezed: ^3.0.0
   json_serializable: ^6.8.0
   drift_dev: ^2.20.2
   riverpod_generator: ^2.4.3
-  custom_lint: ^0.6.7
-  riverpod_lint: ^2.3.13
+  custom_lint: any
+  riverpod_lint: any
 
 flutter:
   uses-material-design: true

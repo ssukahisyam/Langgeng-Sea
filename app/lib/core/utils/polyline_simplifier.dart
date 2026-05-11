@@ -89,8 +89,8 @@ class PolylineSimplifier {
     double toY(double latDeg) =>
         (latDeg - a.latitude) * math.pi / 180.0 * earthMetersPerRadian;
 
-    final ax = 0.0;
-    final ay = 0.0;
+    const ax = 0.0;
+    const ay = 0.0;
     final bx = toX(b.longitude);
     final by = toY(b.latitude);
     final px = toX(p.longitude);

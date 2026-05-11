@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../data/database/app_database.dart';
-import '../../../data/database/daos/log_book_dao.dart';
 import '../domain/entities/catch_item.dart';
 import '../domain/entities/log_book_entry.dart';
 
@@ -65,7 +64,7 @@ class LogBookRepository {
         notes: Value(entry.notes),
         createdAt: now,
         updatedAt: now,
-      ));
+      ),);
 
       final entryId = entry.id.isEmpty ? _uuid.v4() : entry.id;
       await _insertCatchItems(entryId, entry.catches);
@@ -111,7 +110,7 @@ class LogBookRepository {
                 id: c.id,
                 species: c.species,
                 weightKg: c.weightKg,
-              ))
+              ),)
           .toList(),
       weather: row.weather == null
           ? null
@@ -144,7 +143,7 @@ class LogBookRepository {
         logBookEntryId: logBookEntryId,
         species: item.species,
         weightKg: Value(item.weightKg),
-      ));
+      ),);
     }
   }
 }
