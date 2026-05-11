@@ -1,5 +1,5 @@
 import 'dart:async';
-
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -982,14 +982,26 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     tappedPoint: _activePopupLatLng!,
                     kind: TrackKind.haul,
                     onClose: _dismissPopup,
-                    onNavigate: () {
+                    onNavigateTo: (targetLatLng, label) {
+                      _dismissPopup();
+                      ref
+                          .read(navigationControllerProvider.notifier)
+                          .startNavigateTo(
+                            GotoTarget(
+                              destination: targetLatLng,
+                              label: label,
+                            ),
+                          );
+                    },
+                    onFollowTrack: (reversed) {
                       final track = _activePopupTrack!;
                       _dismissPopup();
+                      final points = reversed ? track.points.reversed.toList() : track.points;
                       ref
                           .read(navigationControllerProvider.notifier)
                           .startFollowTrack(
                             FollowTrackTarget(
-                              pathPoints: track.points,
+                              pathPoints: points,
                               label: track.storedName ??
                                   Formatters.shortDate(track.startedAt),
                               sourceType: FollowTrackSource.haul,

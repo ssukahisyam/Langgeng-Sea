@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -199,7 +200,7 @@ class TrackPopup extends StatelessWidget {
                 children: [
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () => _showNavigateOptions(context, tokens, text),
+                      onPressed: () => _showNavigateOptions(context),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
                           vertical: AppSizes.sp3,
@@ -218,13 +219,13 @@ class TrackPopup extends StatelessWidget {
                   const SizedBox(width: AppSizes.sp2),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () => _showFollowOptions(context, tokens, text),
+                      onPressed: () => _showFollowOptions(context),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
                           vertical: AppSizes.sp3,
                         ),
-                        backgroundColor: tokens.primary,
-                        foregroundColor: tokens.onPrimary,
+                        backgroundColor: context.colors.primary,
+                        foregroundColor: context.colors.onPrimary,
                         shape: RoundedRectangleBorder(
                           borderRadius:
                               BorderRadius.circular(AppSizes.radiusMd),
@@ -247,9 +248,10 @@ class TrackPopup extends StatelessWidget {
 
   Future<void> _showNavigateOptions(
     BuildContext context,
-    AppColorTokens tokens,
-    TextTheme text,
   ) async {
+    final tokens = context.tokens;
+    final text = context.text;
+    final colors = context.colors;
     final startPoint = track.points.first;
     final endPoint = track.points.last;
     final name = storedName ?? Formatters.shortDate(startedAt);
@@ -270,7 +272,7 @@ class TrackPopup extends StatelessWidget {
                 child: Text('Tujuan Navigasi', style: text.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
               ),
               ListTile(
-                leading: Icon(PhosphorIconsRegular.target, color: tokens.primary),
+                leading: Icon(PhosphorIconsRegular.target, color: colors.primary),
                 title: Text('Titik yang dipilih (Tap)', style: text.bodyLarge),
                 onTap: () {
                   Navigator.pop(context);
@@ -278,7 +280,7 @@ class TrackPopup extends StatelessWidget {
                 },
               ),
               ListTile(
-                leading: Icon(PhosphorIconsRegular.flag, color: tokens.primary),
+                leading: Icon(PhosphorIconsRegular.flag, color: colors.primary),
                 title: Text('Titik Awal (Dimulai)', style: text.bodyLarge),
                 onTap: () {
                   Navigator.pop(context);
@@ -287,7 +289,7 @@ class TrackPopup extends StatelessWidget {
               ),
               if (track.points.length > 1)
                 ListTile(
-                  leading: Icon(PhosphorIconsRegular.flagCheckered, color: tokens.primary),
+                  leading: Icon(PhosphorIconsRegular.flagCheckered, color: colors.primary),
                   title: Text('Titik Akhir (Selesai)', style: text.bodyLarge),
                   onTap: () {
                     Navigator.pop(context);
@@ -303,9 +305,10 @@ class TrackPopup extends StatelessWidget {
 
   Future<void> _showFollowOptions(
     BuildContext context,
-    AppColorTokens tokens,
-    TextTheme text,
   ) async {
+    final tokens = context.tokens;
+    final text = context.text;
+    final colors = context.colors;
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: tokens.surface,
@@ -322,7 +325,7 @@ class TrackPopup extends StatelessWidget {
                 child: Text('Arah Mengikuti Jalur', style: text.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
               ),
               ListTile(
-                leading: Icon(PhosphorIconsRegular.arrowRight, color: tokens.primary),
+                leading: Icon(PhosphorIconsRegular.arrowRight, color: colors.primary),
                 title: Text('Mulai dari Titik Awal', style: text.bodyLarge),
                 onTap: () {
                   Navigator.pop(context);
@@ -331,7 +334,7 @@ class TrackPopup extends StatelessWidget {
               ),
               if (track.points.length > 1)
                 ListTile(
-                  leading: Icon(PhosphorIconsRegular.arrowLeft, color: tokens.primary),
+                  leading: Icon(PhosphorIconsRegular.arrowLeft, color: colors.primary),
                   title: Text('Mulai dari Titik Akhir (Dibalik)', style: text.bodyLarge),
                   onTap: () {
                     Navigator.pop(context);
