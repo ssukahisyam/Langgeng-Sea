@@ -45,7 +45,7 @@ class FlutterBackgroundTrackingService implements BackgroundTrackingService {
   /// Must be called once during app initialisation (before any start/stop).
   Future<void> initialise() async {
     // Set up the notification channel for the foreground service.
-    const androidConfig = AndroidConfiguration(
+    final androidConfig = AndroidConfiguration(
       onStart: onBackgroundStart,
       isForegroundMode: true,
       autoStart: false,
@@ -57,7 +57,7 @@ class FlutterBackgroundTrackingService implements BackgroundTrackingService {
       notificationChannelId: _kNotificationChannelId,
     );
 
-    const iosConfig = IosConfiguration(
+    final iosConfig = IosConfiguration(
       autoStart: false,
       onForeground: _iosOnForeground,
     );
