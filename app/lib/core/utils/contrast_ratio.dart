@@ -1,6 +1,3 @@
-import 'dart:math' as math;
-import 'dart:ui' show Color;
-
 /// WCAG 2.1 contrast-ratio helpers used to validate polyline colours
 /// against map tile backgrounds.
 ///
@@ -13,6 +10,9 @@ import 'dart:ui' show Color;
 /// so the utility stays cheap to pull into non-widget code — and its
 /// property tests don't need the Flutter binding.
 library;
+
+import 'dart:math' as math;
+import 'dart:ui' show Color;
 
 /// Relative luminance of [c] per the WCAG 2.1 definition
 /// (https://www.w3.org/TR/WCAG21/#dfn-relative-luminance):
