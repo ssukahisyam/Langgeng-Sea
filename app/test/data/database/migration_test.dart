@@ -1,9 +1,10 @@
 // Migration test for AppDatabase.
 //
-// Verifies the v1 → v5 upgrade path adds the tables introduced in later
+// Verifies the v1 → v7 upgrade path adds the tables introduced in later
 // milestones (offline_regions at v2; log_book_entries, catch_items,
-// markers at v3; user_profiles at v4; hauls.color_value at v5) without
-// losing any existing data.
+// markers at v3; user_profiles at v4; hauls.color_value at v5;
+// app_settings at v6; trips.color_value at v7) without losing any
+// existing data.
 //
 // drift_dev ships schema-version helpers (`dart run drift_dev schema
 // dump`) but we don't have a dumped `drift_schemas/` directory yet, so
@@ -13,7 +14,7 @@
 // The trick: NativeDatabase.memory(setup: (raw) { … }) gives us access
 // to the raw `sqlite3` handle *before* Drift runs its migration
 // strategy. We create the v1 tables and set user_version=1 there, then
-// Drift reads user_version, sees schemaVersion=5, and runs onUpgrade.
+// Drift reads user_version, sees schemaVersion=7, and runs onUpgrade.
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
@@ -72,7 +73,7 @@ CREATE TABLE track_points (
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('AppDatabase migration v1 → v6', () {
+  group('AppDatabase migration v1 → v7', () {
     late AppDatabase db;
 
     setUp(() {
@@ -113,15 +114,15 @@ void main() {
       await db.close();
     });
 
-    test('onUpgrade runs and reaches schemaVersion 6', () async {
+    test('onUpgrade runs and reaches schemaVersion 7', () async {
       // Any query forces the migration to run.
       final row = await db
           .customSelect('PRAGMA user_version')
           .getSingle();
       expect(
         row.data.values.first,
-        6,
-        reason: 'migration should land at schemaVersion 6',
+        7,
+        reason: 'migration should land at schemaVersion 7',
       );
     });
 
@@ -207,6 +208,29 @@ void main() {
 
     test('app_settings table exists after upgrade (v6)', () async {
       await _expectTableExists(db, 'app_settings');
+    });
+
+    test('trips.color_value column exists after upgrade (v7)', () async {
+      final rows = await db
+          .customSelect('PRAGMA table_info(trips)')
+          .get();
+      final colNames = rows.map((r) => r.data['name'] as String).toList();
+      expect(
+        colNames,
+        contains('color_value'),
+        reason: 'v7 migration should add trips.color_value column',
+      );
+    });
+
+    test('legacy trips.color_value defaults to NULL for pre-v7 rows',
+        () async {
+      final rows = await db
+          .customSelect(
+            "SELECT color_value FROM trips WHERE id = 'trip-1'",
+          )
+          .get();
+      expect(rows, hasLength(1));
+      expect(rows.single.data['color_value'], isNull);
     });
 
     test('app_settings is seeded with alarms both ON after v5 -> v6 upgrade',

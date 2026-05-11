@@ -8,7 +8,7 @@ import '../../../../core/widgets/glass_card.dart';
 /// The action chosen from [ItemOptionsSheet].
 /// Declared at library scope so callers can switch on it without
 /// importing private names.
-enum ItemOption { rename, delete, dismissed }
+enum ItemOption { rename, changeColor, delete, dismissed }
 
 /// Generic glass bottom sheet with Rename / Delete actions.
 /// Used for both trips and hauls — callers resolve the enum and apply
@@ -96,6 +96,13 @@ class ItemOptionsSheet extends StatelessWidget {
               label: 'Ubah Nama',
               onTap: () =>
                   Navigator.of(context).pop(ItemOption.rename),
+            ),
+            Divider(height: 1, color: tokens.border),
+            _OptionRow(
+              icon: PhosphorIconsBold.palette,
+              label: 'Ubah Warna',
+              onTap: () =>
+                  Navigator.of(context).pop(ItemOption.changeColor),
             ),
             Divider(height: 1, color: tokens.border),
             _OptionRow(

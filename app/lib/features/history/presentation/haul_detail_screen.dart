@@ -20,6 +20,7 @@ import '../../tracking/data/haul_repository.dart';
 import '../../tracking/data/track_point_repository.dart';
 import '../../tracking/domain/entities/haul.dart';
 import '../../tracking/domain/entities/track_point.dart';
+import '../../tracking/presentation/widgets/color_picker_sheet.dart';
 import 'widgets/delete_confirm_dialog.dart';
 import 'widgets/item_options_sheet.dart';
 import 'widgets/multi_haul_map.dart';
@@ -129,6 +130,14 @@ class HaulDetailScreen extends ConsumerWidget {
         await ref
             .read(haulRepositoryProvider)
             .rename(haul.id, newName.isEmpty ? null : newName);
+      case ItemOption.changeColor:
+        final color = await ColorPickerSheet.show(
+          context,
+          currentColorValue: haul.colorValue,
+        );
+        if (!context.mounted) return;
+        // color == null means "reset to auto", an int means a picked ARGB value.
+        await ref.read(haulRepositoryProvider).setColor(haul.id, color);
       case ItemOption.delete:
         final confirmed = await DeleteConfirmDialog.show(
           context,

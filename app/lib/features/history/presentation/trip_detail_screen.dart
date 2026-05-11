@@ -129,6 +129,10 @@ class TripDetailScreen extends ConsumerWidget {
         await ref
             .read(tripRepositoryProvider)
             .rename(trip.id, newName.isEmpty ? null : newName);
+      case ItemOption.changeColor:
+        // Trips don't have a per-trip colour — individual haul colours
+        // are set from haul detail. No-op here.
+        break;
       case ItemOption.delete:
         final confirmed = await DeleteConfirmDialog.show(
           context,

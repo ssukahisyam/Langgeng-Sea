@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/observability/logger.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/database/daos/marker_dao.dart';
 import '../domain/entities/marker.dart';
@@ -78,6 +79,34 @@ class MarkerRepository {
         longitude: Value(marker.longitude),
         notes: Value(marker.notes),
       ),
+    );
+  }
+
+  /// Ubah kategori sebuah marker dan catat audit log sebelum perubahan.
+  ///
+  /// Throws [StateError] bila marker dengan [markerId] tidak ditemukan.
+  ///
+  /// Audit log (Requirement 5.10) dikirim via [Logger] dengan payload
+  /// `{markerId, from, to}` sebelum operasi tulis dijalankan, sehingga
+  /// jejak perubahan tetap tercatat walaupun query write gagal.
+  Future<void> updateCategory(
+    String markerId,
+    MarkerCategory category,
+  ) async {
+    final existing = await getById(markerId);
+    if (existing == null) {
+      throw StateError('Marker $markerId not found');
+    }
+
+    Logger.instance.info('marker.category.change', {
+      'markerId': markerId,
+      'from': existing.category.storageKey,
+      'to': category.storageKey,
+    });
+
+    await _dao.updateMarker(
+      markerId,
+      MarkersCompanion(category: Value(category.storageKey)),
     );
   }
 

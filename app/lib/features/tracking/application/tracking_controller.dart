@@ -4,9 +4,12 @@ import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../core/observability/logger.dart';
 import '../../../core/services/gps_reading.dart';
 import '../../../core/services/gps_service.dart';
 import '../../../core/utils/geo_calculator.dart';
+import '../data/background_tracking_service.dart';
+import '../data/flutter_background_tracking_service.dart';
 import '../data/haul_repository.dart';
 import '../data/track_point_repository.dart';
 import '../data/trip_repository.dart';
@@ -26,6 +29,7 @@ import 'tracking_state.dart';
 /// cost flat even for 12-hour trips (~4k points at 10s interval).
 class TrackingController extends Notifier<TrackingState> {
   StreamSubscription<GpsReading>? _gpsSub;
+  StreamSubscription<BackgroundTrackingStatus>? _bgStatusSub;
 
   // Running aggregates for the currently-recording haul.
   // Reset on start/stop; rebuilt from DB on crash recovery.
@@ -37,9 +41,14 @@ class TrackingController extends Notifier<TrackingState> {
   int _speedCount = 0;
   LatLng? _lastPoint;
 
+  // Exponential retry state (Requirement 1.7).
+  int _retryCount = 0;
+  static const _maxRetries = 3;
+  Timer? _retryTimer;
+
   @override
   TrackingState build() {
-    ref.onDispose(_cancelSub);
+    ref.onDispose(_cancelAll);
     return const TrackingState.idle();
   }
 
@@ -47,6 +56,8 @@ class TrackingController extends Notifier<TrackingState> {
   HaulRepository get _hauls => ref.read(haulRepositoryProvider);
   TrackPointRepository get _points => ref.read(trackPointRepositoryProvider);
   GpsService get _gps => ref.read(gpsServiceProvider);
+  BackgroundTrackingService get _bgService =>
+      ref.read(backgroundTrackingServiceProvider);
 
   // =======================================================================
   // Lifecycle
@@ -56,6 +67,9 @@ class TrackingController extends Notifier<TrackingState> {
   ///
   /// [trawlWidthMeters] is captured into the haul row so later profile
   /// edits don't rewrite history. UI typically reads from user profile.
+  ///
+  /// Now also starts the [BackgroundTrackingService] so GPS persists
+  /// even when the app is backgrounded (Requirement 1.1).
   Future<Haul> startHaul({required double trawlWidthMeters}) async {
     if (state.isRecording) {
       // Already recording — idempotent return.
@@ -69,20 +83,43 @@ class TrackingController extends Notifier<TrackingState> {
     );
 
     _resetAggregates();
+    _retryCount = 0;
 
     state = TrackingState(
       activeTrip: trip,
       haul: haul,
       metrics: HaulMetrics.empty,
       livePoints: const [],
+      backgroundStatus: BackgroundTrackingStatus.starting,
     );
 
+    // Start the foreground GPS stream for live metrics.
     _gpsSub = _gps.watchPosition().listen(
       _onReading,
       onError: (_) {
         // Silently drop — the error banner surfaces GPS issues.
       },
     );
+
+    // Start background service for persistent tracking.
+    try {
+      await _bgService.start(
+        haulId: haul.id,
+        notificationTitle: 'Langgeng Sea — Merekam',
+        notificationBody: '${haul.displayName()} sedang direkam',
+      );
+      _subscribeBgStatus();
+    } catch (e) {
+      // Background service failed to start — continue with foreground
+      // GPS only (AC 1a graceful degradation).
+      Logger.instance.warn(
+        'tracking.bg_start_failed',
+        {'error': e.toString()},
+      );
+      state = state.copyWith(
+        backgroundStatus: BackgroundTrackingStatus.failed,
+      );
+    }
 
     return haul;
   }
@@ -96,7 +133,17 @@ class TrackingController extends Notifier<TrackingState> {
     final haul = state.haul;
     if (haul == null) return null;
 
-    await _cancelSub();
+    await _cancelAll();
+
+    // Stop background service.
+    try {
+      await _bgService.stop();
+    } catch (e) {
+      Logger.instance.warn(
+        'tracking.bg_stop_failed',
+        {'error': e.toString()},
+      );
+    }
 
     final endedAt = DateTime.now();
     final durationSeconds =
@@ -122,6 +169,7 @@ class TrackingController extends Notifier<TrackingState> {
       clearHaul: true,
       metrics: HaulMetrics.empty,
       livePoints: const [],
+      backgroundStatus: BackgroundTrackingStatus.stopped,
     );
     _resetAggregates();
 
@@ -332,9 +380,82 @@ class TrackingController extends Notifier<TrackingState> {
     }
   }
 
-  Future<void> _cancelSub() async {
+  Future<void> _cancelAll() async {
     await _gpsSub?.cancel();
     _gpsSub = null;
+    await _bgStatusSub?.cancel();
+    _bgStatusSub = null;
+    _retryTimer?.cancel();
+    _retryTimer = null;
+  }
+
+  // =======================================================================
+  // Background service monitoring (Requirement 1.7)
+  // =======================================================================
+
+  /// Subscribe to background service status updates for retry logic.
+  void _subscribeBgStatus() {
+    _bgStatusSub?.cancel();
+    _bgStatusSub = _bgService.watchStatus().listen((status) {
+      if (!state.isRecording) return;
+
+      state = state.copyWith(backgroundStatus: status);
+
+      if (status == BackgroundTrackingStatus.stopped &&
+          state.isRecording) {
+        // Service was killed by OS — attempt exponential retry.
+        _attemptRetry();
+      } else if (status == BackgroundTrackingStatus.running) {
+        // Service recovered — reset retry counter.
+        _retryCount = 0;
+      }
+    });
+  }
+
+  /// Exponential backoff retry: 1s, 2s, 4s — then give up (Requirement 1.7).
+  void _attemptRetry() {
+    if (_retryCount >= _maxRetries) {
+      state = state.copyWith(
+        backgroundStatus: BackgroundTrackingStatus.failed,
+      );
+      Logger.instance.warn(
+        'tracking.bg_retry_exhausted',
+        {'retries': _retryCount},
+      );
+      return;
+    }
+
+    state = state.copyWith(
+      backgroundStatus: BackgroundTrackingStatus.restarting,
+    );
+
+    final delay = Duration(seconds: math.pow(2, _retryCount).toInt());
+    _retryCount++;
+
+    Logger.instance.info(
+      'tracking.bg_retry',
+      {'attempt': _retryCount, 'delaySeconds': delay.inSeconds},
+    );
+
+    _retryTimer?.cancel();
+    _retryTimer = Timer(delay, () async {
+      final haul = state.haul;
+      if (haul == null || !state.isRecording) return;
+
+      try {
+        await _bgService.start(
+          haulId: haul.id,
+          notificationTitle: 'Langgeng Sea — Merekam',
+          notificationBody: '${haul.displayName()} — restart',
+        );
+      } catch (e) {
+        Logger.instance.warn(
+          'tracking.bg_retry_failed',
+          {'attempt': _retryCount, 'error': e.toString()},
+        );
+        // Will be picked up by the next watchStatus emission.
+      }
+    });
   }
 }
 

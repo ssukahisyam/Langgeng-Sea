@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Location permissions for GPS tracking -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
@@ -57,14 +58,19 @@
             android:value="2" />
 
         <!--
-          NOTE: The flutter_background_service plugin registers its own
-          foreground service automatically via manifest merging. We do
-          NOT declare a custom BackgroundTrackingService class here — it
-          would fail to resolve at runtime because no matching Kotlin
-          class exists in kotlin/id/co/langgengsea/. When we implement
-          a custom native service in v1.1 we'll re-add the <service>
-          tag together with the Kotlin implementation.
+          Declare the flutter_background_service foreground service with
+          foregroundServiceType="location" so Android 14+ (API 34) allows
+          it to access location while in foreground. The plugin's own
+          manifest also declares this service; we override here via
+          tools:replace to guarantee the foregroundServiceType attribute
+          is present on the merged manifest regardless of plugin order.
+          Requirement 1 AC 1, 1a, 10.
         -->
+        <service
+            android:name="id.flutter.flutter_background_service.BackgroundService"
+            android:foregroundServiceType="location"
+            android:exported="false"
+            tools:replace="android:foregroundServiceType,android:exported" />
 
     </application>
 

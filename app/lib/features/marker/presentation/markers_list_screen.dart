@@ -2,12 +2,16 @@ import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
+import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ambient_background.dart';
 import '../../../core/widgets/glass_card.dart';
+import '../../navigation/application/navigation_controller.dart';
+import '../../navigation/domain/entities/navigation_target.dart';
 import '../data/marker_repository.dart';
 import '../domain/entities/marker.dart';
 import 'widgets/add_marker_dialog.dart';
@@ -96,8 +100,10 @@ class _MarkersListScreenState extends ConsumerState<MarkersListScreen> {
                       itemCount: filtered.length,
                       separatorBuilder: (_, __) =>
                           const SizedBox(height: AppSizes.sp3),
-                      itemBuilder: (context, i) =>
-                          _MarkerTile(marker: filtered[i]),
+                      itemBuilder: (context, i) => _MarkerTile(
+                          marker: filtered[i],
+                          onTap: () => _jumpToMarker(context, filtered[i]),
+                      ),
                     );
                   },
                   loading: () =>
@@ -133,6 +139,18 @@ class _MarkersListScreenState extends ConsumerState<MarkersListScreen> {
             notes: marker.notes,
           );
     }
+  }
+
+  /// Jump to map and start go-to navigation for this marker.
+  void _jumpToMarker(BuildContext context, AppMarker marker) {
+    ref.read(navigationControllerProvider.notifier).startGoto(
+          GotoTarget(
+            position: marker.latLng,
+            label: marker.name,
+            sourceMarkerId: marker.id,
+          ),
+        );
+    GoRouter.of(context).go(AppRoutes.map);
   }
 }
 
@@ -178,14 +196,16 @@ class _FilterChip extends StatelessWidget {
 }
 
 class _MarkerTile extends StatelessWidget {
-  const _MarkerTile({required this.marker});
+  const _MarkerTile({required this.marker, this.onTap});
 
   final AppMarker marker;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     return GlassCard(
+      onTap: onTap,
       child: Row(
         children: [
           Container(

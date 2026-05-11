@@ -26,6 +26,7 @@ class TripMapper {
         status: _tripStatusFromString(r.status),
         homePort: r.homePort,
         notes: r.notes,
+        colorValue: r.colorValue,
       );
 
   static TripsCompanion toInsertCompanion(Trip t) => TripsCompanion.insert(
@@ -36,6 +37,7 @@ class TripMapper {
         status: _tripStatusToString(t.status),
         homePort: Value(t.homePort),
         notes: Value(t.notes),
+        colorValue: Value(t.colorValue),
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
@@ -46,6 +48,7 @@ class TripMapper {
         status: Value(_tripStatusToString(t.status)),
         homePort: Value(t.homePort),
         notes: Value(t.notes),
+        colorValue: Value(t.colorValue),
         updatedAt: Value(DateTime.now()),
       );
 }

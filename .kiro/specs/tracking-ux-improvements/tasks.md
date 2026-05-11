@@ -8,8 +8,8 @@ Implementasi di-layer dari bawah ke atas: foundation utilities (pure functions &
 
 ## Tasks
 
-- [ ] 1. Foundation utilities dan abstraksi bersama
-  - [ ] 1.1 Buat enum `MapMode` dan fungsi murni `deriveMapMode`
+- [x] 1. Foundation utilities dan abstraksi bersama
+  - [x] 1.1 Buat enum `MapMode` dan fungsi murni `deriveMapMode`
     - File baru: `app/lib/features/map/application/map_mode.dart`
     - Define `enum MapMode { idle, tracking, navigating, viewingHistory }`
     - Implement `MapMode deriveMapMode({required bool tracking, required bool navigating, required bool historyOverlayActive})` dengan urutan prioritas `navigating > tracking > viewingHistory > idle`
@@ -21,12 +21,12 @@ Implementasi di-layer dari bawah ke atas: foundation utilities (pure functions &
     - File baru: `app/test/features/map/application/map_mode_test.dart`
     - Gunakan `package:glados` dengan seed 42; enumerasi semua 2³ = 8 kombinasi boolean dan verifikasi prioritas
 
-  - [ ] 1.3 Buat `mapModeProvider` yang menggabungkan state TrackingController, NavigationController, dan `allHistoryVisibleProvider`
+  - [x] 1.3 Buat `mapModeProvider` yang menggabungkan state TrackingController, NavigationController, dan `allHistoryVisibleProvider`
     - File baru: `app/lib/features/map/application/map_mode_provider.dart`
     - Export `Provider<MapMode> mapModeProvider` yang `watch` tiga sumber state dan memanggil `deriveMapMode`
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.12_
 
-  - [ ] 1.4 Buat helper `trackDisplayLabel`
+  - [x] 1.4 Buat helper `trackDisplayLabel`
     - File baru: `app/lib/features/map/presentation/widgets/track_display_label.dart`
     - Pure function `String trackDisplayLabel({String? storedName, required DateTime startedAt})` dengan format `yyyy-MM-dd HH:mm` via `package:intl`
     - _Requirements: 3.3, 3.3a, 3.7_
@@ -37,7 +37,7 @@ Implementasi di-layer dari bawah ke atas: foundation utilities (pure functions &
     - File baru: `app/test/features/map/presentation/widgets/track_display_label_test.dart`
     - Property test `glados` untuk `(storedName, startedAt)` ∈ `(String?, DateTime)`
 
-  - [ ] 1.6 Buat utility WCAG contrast ratio
+  - [x] 1.6 Buat utility WCAG contrast ratio
     - File baru: `app/lib/core/utils/contrast_ratio.dart`
     - Implement `double relativeLuminance(Color c)` (formula WCAG 2.1) dan `double contrastRatio(Color a, Color b)` yang mengembalikan `(L1 + 0.05) / (L2 + 0.05)` dengan `L1 >= L2`
     - _Requirements: 3.1, 3.2, 3.6_
@@ -48,14 +48,14 @@ Implementasi di-layer dari bawah ke atas: foundation utilities (pure functions &
     - File baru: `app/test/core/utils/contrast_ratio_test.dart`
     - Hitung rasio kontras compound (stroke + border) terhadap tile OSM reference `#F2EFE9` (light) dan `#1B1B1B` (dark); assert `>= 4.5`
 
-  - [ ] 1.8 Perluas typedef `HaulTrackRender` dengan `storedName` dan `startedAt`
+  - [x] 1.8 Perluas typedef `HaulTrackRender` dengan `storedName` dan `startedAt`
     - File: `app/lib/features/map/application/history_overlay_providers.dart`
     - Tambah field `String? storedName` dan `DateTime startedAt` pada record `HaulTrackRender`
     - Update `allHistoryRenderProvider` dan `tripRenderProvider` untuk mengisi kedua field dari row `haul`/`trip` yang sudah di-fetch
     - _Requirements: 3.3, 3.7_
 
 - [ ] 2. `MapCameraController` dan integrasinya ke MapScreen
-  - [ ] 2.1 Implement class `MapCameraController`
+  - [x] 2.1 Implement class `MapCameraController`
     - File baru: `app/lib/features/map/application/map_camera_controller.dart`
     - Enkapsulasi `MapController` dan dua latch: `_initialFitDone`, `_userLatched`
     - API: `activate(Object overlayKey)`, `deactivate()`, `maybeInitialFit(LatLngBounds bounds)`, `fitCameraExplicit(LatLngBounds bounds)`, `onUserGesture()`
@@ -73,7 +73,7 @@ Implementasi di-layer dari bawah ke atas: foundation utilities (pure functions &
     - File baru: `app/test/features/map/application/map_camera_controller_toggle_reset_test.dart`
     - Bandingkan perilaku siklus 2 (setelah deactivate → activate) dengan fresh controller; jumlah auto-fit di siklus 2 tetap 1
 
-  - [ ] 2.4 Integrasi `MapCameraController` ke `MapScreen` dan hook gesture
+  - [-] 2.4 Integrasi `MapCameraController` ke `MapScreen` dan hook gesture
     - File: `app/lib/features/map/presentation/map_screen.dart`
     - Hapus state lama `_fittedOverlayKey`, helper `_fitAllHistoryBounds`, `_fitOverlayBounds`
     - Instansiasi `MapCameraController(_mapController)` di `initState`
@@ -82,25 +82,25 @@ Implementasi di-layer dari bawah ke atas: foundation utilities (pure functions &
     - Dalam `allHistoryRenderProvider.whenData((render) { ... })`: panggil `_camera.maybeInitialFit(render.bounds!)` bila bounds non-null
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.6, 2.7_
 
-- [ ] 3. Checkpoint — Ensure all tests pass
+- [~] 3. Checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 4. Infrastruktur background tracking
-  - [ ] 4.1 Perbarui `AndroidManifest.xml` untuk foreground service type dan permission
+  - [x] 4.1 Perbarui `AndroidManifest.xml` untuk foreground service type dan permission
     - File: `app/android/app/src/main/AndroidManifest.xml`
     - Tambahkan atribut `android:foregroundServiceType="location"` pada service declaration `flutter_background_service_android`
     - Pastikan permission `ACCESS_BACKGROUND_LOCATION`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION`, `POST_NOTIFICATIONS` sudah terdeklarasi
     - Pastikan `minSdkVersion 26` dan `targetSdkVersion 34` konsisten di `build.gradle.kts`
     - _Requirements: 1.1, 1.10_
 
-  - [ ] 4.2 Definisikan abstract class `BackgroundTrackingService` dan enum status
+  - [x] 4.2 Definisikan abstract class `BackgroundTrackingService` dan enum status
     - File baru: `app/lib/features/tracking/data/background_tracking_service.dart`
     - Abstract API: `start({required String haulId, required String notificationTitle, required String notificationBody})`, `stop()`, `Stream<BackgroundTrackingStatus> watchStatus()`
     - Define `enum BackgroundTrackingStatus { stopped, starting, running, restarting, failed }`
     - Expose top-level `onBackgroundStart(ServiceInstance service)` signature
     - _Requirements: 1.1, 1.7, 1.8_
 
-  - [ ] 4.3 Implement `FlutterBackgroundTrackingService` menggunakan `flutter_background_service`
+  - [-] 4.3 Implement `FlutterBackgroundTrackingService` menggunakan `flutter_background_service`
     - File baru: `app/lib/features/tracking/data/flutter_background_tracking_service.dart`
     - Delegasikan ke `FlutterBackgroundService`; konfigurasi `AndroidConfiguration` dengan `onStart: onBackgroundStart`, `foregroundServiceNotificationId`, `initialNotificationTitle`
     - Top-level `onBackgroundStart` entrypoint menginstansiasi `GeolocatorGpsService`, `AppDatabase` isolate-lokal, `TrackPointRepository`; subscribe `_gps.watchPosition(distanceFilterMeters: 2)` dan persist Track_Point dengan filter `accuracyMeters == null || accuracyMeters <= 50.0`
@@ -132,8 +132,8 @@ Implementasi di-layer dari bawah ke atas: foundation utilities (pure functions &
     - File baru: `app/test/features/tracking/data/background_tracking_property_4_test.dart`
     - Jalankan stream sintetis identik via jalur foreground `TrackingController._onReading` dan jalur `FakeBackgroundTrackingService`; assert `|len_fg − len_bg| / max(len_fg, len_bg) <= 0.10`
 
-- [ ] 5. Permission flow helper
-  - [ ] 5.1 Implement `ensureTrackingPermissions`
+- [x] 5. Permission flow helper
+  - [x] 5.1 Implement `ensureTrackingPermissions`
     - File baru: `app/lib/features/tracking/application/tracking_permission_flow.dart`
     - Define sealed `TrackingPermissionResult { Granted, GrantedForegroundOnly, Denied }`
     - Implement `Future<TrackingPermissionResult> ensureTrackingPermissions({required GpsService gps, required PermissionHandler handler, required void Function(String explanationId) showRationale})`
@@ -147,20 +147,20 @@ Implementasi di-layer dari bawah ke atas: foundation utilities (pure functions &
     - Glados generator `PermissionStatus`; verifikasi mapping ke result dan assertion bahwa `showRationale` dipanggil tepat ketika `p ∈ {grantedForegroundOnly, denied}`
 
 - [ ] 6. Integrasi `TrackingController` dengan background service dan retry
-  - [ ] 6.1 Modifikasi `TrackingController.startHaul` untuk memakai permission flow dan mendelegasi ke background service
+  - [-] 6.1 Modifikasi `TrackingController.startHaul` untuk memakai permission flow dan mendelegasi ke background service
     - File: `app/lib/features/tracking/application/tracking_controller.dart`
     - Panggil `ensureTrackingPermissions` sebelum memulai; pada `GrantedForegroundOnly` tampilkan warning non-blocking dan SKIP background service; pada `Denied` abort dan tampilkan banner
     - Pada `Granted` panggil `backgroundTrackingService.start(haulId: haul.id, notificationTitle: ..., notificationBody: ...)`
     - Hentikan subscription langsung ke `_gps.watchPosition` untuk menulis Track_Point (dipindah ke isolate)
     - _Requirements: 1.1, 1.5, 1.6, 1.9_
 
-  - [ ] 6.2 Ganti sumber live metrics foreground ke `trackPointRepository.watchByHaul`
+  - [~] 6.2 Ganti sumber live metrics foreground ke `trackPointRepository.watchByHaul`
     - File: `app/lib/features/tracking/application/tracking_controller.dart`
     - Subscribe `_trackPointRepo.watchByHaul(haulId)` untuk mendapat stream Track_Point yang masuk dari isolate background
     - Rekomputasi metric (duration, cumulative distance, last speed) dari diff antar snapshot Track_Point
     - _Requirements: 1.9_
 
-  - [ ] 6.3 Implement exponential-backoff retry saat background service stop
+  - [~] 6.3 Implement exponential-backoff retry saat background service stop
     - File: `app/lib/features/tracking/application/tracking_controller.dart`
     - Subscribe `backgroundTrackingService.watchStatus()`; pada transisi `running → stopped` sementara `state.isRecording == true`, jadwalkan retry `_restart()` dengan jeda `[1s, 2s, 4s]`
     - Setelah attempt ke-4 gagal, set state `failed` dan Log melalui `Logger`
@@ -172,17 +172,17 @@ Implementasi di-layer dari bawah ke atas: foundation utilities (pure functions &
     - File baru: `app/test/features/tracking/application/tracking_controller_retry_test.dart`
     - Gunakan `fake_async`; generator pola sukses/gagal `[a_1..a_4]`; assert attempts ≤ 4, berhenti pada sukses pertama, jeda sesuai `[1s, 2s, 4s]`, dan count Track_Point tidak berkurang
 
-  - [ ] 6.5 Modifikasi `stopHaul` dan `resumeHaul` untuk memicu background service
+  - [~] 6.5 Modifikasi `stopHaul` dan `resumeHaul` untuk memicu background service
     - File: `app/lib/features/tracking/application/tracking_controller.dart`
     - `stopHaul`: panggil `backgroundTrackingService.stop()` lalu bersihkan live metric subscription
     - `resumeHaul`: setelah `detectRecoverableHaul` sukses, panggil `backgroundTrackingService.start(...)` dengan haul yang sama
     - _Requirements: 1.1, 1.8_
 
-- [ ] 7. Checkpoint — Ensure all tests pass
+- [~] 7. Checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 8. Rendering polyline kontras dan popup Track
-  - [ ] 8.1 Implement `HistoryPolylineLayer` dengan compound stroke dan hit overlay
+  - [-] 8.1 Implement `HistoryPolylineLayer` dengan compound stroke dan hit overlay
     - File baru: `app/lib/features/map/presentation/widgets/history_polyline_layer.dart`
     - `PolylineLayer<HaulTrackRender>` dengan `hitNotifier: ValueNotifier<LayerHitResult<HaulTrackRender>?>(null)`
     - Per-Track buat tiga `Polyline`: (a) outer transparan `strokeWidth: 16` untuk hit, (b) border `strokeWidth: 2` kontras `_contrastBorder(theme)`, (c) main `strokeWidth: 5` dengan `AppColors.resolveHaulColor(colorValue, orderIndex).withValues(alpha: 1.0)`
@@ -195,21 +195,21 @@ Implementasi di-layer dari bawah ke atas: foundation utilities (pure functions &
     - File baru: `app/test/features/map/presentation/widgets/history_polyline_layer_hit_test.dart`
     - Widget test dengan `flutter_map` di berbagai zoom; generator titik tap pada jarak Euclidean 0..30 px dari sumbu; assert hit jika ≤ 16, non-hit jika > 16 + visualStroke/2
 
-  - [ ] 8.3 Implement widget `TrackPopup`
+  - [-] 8.3 Implement widget `TrackPopup`
     - File baru: `app/lib/features/map/presentation/widgets/track_popup.dart`
     - Define `enum TrackKind { haul, trip }`
     - `TrackPopup({required HaulTrackRender track, required String? storedName, required DateTime startedAt, required TrackKind kind, required VoidCallback onClose, required VoidCallback onNavigate})`
     - Header memakai `trackDisplayLabel(...)`; body menampilkan kind, `startedAt` formatted, dan tombol "Navigasi ke sini"
     - _Requirements: 3.3, 3.3a, 3.4, 3.5, 3.7_
 
-  - [ ] 8.4 Integrasi `HistoryPolylineLayer` dan `TrackPopup` ke `MapScreen`
+  - [~] 8.4 Integrasi `HistoryPolylineLayer` dan `TrackPopup` ke `MapScreen`
     - File: `app/lib/features/map/presentation/map_screen.dart`
     - Gantikan polyline rendering lama dengan `HistoryPolylineLayer` saat `allHistoryOn`
     - State lokal `TrackPopup? _activePopup`; `onTrackTap` set popup pada `Positioned` di atas peta (konversi `LatLng → screen offset` via `MapController.camera.latLngToScreenOffset`)
     - `GestureDetector` overlay transparan di luar popup rectangle memanggil `onClose` → `setState(() => _activePopup = null)`
     - _Requirements: 3.3, 3.3a, 3.5, 3.7_
 
-  - [ ] 8.5 Wire tombol "Navigasi ke sini" ke `NavigationController.startFollowTrack`
+  - [~] 8.5 Wire tombol "Navigasi ke sini" ke `NavigationController.startFollowTrack`
     - File: `app/lib/features/map/presentation/map_screen.dart`
     - `onNavigate` di popup → panggil `ref.read(navigationControllerProvider.notifier).startFollowTrack(FollowTrackTarget(pathPoints: track.points, trackId: track.haulId))` lalu set `_activePopup = null`
     - `mapModeProvider` otomatis berpindah ke `MapMode.navigating` via derivation
@@ -222,32 +222,32 @@ Implementasi di-layer dari bawah ke atas: foundation utilities (pure functions &
     - Widget test; generator `HaulTrackRender` dengan ≥ 2 points dan initial `historyOverlayActive ∈ {true, false}`; assert setelah navigate mode = `navigating` dengan `FollowTrackTarget` yang benar, dan setelah cancel mode kembali ke `deriveMapMode(false, false, h)`
 
 - [ ] 9. Widget adaptive UI dan mode switch di `MapScreen`
-  - [ ] 9.1 Extract widget `IdleControls`
+  - [-] 9.1 Extract widget `IdleControls`
     - File baru: `app/lib/features/map/presentation/widgets/idle_controls.dart`
     - FAB "Mulai tracking" (panggil `trackingControllerProvider.notifier.startHaul`), tombol toggle History_Overlay, tombol my-location, tombol layer toggle
     - _Requirements: 4.6_
 
-  - [ ] 9.2 Buat widget `TrackingBottomSheet`
+  - [-] 9.2 Buat widget `TrackingBottomSheet`
     - File baru: `app/lib/features/map/presentation/widgets/tracking_bottom_sheet.dart`
     - Bottom sheet collapsible menampilkan duration, cumulative distance, last speed dari `trackingControllerProvider.state`; tombol "Berhenti tracking" memanggil `stopHaul`
     - _Requirements: 4.7_
 
-  - [ ] 9.3 Buat widget `HistoryOverlayControls`
+  - [-] 9.3 Buat widget `HistoryOverlayControls`
     - File baru: `app/lib/features/map/presentation/widgets/history_overlay_controls.dart`
     - Tombol toggle off History_Overlay, filter kategori, tombol "Paskan semua" yang memanggil `mapCameraController.fitCameraExplicit(bounds)`
     - _Requirements: 2.5, 4.9_
 
-  - [ ] 9.4 Buat widget `_CollapsedTrackingMini`
+  - [-] 9.4 Buat widget `_CollapsedTrackingMini`
     - File baru: `app/lib/features/map/presentation/widgets/collapsed_tracking_mini.dart`
     - Mini banner collapsed untuk kasus Tracking + Navigating bersamaan (prioritas layout Navigating di atas)
     - _Requirements: 4.12_
 
-  - [ ] 9.5 Buat widget `_MapOverflowMenu`
+  - [-] 9.5 Buat widget `_MapOverflowMenu`
     - File baru: `app/lib/features/map/presentation/widgets/map_overflow_menu.dart`
     - Three-dot menu berisi kontrol yang disembunyikan oleh mode aktif (misal "Tambahkan penanda di sini", "Paskan semua" saat tidak di `ViewingHistory`, dst) tanpa mengubah `MapMode`
     - _Requirements: 4.10_
 
-  - [ ] 9.6 Switch `MapScreen.body` berdasarkan `mapModeProvider` dengan `AnimatedSwitcher` 250 ms
+  - [~] 9.6 Switch `MapScreen.body` berdasarkan `mapModeProvider` dengan `AnimatedSwitcher` 250 ms
     - File: `app/lib/features/map/presentation/map_screen.dart`
     - `final mode = ref.watch(mapModeProvider);`
     - `Stack` children dipilih via `switch (mode)`: `idle → [IdleControls]`, `tracking → [TrackingBottomSheet, _StandardMapControls]`, `navigating → [NavigationPanel, if (trackingAlso) _CollapsedTrackingMini]`, `viewingHistory → [HistoryOverlayControls, _StandardMapControls]`; selalu render `_MapOverflowMenu`
@@ -266,18 +266,18 @@ Implementasi di-layer dari bawah ke atas: foundation utilities (pure functions &
     - File baru: `app/test/features/map/presentation/map_screen_mode_reversibility_test.dart`
     - Generator `historyOverlayActive ∈ {true, false}`; sequence `startTracking → stopTracking`; assert mode final dan set kontrol terlihat identik dengan initial
 
-- [ ] 10. Checkpoint — Ensure all tests pass
+- [~] 10. Checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 11. Trip color field dan repository
-  - [ ] 11.1 Tambah field `colorValue` pada entitas `Trip` dan schema Drift
+  - [x] 11.1 Tambah field `colorValue` pada entitas `Trip` dan schema Drift
     - File: `app/lib/features/tracking/domain/trip.dart` (tambah `int? colorValue`)
     - File: `app/lib/core/database/tables.dart` (tambah kolom `IntColumn get colorValue => integer().nullable()();` pada tabel `Trips`)
     - File: `app/lib/core/database/app_database.dart` — naikkan `schemaVersion` dan tambah branch di `onUpgrade`: `await m.addColumn(trips, trips.colorValue);`
     - Update mapper `Trip.fromRow` / `Trip.toCompanion`
     - _Requirements: 5.1, 5.2, 5.3, 5.9_
 
-  - [ ] 11.2 Implement `TripRepository.setColor`
+  - [-] 11.2 Implement `TripRepository.setColor`
     - File: `app/lib/features/tracking/data/trip_repository.dart`
     - Analog dengan `HaulRepository.setColor`: `Future<void> setColor(String tripId, int? colorValue)` yang no-op bila trip tidak ada, lalu `_dao.updateTrip(tripId, TripsCompanion(colorValue: Value(colorValue)))`
     - _Requirements: 5.2, 5.9_
@@ -301,24 +301,24 @@ Implementasi di-layer dari bawah ke atas: foundation utilities (pure functions &
     - Generator `orderIndex >= 1`; assert `AppColors.resolveHaulColor(colorValue: null, orderIndex: o) == AppColors.colorForHaul(o)`
 
 - [ ] 12. Color picker sheet dan integrasinya
-  - [ ] 12.1 Tambah `flutter_colorpicker` ke `pubspec.yaml`
+  - [x] 12.1 Tambah `flutter_colorpicker` ke `pubspec.yaml`
     - File: `app/pubspec.yaml`
     - Tambah dependency `flutter_colorpicker: ^1.1.0` (atau versi stabil terbaru yang kompatibel); jalankan `flutter pub get`
     - _Requirements: 5.1_
 
-  - [ ] 12.2 Implement widget `ColorPickerSheet`
+  - [-] 12.2 Implement widget `ColorPickerSheet`
     - File baru: `app/lib/features/tracking/presentation/widgets/color_picker_sheet.dart`
     - Tampilkan grid `AppColors.pickablePalette` (pre-set ≥ 8 warna) + tombol "Custom" yang membuka `showColorPicker` dari `flutter_colorpicker`
     - Return ARGB32 `int?` via `Navigator.pop(context, selectedColor?.value)`
     - _Requirements: 5.1_
 
-  - [ ] 12.3 Wire `ColorPickerSheet` ke layar detail Trip dan Haul
+  - [~] 12.3 Wire `ColorPickerSheet` ke layar detail Trip dan Haul
     - File: layar detail Trip (`app/lib/features/tracking/presentation/trip_detail_screen.dart`) dan Haul (`app/lib/features/tracking/presentation/haul_detail_screen.dart`) — sesuaikan path aktual
     - Tambah section "Warna Track" dengan preview swatch; tap membuka `ColorPickerSheet`; hasil dipersist via `TripRepository.setColor` / `HaulRepository.setColor`
     - _Requirements: 5.1, 5.2_
 
 - [ ] 13. Edit Marker_Category di Markers_List_Screen
-  - [ ] 13.1 Tambah method `MarkerRepository.updateCategory` dengan audit log
+  - [x] 13.1 Tambah method `MarkerRepository.updateCategory` dengan audit log
     - File: `app/lib/features/marker/data/marker_repository.dart`
     - `Future<void> updateCategory(String markerId, MarkerCategory category)`; throw `StateError` jika marker tidak ada
     - Log via `Logger` (`log.info('marker.category.change', {markerId, from, to})`) sebelum update (Requirement 5.10 audit)
@@ -343,23 +343,23 @@ Implementasi di-layer dari bawah ke atas: foundation utilities (pure functions &
     - On confirm panggil `markerRepositoryProvider.notifier.updateCategory(marker.id, selected)`
     - _Requirements: 5.4, 5.5_
 
-  - [ ] 13.5 Tambah menu "Ubah kategori" di item `_MarkerTile`
+  - [~] 13.5 Tambah menu "Ubah kategori" di item `_MarkerTile`
     - File: `app/lib/features/marker/presentation/markers_list_screen.dart`
     - Trailing `PopupMenuButton` pada `_MarkerTile` dengan entry "Ubah kategori" → panggil `EditMarkerCategorySheet`
     - _Requirements: 5.4, 5.5_
 
 - [ ] 14. Jump-to-location dari `MarkersListScreen`
-  - [ ] 14.1 Dukung query parameter `focusMarkerId` di router
+  - [~] 14.1 Dukung query parameter `focusMarkerId` di router
     - File: `app/lib/core/router/app_router.dart`
     - Pada route `/` (Map), baca `state.uri.queryParameters['focusMarkerId']` dan teruskan ke `MapScreen(focusMarkerId: ...)`
     - _Requirements: 5.7, 5.8_
 
-  - [ ] 14.2 Ubah `_MarkerTile` menjadi tap-to-locate
+  - [~] 14.2 Ubah `_MarkerTile` menjadi tap-to-locate
     - File: `app/lib/features/marker/presentation/markers_list_screen.dart`
     - Bungkus tile dengan `InkWell(onTap: () => context.go('/?focusMarkerId=${marker.id}'))`
     - _Requirements: 5.7_
 
-  - [ ] 14.3 Implement focus behavior di `MapScreen`
+  - [~] 14.3 Implement focus behavior di `MapScreen`
     - File: `app/lib/features/map/presentation/map_screen.dart`
     - Tambah parameter `final String? focusMarkerId`; pada `initState` atau `postFrameCallback` pertama: fetch marker via `ref.read(markerByIdProvider(focusMarkerId!))`
     - Jika ditemukan: `_mapController.move(marker.latLng, max(15, currentZoom))`, set `markersOverlayEnabledProvider = true`, trigger popup info marker
@@ -372,7 +372,7 @@ Implementasi di-layer dari bawah ke atas: foundation utilities (pure functions &
     - File baru: `app/test/features/map/presentation/jump_to_location_test.dart`
     - Generator `AppMarker` posisi acak dan `initialMode ∈ MapMode.values`; assert `|center − marker.latLng| <= 1e-6`, `zoom >= 15`, `markersOverlayEnabledProvider == true`, dan mode akhir sesuai `deriveMapMode` (idle bila tracking & navigating false)
 
-- [ ] 15. Final checkpoint — Ensure all tests pass
+- [~] 15. Final checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

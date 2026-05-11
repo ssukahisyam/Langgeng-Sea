@@ -73,7 +73,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -121,6 +121,14 @@ class AppDatabase extends _$AppDatabase {
           if (from < 6) {
             await m.createTable(appSettingsTable);
             await _seedAppSettings();
+          }
+          // v6 → v7 adds trips.color_value (PR #21 — per-Trip
+          // polyline colour). Mirrors the earlier v4→v5 migration
+          // that added hauls.color_value; existing trips keep
+          // colour_value = NULL which falls back to the order-index
+          // palette via AppColors.resolveHaulColor.
+          if (from < 7) {
+            await m.addColumn(trips, trips.colorValue);
           }
         },
       );

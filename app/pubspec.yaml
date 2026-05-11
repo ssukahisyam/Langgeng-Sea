@@ -18,6 +18,7 @@ dependencies:
   google_fonts: ^6.2.1
   phosphor_flutter: ^2.1.0
   fl_chart: ^0.68.0
+  flutter_colorpicker: ^1.1.0
 
   # State management
   flutter_riverpod: ^2.5.1
@@ -37,6 +38,11 @@ dependencies:
   flutter_background_service: ^5.0.10
   flutter_background_service_android: ^6.2.7
   flutter_local_notifications: ^17.2.3
+
+  # Device info — used by TrackingPermissionFlow to read Android SDK
+  # level (so we can gate ACCESS_BACKGROUND_LOCATION on API 29+ and
+  # POST_NOTIFICATIONS on API 33+). See Requirement 1 AC 5, 6, 10.
+  device_info_plus: ^10.1.2
 
   # Navigation (M11) — TTS for "sudah sampai" voice alerts. flutter_tts
   # is a thin wrapper over the platform TTS engine (Android

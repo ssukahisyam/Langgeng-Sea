@@ -14,6 +14,13 @@ class Trips extends Table {
   TextColumn get homePort => text().nullable()();
   TextColumn get notes => text().nullable()();
 
+  /// Optional user-picked color for this trip's polyline in history &
+  /// map overlays. Stored as an ARGB32 int. `null` = "use palette
+  /// fallback" (resolveHaulColor picks per haul from
+  /// [AppColors.haulColors] by order index). Mirrors
+  /// [Hauls.colorValue]. Added in schema v7.
+  IntColumn get colorValue => integer().nullable()();
+
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
