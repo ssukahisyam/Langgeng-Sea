@@ -93,7 +93,7 @@ class _AddMarkerDialogState extends State<AddMarkerDialog> {
 
             // Kategori
             DropdownButtonFormField<MarkerCategory>(
-              initialValue: _category,
+              value: _category,
               decoration: const InputDecoration(
                 labelText: 'Kategori',
                 border: OutlineInputBorder(),
