@@ -209,15 +209,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   Future<void> _focusOnTrip(String tripId) async {
     try {
-      ref.read(mapModeProvider.notifier).state = MapMode.viewingHistory;
       ref.read(mapOverlayControllerProvider.notifier).showTrip(tripId);
       final tripRender = await ref.read(tripRenderProvider(tripId).future);
       if (mounted && tripRender.bounds != null) {
         setState(() => _followingUser = false);
-        _cameraController.fitBounds(
-          tripRender.bounds!,
-          padding: const EdgeInsets.all(AppSizes.sp5),
-        );
+        _cameraController.fitCameraExplicit(tripRender.bounds!);
       }
     } catch (e) {
       // Trip not found or provider error, ignore.
@@ -226,15 +222,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   Future<void> _focusOnHaul(String haulId) async {
     try {
-      ref.read(mapModeProvider.notifier).state = MapMode.viewingHistory;
       ref.read(mapOverlayControllerProvider.notifier).showHaul(haulId);
       final haulRender = await ref.read(haulRenderProvider(haulId).future);
       if (mounted && haulRender.bounds != null) {
         setState(() => _followingUser = false);
-        _cameraController.fitBounds(
-          haulRender.bounds!,
-          padding: const EdgeInsets.all(AppSizes.sp5),
-        );
+        _cameraController.fitCameraExplicit(haulRender.bounds!);
       }
     } catch (e) {
       // Haul not found or provider error, ignore.
