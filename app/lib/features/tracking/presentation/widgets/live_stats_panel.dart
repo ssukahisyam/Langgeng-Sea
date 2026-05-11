@@ -21,145 +21,178 @@ class LiveStatsPanel extends ConsumerStatefulWidget {
   ConsumerState<LiveStatsPanel> createState() => _LiveStatsPanelState();
 }
 
-class _LiveStatsPanelState extends ConsumerState<LiveStatsPanel> {
+class _LiveStatsPanelState extends ConsumerState<LiveStatsPanel>
+    with SingleTickerProviderStateMixin {
   Timer? _ticker;
+  late final AnimationController _pulseController;
 
   @override
   void initState() {
     super.initState();
-    // 1 Hz tick so the duration counter keeps incrementing between GPS
-    // fixes. Cheap — it only calls setState.
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
   }
 
   @override
   void dispose() {
     _ticker?.cancel();
+    _pulseController.dispose();
     super.dispose();
   }
 
-  static String _formatDistanceKm(double meters) {
-    if (meters.isNaN || meters.isInfinite) return '— km';
-    final km = meters / 1000.0;
-    return '${km.toStringAsFixed(2)} km';
+  static String _formatDistanceM(double meters) {
+    if (meters.isNaN || meters.isInfinite) return '— m';
+    return '${meters.toStringAsFixed(0)} m';
   }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(trackingControllerProvider);
     final tokens = context.tokens;
+    final text = context.text;
 
     final haul = state.haul;
-    final duration = haul == null
-        ? Duration.zero
-        : DateTime.now().difference(haul.startedAt);
+    if (haul == null) return const SizedBox.shrink();
 
+    final duration = DateTime.now().difference(haul.startedAt);
+
+    return GlassCard(
+      level: GlassLevel.level3,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.sp3,
+        vertical: AppSizes.sp3,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Banner row
+          Row(
+            children: [
+              AnimatedBuilder(
+                animation: _pulseController,
+                builder: (_, __) {
+                  final t = _pulseController.value;
+                  final spread = 8 * (1 - t);
+                  return Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: tokens.danger,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: tokens.danger.withValues(alpha: (1 - t) * 0.6),
+                          blurRadius: spread,
+                          spreadRadius: spread * 0.3,
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(width: AppSizes.sp2),
+              Text(
+                'MEREKAM ${haul.displayName().toUpperCase()}',
+                style: text.labelMedium?.copyWith(
+                  color: tokens.danger,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const Spacer(),
+              Icon(PhosphorIconsBold.ruler, size: 14, color: tokens.textTertiary),
+              const SizedBox(width: 4),
+              Text(
+                '${haul.trawlWidthMeters.toStringAsFixed(0)} m',
+                style: text.bodySmall?.copyWith(
+                  color: tokens.textSecondary,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSizes.sp2),
+          Divider(color: tokens.border, height: 1),
+          const SizedBox(height: AppSizes.sp2),
+          // Stats row
+          Row(
+            children: [
+              Expanded(
+                child: _Stat(
+                  label: 'Durasi',
+                  value: Formatters.duration(duration),
+                ),
+              ),
+              _Sep(color: tokens.border),
+              Expanded(
+                child: _Stat(
+                  label: 'Jarak',
+                  value: _formatDistanceM(state.metrics.distanceMeters),
+                ),
+              ),
+              _Sep(color: tokens.border),
+              Expanded(
+                child: _Stat(
+                  label: 'Kecepatan',
+                  value: '${(state.metrics.currentSpeedKnots ?? 0.0).toStringAsFixed(1)} kn',
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Stat extends StatelessWidget {
+  const _Stat({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final text = context.text;
     return Column(
       mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: _Tile(
-                icon: PhosphorIconsBold.timer,
-                iconBg: tokens.accentSoft,
-                iconColor: context.colors.secondary,
-                value: Formatters.duration(duration),
-                label: 'Durasi',
-              ),
-            ),
-            const SizedBox(width: AppSizes.sp2),
-            Expanded(
-              child: _Tile(
-                icon: PhosphorIconsBold.ruler,
-                iconBg: tokens.primarySoft,
-                iconColor: context.colors.primary,
-                value: _formatDistanceKm(state.metrics.distanceMeters),
-                label: 'Jarak tempuh',
-              ),
-            ),
-          ],
+        Text(
+          label.toUpperCase(),
+          style: text.labelSmall?.copyWith(
+            color: tokens.textTertiary,
+            fontSize: 10,
+            letterSpacing: 0.5,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-        const SizedBox(height: AppSizes.sp2),
-        Row(
-          children: [
-            Expanded(
-              child: _Tile(
-                icon: PhosphorIconsBold.speedometer,
-                iconBg: tokens.primarySoft,
-                iconColor: context.colors.primary,
-                value: Formatters.knots(state.metrics.currentSpeedKnots),
-                label: 'Kecepatan terakhir',
-              ),
-            ),
-            const SizedBox(width: AppSizes.sp2),
-            // Empty expanded space to keep the speedometer tile the same width as the top row
-            const Expanded(child: SizedBox.shrink()),
-          ],
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: text.titleMedium?.copyWith(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
         ),
       ],
     );
   }
 }
 
-class _Tile extends StatelessWidget {
-  const _Tile({
-    required this.icon,
-    required this.iconBg,
-    required this.iconColor,
-    required this.value,
-    required this.label,
-  });
-
-  final IconData icon;
-  final Color iconBg;
-  final Color iconColor;
-  final String value;
-  final String label;
+class _Sep extends StatelessWidget {
+  const _Sep({required this.color});
+  final Color color;
 
   @override
-  Widget build(BuildContext context) {
-    final tokens = context.tokens;
-    final text = context.text;
-    return GlassCard(
-      level: GlassLevel.level1,
-      padding: const EdgeInsets.all(AppSizes.sp3 + 2),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: iconBg,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, size: 16, color: iconColor),
-          ),
-          const SizedBox(height: AppSizes.sp2),
-          Text(
-            value,
-            style: text.titleLarge?.copyWith(
-              fontWeight: FontWeight.w800,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: text.bodySmall?.copyWith(
-              color: tokens.textTertiary,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) =>
+      Container(width: 1, height: 28, color: color);
 }

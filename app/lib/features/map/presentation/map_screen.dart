@@ -43,7 +43,6 @@ import '../../tracking/domain/entities/trip.dart';
 import '../../tracking/presentation/widgets/active_haul_polyline.dart';
 import '../../tracking/presentation/widgets/haul_summary_sheet.dart';
 import '../../tracking/presentation/widgets/live_stats_panel.dart';
-import '../../tracking/presentation/widgets/recording_banner.dart';
 import '../application/all_history_visible_provider.dart';
 import '../application/current_reading_provider.dart';
 import '../application/history_overlay_providers.dart';
@@ -826,11 +825,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
               right: AppSizes.sp4,
               child: Column(
                 children: [
-                  isRecording ? const RecordingBanner() : _IdleAppBar(),
-                  if (isRecording) ...[
-                    const SizedBox(height: AppSizes.sp2),
-                    const LiveStatsPanel(),
-                  ],
+                  if (isRecording)
+                    const LiveStatsPanel()
+                  else
+                    _IdleAppBar(),
                   if (overlayActive && overlayAsync != null) ...[
                     const SizedBox(height: AppSizes.sp2),
                     _OverlayContextChip(
@@ -1396,46 +1394,18 @@ class _ActionPanel extends StatelessWidget {
     final text = context.text;
 
     if (isRecording) {
-      final haul = state.haul!;
-      return GlassCard(
-        level: GlassLevel.level2,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('${haul.displayName()} aktif',
-                          style: text.titleMedium,),
-                      const SizedBox(height: 2),
-                      Text(
-                        'GPS sedang merekam jejak trawl',
-                        style: text.bodySmall?.copyWith(
-                          color: tokens.textTertiary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSizes.sp3),
-            Semantics(
-              label: 'Berhenti tracking',
-              button: true,
-              child: PrimaryActionButton(
-                label: 'Berhenti tracking',
-                icon: PhosphorIconsFill.stopCircle,
-                variant: ActionButtonVariant.danger,
-                critical: true,
-                onPressed: onStop,
-              ),
-            ),
-          ],
+      return SafeArea(
+        top: false,
+        child: Semantics(
+          label: 'Berhenti tracking',
+          button: true,
+          child: PrimaryActionButton(
+            label: 'Berhenti tracking',
+            icon: PhosphorIconsFill.stopCircle,
+            variant: ActionButtonVariant.danger,
+            critical: true,
+            onPressed: onStop,
+          ),
         ),
       );
     }
