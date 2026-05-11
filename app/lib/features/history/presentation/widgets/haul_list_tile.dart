@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -29,11 +28,8 @@ class HaulListTile extends ConsumerWidget {
     final text = context.text;
     final tokens = context.tokens;
     final color = AppColors.colorForHaul(haul.orderIndex);
-    final hasLog = ref
-            .watch(logBookByHaulProvider(haul.id))
-            .asData
-            ?.value !=
-        null;
+    final hasLog =
+        ref.watch(logBookByHaulProvider(haul.id)).asData?.value != null;
 
     return GlassCard(
       level: GlassLevel.level2,
@@ -132,9 +128,8 @@ class HaulListTile extends ConsumerWidget {
   String _subtitle() {
     final parts = <String>[];
     final started = Formatters.wallClock(haul.startedAt);
-    final ended = haul.endedAt != null
-        ? Formatters.wallClock(haul.endedAt!)
-        : '…';
+    final ended =
+        haul.endedAt != null ? Formatters.wallClock(haul.endedAt!) : '…';
     parts.add('$started - $ended');
     parts.add(Formatters.distance(haul.distanceMeters));
     if (haul.avgSpeedKnots != null) {

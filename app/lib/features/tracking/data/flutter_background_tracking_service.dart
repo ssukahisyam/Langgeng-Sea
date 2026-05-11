@@ -167,18 +167,15 @@ Future<void> onBackgroundStart(ServiceInstance service) async {
             latitude: position.latitude,
             longitude: position.longitude,
             timestamp: position.timestamp,
-            speedMps:
-                position.speed.isFinite && position.speed >= 0
-                    ? position.speed
-                    : null,
-            headingDegrees:
-                position.heading.isFinite && position.heading != 0.0
-                    ? position.heading
-                    : null,
-            accuracyMeters:
-                position.accuracy.isFinite && position.accuracy > 0
-                    ? position.accuracy
-                    : null,
+            speedMps: position.speed.isFinite && position.speed >= 0
+                ? position.speed
+                : null,
+            headingDegrees: position.heading.isFinite && position.heading != 0.0
+                ? position.heading
+                : null,
+            accuracyMeters: position.accuracy.isFinite && position.accuracy > 0
+                ? position.accuracy
+                : null,
             altitudeMeters:
                 position.altitude.isFinite ? position.altitude : null,
           );

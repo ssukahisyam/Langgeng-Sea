@@ -74,8 +74,7 @@ class IdleControls extends ConsumerWidget {
                     ? 'Sembunyikan jejak riwayat'
                     : 'Tampilkan semua riwayat',
                 onTap: () {
-                  final notifier =
-                      ref.read(allHistoryVisibleProvider.notifier);
+                  final notifier = ref.read(allHistoryVisibleProvider.notifier);
                   notifier.state = !notifier.state;
                 },
               ),

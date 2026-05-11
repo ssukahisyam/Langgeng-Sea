@@ -36,7 +36,6 @@ class AppTheme {
         size: 24,
       ),
       dividerColor: AppColors.lightDivider,
-
       appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
@@ -48,7 +47,6 @@ class AppTheme {
           AppColors.lightTextSecondary,
         ).headlineSmall,
       ),
-
       extensions: const <ThemeExtension<dynamic>>[_lightTokens],
     );
   }
@@ -81,7 +79,6 @@ class AppTheme {
         size: 24,
       ),
       dividerColor: AppColors.darkDivider,
-
       appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
@@ -93,7 +90,6 @@ class AppTheme {
           AppColors.darkTextSecondary,
         ).headlineSmall,
       ),
-
       extensions: const <ThemeExtension<dynamic>>[_darkTokens],
     );
   }

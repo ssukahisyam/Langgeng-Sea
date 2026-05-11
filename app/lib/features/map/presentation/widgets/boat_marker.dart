@@ -75,7 +75,8 @@ class _BoatMarkerState extends State<BoatMarker>
     final rotate = widget.reading?.hasReliableHeading ?? false;
     final rotationRadians = rotate ? (heading! * math.pi / 180.0) : 0.0;
 
-    final haloColor = widget.isTracking ? tokens.danger : context.colors.primary;
+    final haloColor =
+        widget.isTracking ? tokens.danger : context.colors.primary;
 
     return SizedBox(
       width: widget.size * 1.6,

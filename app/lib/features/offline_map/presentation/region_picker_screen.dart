@@ -28,8 +28,7 @@ class RegionPickerScreen extends ConsumerStatefulWidget {
   const RegionPickerScreen({super.key});
 
   @override
-  ConsumerState<RegionPickerScreen> createState() =>
-      _RegionPickerScreenState();
+  ConsumerState<RegionPickerScreen> createState() => _RegionPickerScreenState();
 }
 
 class _RegionPickerScreenState extends ConsumerState<RegionPickerScreen> {
@@ -81,11 +80,12 @@ class _RegionPickerScreenState extends ConsumerState<RegionPickerScreen> {
     final bounds = _currentSelection;
     if (bounds == null) return;
 
-    final estimate = ref.read(offlineDownloadControllerProvider.notifier).estimate(
-          bounds: bounds,
-          minZoom: _defaultMinZoom,
-          maxZoom: _defaultMaxZoom,
-        );
+    final estimate =
+        ref.read(offlineDownloadControllerProvider.notifier).estimate(
+              bounds: bounds,
+              minZoom: _defaultMinZoom,
+              maxZoom: _defaultMaxZoom,
+            );
 
     final result = await showModalBottomSheet<_DownloadConfig>(
       context: context,
@@ -131,75 +131,77 @@ class _RegionPickerScreenState extends ConsumerState<RegionPickerScreen> {
             style: text.titleLarge?.copyWith(fontWeight: FontWeight.w800),
           ),
         ),
-        body: LayoutBuilder(builder: (context, constraints) {
-          _viewportSize = constraints.biggest;
-          WidgetsBinding.instance
-              .addPostFrameCallback((_) => _recomputeBounds());
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            _viewportSize = constraints.biggest;
+            WidgetsBinding.instance
+                .addPostFrameCallback((_) => _recomputeBounds());
 
-          return Stack(
-            children: [
-              // Map
-              Positioned.fill(
-                child: FlutterMap(
-                  mapController: _map,
-                  options: MapOptions(
-                    initialCenter: const LatLng(-7.25, 113.42),
-                    initialZoom: 9,
-                    minZoom: 3,
-                    maxZoom: 16,
-                    onMapEvent: (_) => _recomputeBounds(),
-                    interactionOptions: const InteractionOptions(
-                      flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+            return Stack(
+              children: [
+                // Map
+                Positioned.fill(
+                  child: FlutterMap(
+                    mapController: _map,
+                    options: MapOptions(
+                      initialCenter: const LatLng(-7.25, 113.42),
+                      initialZoom: 9,
+                      minZoom: 3,
+                      maxZoom: 16,
+                      onMapEvent: (_) => _recomputeBounds(),
+                      interactionOptions: const InteractionOptions(
+                        flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                      ),
                     ),
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate: TileEndpoints.osm,
-                      userAgentPackageName: TileEndpoints.userAgent,
-                      maxNativeZoom: 19,
-                      retinaMode: RetinaMode.isHighDensity(context),
-                      tileProvider: ref
-                          .read(tileCacheServiceProvider)
-                          .cachedTileProvider(
-                            userAgentPackageName: TileEndpoints.userAgent,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Dimmed overlay + selection cutout
-              IgnorePointer(
-                child: CustomPaint(
-                  size: constraints.biggest,
-                  painter: _SelectionOverlayPainter(
-                    selectionRect: Rect.fromLTRB(
-                      _horizontalInset,
-                      _topInset,
-                      constraints.maxWidth - _horizontalInset,
-                      constraints.maxHeight - _bottomInset,
-                    ),
-                    borderColor: context.colors.primary,
-                    shadeColor: tokens.shadowMd.withValues(alpha: 0.45),
+                    children: [
+                      TileLayer(
+                        urlTemplate: TileEndpoints.osm,
+                        userAgentPackageName: TileEndpoints.userAgent,
+                        maxNativeZoom: 19,
+                        retinaMode: RetinaMode.isHighDensity(context),
+                        tileProvider: ref
+                            .read(tileCacheServiceProvider)
+                            .cachedTileProvider(
+                              userAgentPackageName: TileEndpoints.userAgent,
+                            ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
 
-              // Config panel at the bottom
-              Positioned(
-                left: AppSizes.sp4,
-                right: AppSizes.sp4,
-                bottom: AppSizes.sp4,
-                child: _ConfigPanel(
-                  bounds: _currentSelection,
-                  onContinue: _openDownloadSheet,
-                  minZoom: _defaultMinZoom,
-                  maxZoom: _defaultMaxZoom,
+                // Dimmed overlay + selection cutout
+                IgnorePointer(
+                  child: CustomPaint(
+                    size: constraints.biggest,
+                    painter: _SelectionOverlayPainter(
+                      selectionRect: Rect.fromLTRB(
+                        _horizontalInset,
+                        _topInset,
+                        constraints.maxWidth - _horizontalInset,
+                        constraints.maxHeight - _bottomInset,
+                      ),
+                      borderColor: context.colors.primary,
+                      shadeColor: tokens.shadowMd.withValues(alpha: 0.45),
+                    ),
+                  ),
                 ),
-              ),
-            ],
-          );
-        },),
+
+                // Config panel at the bottom
+                Positioned(
+                  left: AppSizes.sp4,
+                  right: AppSizes.sp4,
+                  bottom: AppSizes.sp4,
+                  child: _ConfigPanel(
+                    bounds: _currentSelection,
+                    onContinue: _openDownloadSheet,
+                    minZoom: _defaultMinZoom,
+                    maxZoom: _defaultMaxZoom,
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -233,8 +235,12 @@ class _SelectionOverlayPainter extends CustomPainter {
     // Shade everything outside the selection using even-odd fill.
     final full = ui.Path()..addRect(Offset.zero & size);
     final inner = ui.Path()
-      ..addRRect(RRect.fromRectAndRadius(selectionRect,
-          const Radius.circular(AppSizes.radiusMd),),);
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          selectionRect,
+          const Radius.circular(AppSizes.radiusMd),
+        ),
+      );
     final shade = ui.Path.combine(ui.PathOperation.difference, full, inner);
     canvas.drawPath(shade, Paint()..color = shadeColor);
 
@@ -245,7 +251,9 @@ class _SelectionOverlayPainter extends CustomPainter {
       ..color = borderColor;
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-          selectionRect, const Radius.circular(AppSizes.radiusMd),),
+        selectionRect,
+        const Radius.circular(AppSizes.radiusMd),
+      ),
       border,
     );
 
@@ -332,9 +340,8 @@ class _ConfigPanel extends ConsumerWidget {
                 child: _EstimateTile(
                   icon: PhosphorIconsRegular.stack,
                   label: 'Tile',
-                  value: estimate == null
-                      ? '—'
-                      : _countHuman(estimate.tileCount),
+                  value:
+                      estimate == null ? '—' : _countHuman(estimate.tileCount),
                 ),
               ),
             ],
@@ -342,8 +349,11 @@ class _ConfigPanel extends ConsumerWidget {
           const SizedBox(height: AppSizes.sp3),
           Row(
             children: [
-              Icon(PhosphorIconsRegular.info,
-                  size: 14, color: tokens.textTertiary,),
+              Icon(
+                PhosphorIconsRegular.info,
+                size: 14,
+                color: tokens.textTertiary,
+              ),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
@@ -590,8 +600,11 @@ class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
             ),
             Row(
               children: [
-                Icon(PhosphorIconsRegular.database,
-                    size: 14, color: tokens.textTertiary,),
+                Icon(
+                  PhosphorIconsRegular.database,
+                  size: 14,
+                  color: tokens.textTertiary,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   _formatEstimate(newEstimate),

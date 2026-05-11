@@ -55,15 +55,17 @@ class MarkerRepository {
       createdAt: now,
     );
 
-    await _dao.insertMarker(MarkersCompanion.insert(
-      id: marker.id,
-      name: marker.name,
-      category: marker.category.storageKey,
-      latitude: marker.latitude,
-      longitude: marker.longitude,
-      notes: Value(marker.notes),
-      createdAt: now,
-    ),);
+    await _dao.insertMarker(
+      MarkersCompanion.insert(
+        id: marker.id,
+        name: marker.name,
+        category: marker.category.storageKey,
+        latitude: marker.latitude,
+        longitude: marker.longitude,
+        notes: Value(marker.notes),
+        createdAt: now,
+      ),
+    );
 
     return marker;
   }

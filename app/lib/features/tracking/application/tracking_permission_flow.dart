@@ -84,8 +84,7 @@ class RealPermissionHandler implements PermissionHandler {
   int? _cachedSdkInt;
 
   @override
-  Future<PermissionStatus> checkFineLocation() =>
-      Permission.location.status;
+  Future<PermissionStatus> checkFineLocation() => Permission.location.status;
 
   @override
   Future<PermissionStatus> requestFineLocation() =>

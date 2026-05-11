@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -120,8 +119,7 @@ class LongPressMenu extends StatelessWidget {
               icon: const Icon(PhosphorIconsBold.mapPinPlus, size: 18),
               label: const Text('Tambah penanda di sini'),
               style: OutlinedButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(vertical: AppSizes.sp3),
+                padding: const EdgeInsets.symmetric(vertical: AppSizes.sp3),
               ),
             ),
             const SizedBox(height: AppSizes.sp1),

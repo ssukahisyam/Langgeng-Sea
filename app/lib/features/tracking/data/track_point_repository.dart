@@ -50,20 +50,17 @@ class TrackPointRepository {
   Future<int> countForHaul(String haulId) => _dao.countForHaul(haulId);
 }
 
-final trackPointRepositoryProvider =
-    Provider<TrackPointRepository>((ref) {
+final trackPointRepositoryProvider = Provider<TrackPointRepository>((ref) {
   final db = ref.watch(appDatabaseProvider);
   return TrackPointRepository(db);
 });
 
 /// Watches the points of a specific haul. Used by the haul detail screen
 /// to render the polyline even while a haul is still recording.
-final trackPointsByHaulProvider = StreamProvider.family
-    .autoDispose<List<TrackPoint>, String>((ref, haulId) {
+final trackPointsByHaulProvider =
+    StreamProvider.family.autoDispose<List<TrackPoint>, String>((ref, haulId) {
   return ref.watch(trackPointRepositoryProvider).watchByHaul(haulId);
 });
-
-
 
 /// Loads every point of every haul belonging to [tripId].
 ///

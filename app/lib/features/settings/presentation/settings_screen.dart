@@ -159,7 +159,11 @@ class SettingsScreen extends ConsumerWidget {
                         ? null
                         : () => context.push(AppRoutes.profileEdit),
                   ),
-                  Divider(color: tokens.border, height: 1, indent: 16, endIndent: 16),
+                  Divider(
+                      color: tokens.border,
+                      height: 1,
+                      indent: 16,
+                      endIndent: 16),
                   _SettingsTile(
                     iconColor: context.colors.primary,
                     iconBg: tokens.primarySoft,
@@ -168,7 +172,11 @@ class SettingsScreen extends ConsumerWidget {
                     subtitle: 'Download tile agar peta jalan tanpa sinyal',
                     onTap: () => context.push(AppRoutes.offlineMap),
                   ),
-                  Divider(color: tokens.border, height: 1, indent: 16, endIndent: 16),
+                  Divider(
+                      color: tokens.border,
+                      height: 1,
+                      indent: 16,
+                      endIndent: 16),
                   _SettingsTile(
                     iconColor: context.colors.secondary,
                     iconBg: tokens.accentSoft,
@@ -208,7 +216,8 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                   Text(
                     AppStrings.tagline,
-                    style: text.labelSmall?.copyWith(color: tokens.textTertiary),
+                    style:
+                        text.labelSmall?.copyWith(color: tokens.textTertiary),
                   ),
                 ],
               ),

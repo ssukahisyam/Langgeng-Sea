@@ -16,11 +16,9 @@ class AppSettingsRepository {
   /// Reactive read. UI (ProfileEditScreen switches) + domain layer
   /// (NavigationController's alarm dispatch) both subscribe via the
   /// Riverpod provider below.
-  Stream<AppSettings> watch() =>
-      _dao.watchSingle().map(_fromRow);
+  Stream<AppSettings> watch() => _dao.watchSingle().map(_fromRow);
 
-  Future<void> setSoundEnabled(bool value) =>
-      _dao.updateSoundEnabled(value);
+  Future<void> setSoundEnabled(bool value) => _dao.updateSoundEnabled(value);
 
   Future<void> setVibrateEnabled(bool value) =>
       _dao.updateVibrateEnabled(value);

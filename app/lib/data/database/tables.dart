@@ -33,8 +33,12 @@ class Trips extends Table {
 class Hauls extends Table {
   TextColumn get id => text()();
 
-  TextColumn get tripId => text().references(Trips, #id,
-      onUpdate: KeyAction.cascade, onDelete: KeyAction.cascade,)();
+  TextColumn get tripId => text().references(
+        Trips,
+        #id,
+        onUpdate: KeyAction.cascade,
+        onDelete: KeyAction.cascade,
+      )();
 
   TextColumn get name => text().nullable()();
 
@@ -51,10 +55,8 @@ class Hauls extends Table {
   RealColumn get trawlWidthMeters => real().withDefault(const Constant(20.0))();
 
   // Denormalized metrics. Updated on stop so list views don't re-aggregate.
-  RealColumn get distanceMeters =>
-      real().withDefault(const Constant(0))();
-  IntColumn get durationSeconds =>
-      integer().withDefault(const Constant(0))();
+  RealColumn get distanceMeters => real().withDefault(const Constant(0))();
+  IntColumn get durationSeconds => integer().withDefault(const Constant(0))();
   RealColumn get avgSpeedKnots => real().nullable()();
   RealColumn get avgHeadingDegrees => real().nullable()();
   RealColumn get sweptAreaM2 => real().withDefault(const Constant(0))();
@@ -80,8 +82,12 @@ class Hauls extends Table {
 class TrackPoints extends Table {
   IntColumn get id => integer().autoIncrement()();
 
-  TextColumn get haulId => text().references(Hauls, #id,
-      onUpdate: KeyAction.cascade, onDelete: KeyAction.cascade,)();
+  TextColumn get haulId => text().references(
+        Hauls,
+        #id,
+        onUpdate: KeyAction.cascade,
+        onDelete: KeyAction.cascade,
+      )();
 
   RealColumn get latitude => real()();
   RealColumn get longitude => real()();
@@ -117,8 +123,7 @@ class OfflineRegions extends Table {
 
   IntColumn get estimatedTileCount =>
       integer().withDefault(const Constant(0))();
-  IntColumn get actualTileCount =>
-      integer().withDefault(const Constant(0))();
+  IntColumn get actualTileCount => integer().withDefault(const Constant(0))();
   IntColumn get sizeBytes => integer().withDefault(const Constant(0))();
 
   TextColumn get lastError => text().nullable()();
@@ -129,7 +134,6 @@ class OfflineRegions extends Table {
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
-
 
 /// Log book entry — satu catatan hasil tangkap, cuaca, BBM, dll.
 /// Bisa per trip atau per haul (ditentukan oleh field scope).
@@ -157,8 +161,12 @@ class LogBookEntries extends Table {
 class CatchItems extends Table {
   TextColumn get id => text()();
 
-  TextColumn get logBookEntryId => text().references(LogBookEntries, #id,
-      onUpdate: KeyAction.cascade, onDelete: KeyAction.cascade,)();
+  TextColumn get logBookEntryId => text().references(
+        LogBookEntries,
+        #id,
+        onUpdate: KeyAction.cascade,
+        onDelete: KeyAction.cascade,
+      )();
 
   TextColumn get species => text()();
   RealColumn get weightKg => real().nullable()();
@@ -182,7 +190,6 @@ class Markers extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
-
 /// Profil pengguna — single-row table (MVP hanya mendukung satu profil).
 ///
 /// Ditulis oleh onboarding (M8) dan bisa diedit dari layar Pengaturan.
@@ -194,15 +201,13 @@ class UserProfiles extends Table {
   TextColumn get vesselName => text()();
   RealColumn get vesselGt => real().nullable()();
   TextColumn get homePort => text().nullable()();
-  RealColumn get trawlWidthMeters =>
-      real().withDefault(const Constant(20.0))();
+  RealColumn get trawlWidthMeters => real().withDefault(const Constant(20.0))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
-
 
 /// Preferensi aplikasi per-device (bukan per-user). Mirip pola
 /// [UserProfiles]: baris tunggal dengan `id` dipatok ke 1, sehingga

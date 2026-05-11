@@ -56,7 +56,9 @@ class LseaJsonExporter {
       'status': trip.status.name,
       'homePort': trip.homePort,
       'notes': trip.notes,
-      'hauls': hauls.map((h) => _haulToJson(h, pointsByHaul, logBookByHaul)).toList(),
+      'hauls': hauls
+          .map((h) => _haulToJson(h, pointsByHaul, logBookByHaul))
+          .toList(),
     };
   }
 

@@ -30,14 +30,12 @@ class TripDao extends DatabaseAccessor<AppDatabase> with _$TripDaoMixin {
   }
 
   Future<List<TripRow>> findAll() {
-    return (select(trips)
-          ..orderBy([(t) => OrderingTerm.desc(t.startedAt)]))
+    return (select(trips)..orderBy([(t) => OrderingTerm.desc(t.startedAt)]))
         .get();
   }
 
   Stream<List<TripRow>> watchAll() {
-    return (select(trips)
-          ..orderBy([(t) => OrderingTerm.desc(t.startedAt)]))
+    return (select(trips)..orderBy([(t) => OrderingTerm.desc(t.startedAt)]))
         .watch();
   }
 

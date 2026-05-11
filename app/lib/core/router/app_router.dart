@@ -63,7 +63,8 @@ abstract class AppRoutes {
 }
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
-final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
+final GlobalKey<NavigatorState> _shellNavigatorKey =
+    GlobalKey<NavigatorState>();
 
 /// Provider-backed router so redirect logic can watch the user profile.
 ///
@@ -91,8 +92,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       final profile = profileAsync.value;
       final loc = state.matchedLocation;
-      final inOnboarding = loc == AppRoutes.onboarding ||
-          loc == AppRoutes.profileForm;
+      final inOnboarding =
+          loc == AppRoutes.onboarding || loc == AppRoutes.profileForm;
 
       if (profile == null && !inOnboarding) {
         return AppRoutes.onboarding;
@@ -111,8 +112,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: AppRoutes.map,
             pageBuilder: (context, state) {
-              final focusId = state.uri.queryParameters['focusMarkerId'];
-              return _noTransition(MapScreen(focusMarkerId: focusId));
+              final focusMarkerId = state.uri.queryParameters['focusMarkerId'];
+              final focusTripId = state.uri.queryParameters['focusTripId'];
+              final focusHaulId = state.uri.queryParameters['focusHaulId'];
+              return _noTransition(MapScreen(
+                focusMarkerId: focusMarkerId,
+                focusTripId: focusTripId,
+                focusHaulId: focusHaulId,
+              ));
             },
           ),
           GoRoute(

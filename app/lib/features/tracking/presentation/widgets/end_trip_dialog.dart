@@ -62,9 +62,7 @@ class _EndTripDialogState extends ConsumerState<EndTripDialog> {
     setState(() => _saving = true);
     final typed = _ctl.text.trim();
     final name = typed.isEmpty ? null : typed;
-    await ref
-        .read(tripRepositoryProvider)
-        .rename(widget.tripId, name);
+    await ref.read(tripRepositoryProvider).rename(widget.tripId, name);
     if (!mounted) return;
     Navigator.of(context).pop(true);
   }
@@ -109,8 +107,7 @@ class _EndTripDialogState extends ConsumerState<EndTripDialog> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                borderSide:
-                    BorderSide(color: context.colors.primary, width: 2),
+                borderSide: BorderSide(color: context.colors.primary, width: 2),
               ),
             ),
           ),

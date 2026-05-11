@@ -101,8 +101,8 @@ class _GotoDashedLayer extends StatelessWidget {
         for (final seg in dashes)
           Polyline(
             points: seg,
-            strokeWidth: 3,
-            color: color.withValues(alpha: 0.85),
+            strokeWidth: 6.0,
+            color: color.withValues(alpha: 0.95),
           ),
       ],
     );

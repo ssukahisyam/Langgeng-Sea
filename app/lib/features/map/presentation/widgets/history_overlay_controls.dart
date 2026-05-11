@@ -112,8 +112,7 @@ class HistoryOverlayControls extends ConsumerWidget {
             icon: PhosphorIconsBold.arrowsOut,
             tooltip: 'Paskan semua',
             onTap: () {
-              final bounds =
-                  overlayAsync.asData?.value.bounds;
+              final bounds = overlayAsync.asData?.value.bounds;
               if (bounds != null) {
                 cameraController.fitCameraExplicit(bounds);
               }

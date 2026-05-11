@@ -93,7 +93,7 @@ class _HistoryPolylineLayerState extends State<HistoryPolylineLayer> {
         polylines.add(
           Polyline<HaulTrackRender>(
             points: track.points,
-            strokeWidth: 4,
+            strokeWidth: 5.0,
             color: color.withValues(alpha: 0.55),
             hitValue: track,
           ),
@@ -105,7 +105,7 @@ class _HistoryPolylineLayerState extends State<HistoryPolylineLayer> {
         polylines.add(
           Polyline<HaulTrackRender>(
             points: track.points,
-            strokeWidth: 7,
+            strokeWidth: 9.0,
             color: borderColor.withValues(alpha: 0.70),
             hitValue: track,
           ),
@@ -114,9 +114,9 @@ class _HistoryPolylineLayerState extends State<HistoryPolylineLayer> {
         polylines.add(
           Polyline<HaulTrackRender>(
             points: track.points,
-            strokeWidth: 4.5,
+            strokeWidth: 6.0,
             color: color.withValues(alpha: 1.0),
-            borderStrokeWidth: 0.8,
+            borderStrokeWidth: 1.0,
             borderColor: Colors.white.withValues(alpha: 0.55),
             hitValue: track,
           ),

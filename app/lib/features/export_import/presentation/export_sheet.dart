@@ -81,7 +81,8 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
 
             // Trip preview info
             Text(
-              widget.trip.name ?? 'Trip ${widget.trip.startedAt.day}/${widget.trip.startedAt.month}/${widget.trip.startedAt.year}',
+              widget.trip.name ??
+                  'Trip ${widget.trip.startedAt.day}/${widget.trip.startedAt.month}/${widget.trip.startedAt.year}',
               style: textTheme.bodyMedium?.copyWith(
                 color: tokens.textSecondary,
               ),

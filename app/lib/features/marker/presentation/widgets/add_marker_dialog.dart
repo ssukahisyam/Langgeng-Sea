@@ -99,10 +99,12 @@ class _AddMarkerDialogState extends State<AddMarkerDialog> {
                 border: OutlineInputBorder(),
               ),
               items: MarkerCategory.values
-                  .map((cat) => DropdownMenuItem(
-                        value: cat,
-                        child: Text(cat.displayLabel),
-                      ),)
+                  .map(
+                    (cat) => DropdownMenuItem(
+                      value: cat,
+                      child: Text(cat.displayLabel),
+                    ),
+                  )
                   .toList(),
               onChanged: (val) {
                 if (val != null) setState(() => _category = val);

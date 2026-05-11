@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -93,9 +94,8 @@ class _AppShellState extends State<AppShell> {
     // Direction for the tab transition. +1 = user moved right (new
     // tab slides in from the right), -1 = moved left. We snapshot here
     // because the next build might show a different index.
-    final direction = currentIndex == _prevIndex
-        ? 0
-        : (currentIndex > _prevIndex ? 1 : -1);
+    final direction =
+        currentIndex == _prevIndex ? 0 : (currentIndex > _prevIndex ? 1 : -1);
     _prevIndex = currentIndex;
 
     final mq = MediaQuery.of(context);
@@ -149,41 +149,40 @@ class _NavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Opaque fill so we don't need BackdropFilter. Composite the glass-3
-    // alpha token against the scaffold background to keep a consistent
-    // hue in both themes.
-    final fill = Color.alphaBlend(
-      tokens.surface3,
-      Theme.of(context).scaffoldBackgroundColor,
-    );
-
-    return Container(
-      decoration: BoxDecoration(
-        color: fill,
-        borderRadius: BorderRadius.circular(AppSizes.radiusXl),
-        border: Border.all(color: tokens.borderStrong),
-        boxShadow: [
-          BoxShadow(
-            color: tokens.shadowMd,
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      height: _kNavBarContentHeight,
-      padding: const EdgeInsets.symmetric(horizontal: AppSizes.sp2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          for (var i = 0; i < AppShell.tabs.length; i++)
-            Expanded(
-              child: _NavButton(
-                tab: AppShell.tabs[i],
-                selected: i == currentIndex,
-                onTap: () => context.go(AppShell.tabs[i].path),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppSizes.radiusXl),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          decoration: BoxDecoration(
+            color: tokens.surface3.withValues(alpha: 0.65),
+            borderRadius: BorderRadius.circular(AppSizes.radiusXl),
+            border:
+                Border.all(color: tokens.borderStrong.withValues(alpha: 0.4)),
+            boxShadow: [
+              BoxShadow(
+                color: tokens.shadowMd,
+                blurRadius: 24,
+                offset: const Offset(0, 8),
               ),
-            ),
-        ],
+            ],
+          ),
+          height: _kNavBarContentHeight,
+          padding: const EdgeInsets.symmetric(horizontal: AppSizes.sp2),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              for (var i = 0; i < AppShell.tabs.length; i++)
+                Expanded(
+                  child: _NavButton(
+                    tab: AppShell.tabs[i],
+                    selected: i == currentIndex,
+                    onTap: () => context.go(AppShell.tabs[i].path),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

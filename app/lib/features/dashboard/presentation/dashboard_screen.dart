@@ -1,4 +1,3 @@
-
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,7 +26,10 @@ class DashboardScreen extends ConsumerWidget {
             // Header
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                AppSizes.sp5, AppSizes.sp4, AppSizes.sp5, 0,
+                AppSizes.sp5,
+                AppSizes.sp4,
+                AppSizes.sp5,
+                0,
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -147,7 +149,10 @@ class _EmptyState extends StatelessWidget {
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(
-        AppSizes.sp5, 0, AppSizes.sp5, 120,
+        AppSizes.sp5,
+        0,
+        AppSizes.sp5,
+        120,
       ),
       children: [
         const SizedBox(height: AppSizes.sp5),
@@ -192,7 +197,10 @@ class _DashboardContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(
-        AppSizes.sp5, 0, AppSizes.sp5, 120,
+        AppSizes.sp5,
+        0,
+        AppSizes.sp5,
+        120,
       ),
       children: [
         // Hero metric: Total Catch

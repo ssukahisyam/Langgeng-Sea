@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -54,8 +53,7 @@ class _MarkersListScreenState extends ConsumerState<MarkersListScreen> {
                       _FilterChip(
                         label: 'Semua',
                         selected: _selectedCategory == null,
-                        onTap: () =>
-                            setState(() => _selectedCategory = null),
+                        onTap: () => setState(() => _selectedCategory = null),
                       ),
                       const SizedBox(width: AppSizes.sp2),
                       _FilterChip(
@@ -63,21 +61,24 @@ class _MarkersListScreenState extends ConsumerState<MarkersListScreen> {
                         selected:
                             _selectedCategory == MarkerCategory.productive,
                         onTap: () => setState(
-                            () => _selectedCategory = MarkerCategory.productive,),
+                          () => _selectedCategory = MarkerCategory.productive,
+                        ),
                       ),
                       const SizedBox(width: AppSizes.sp2),
                       _FilterChip(
                         label: 'Karang',
                         selected: _selectedCategory == MarkerCategory.hazard,
                         onTap: () => setState(
-                            () => _selectedCategory = MarkerCategory.hazard,),
+                          () => _selectedCategory = MarkerCategory.hazard,
+                        ),
                       ),
                       const SizedBox(width: AppSizes.sp2),
                       _FilterChip(
                         label: 'Pelabuhan',
                         selected: _selectedCategory == MarkerCategory.port,
                         onTap: () => setState(
-                            () => _selectedCategory = MarkerCategory.port,),
+                          () => _selectedCategory = MarkerCategory.port,
+                        ),
                       ),
                     ],
                   ),
@@ -99,8 +100,8 @@ class _MarkersListScreenState extends ConsumerState<MarkersListScreen> {
                       separatorBuilder: (_, __) =>
                           const SizedBox(height: AppSizes.sp3),
                       itemBuilder: (context, i) => _MarkerTile(
-                          marker: filtered[i],
-                          onTap: () => _jumpToMarker(context, filtered[i]),
+                        marker: filtered[i],
+                        onTap: () => _jumpToMarker(context, filtered[i]),
                       ),
                     );
                   },

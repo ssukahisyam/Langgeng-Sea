@@ -49,23 +49,25 @@ class AppSettingsDao extends DatabaseAccessor<AppDatabase>
   /// Set the "alarm sound (TTS) enabled" flag.
   Future<void> updateSoundEnabled(bool value) async {
     await ensureSeeded();
-    await (update(appSettingsTable)
-          ..where((t) => t.id.equals(kSettingsRowId)))
-        .write(AppSettingsTableCompanion(
-      alarmSoundEnabled: Value(value),
-      updatedAt: Value(DateTime.now()),
-    ),);
+    await (update(appSettingsTable)..where((t) => t.id.equals(kSettingsRowId)))
+        .write(
+      AppSettingsTableCompanion(
+        alarmSoundEnabled: Value(value),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
   }
 
   /// Set the "alarm vibrate enabled" flag.
   Future<void> updateVibrateEnabled(bool value) async {
     await ensureSeeded();
-    await (update(appSettingsTable)
-          ..where((t) => t.id.equals(kSettingsRowId)))
-        .write(AppSettingsTableCompanion(
-      alarmVibrateEnabled: Value(value),
-      updatedAt: Value(DateTime.now()),
-    ),);
+    await (update(appSettingsTable)..where((t) => t.id.equals(kSettingsRowId)))
+        .write(
+      AppSettingsTableCompanion(
+        alarmVibrateEnabled: Value(value),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
   }
 
   /// Idempotent: inserts the sentinel row if missing. The schema
@@ -80,9 +82,11 @@ class AppSettingsDao extends DatabaseAccessor<AppDatabase>
           ..limit(1))
         .getSingleOrNull();
     if (existing != null) return;
-    await into(appSettingsTable).insert(AppSettingsTableCompanion.insert(
-      id: const Value(kSettingsRowId),
-      updatedAt: DateTime.now(),
-    ),);
+    await into(appSettingsTable).insert(
+      AppSettingsTableCompanion.insert(
+        id: const Value(kSettingsRowId),
+        updatedAt: DateTime.now(),
+      ),
+    );
   }
 }

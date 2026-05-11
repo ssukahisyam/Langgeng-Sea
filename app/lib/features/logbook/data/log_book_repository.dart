@@ -51,20 +51,22 @@ class LogBookRepository {
 
     if (existing == null) {
       // Insert new entry
-      await _dao.insertEntry(LogBookEntriesCompanion.insert(
-        id: entry.id.isEmpty ? _uuid.v4() : entry.id,
-        scope: entry.scope.name,
-        tripId: Value(entry.tripId),
-        haulId: Value(entry.haulId),
-        weather: Value(entry.weather?.name),
-        wave: Value(entry.wave?.name),
-        fuelLiters: Value(entry.fuelLiters),
-        costRupiah: Value(entry.costRupiah),
-        crewCount: Value(entry.crewCount),
-        notes: Value(entry.notes),
-        createdAt: now,
-        updatedAt: now,
-      ),);
+      await _dao.insertEntry(
+        LogBookEntriesCompanion.insert(
+          id: entry.id.isEmpty ? _uuid.v4() : entry.id,
+          scope: entry.scope.name,
+          tripId: Value(entry.tripId),
+          haulId: Value(entry.haulId),
+          weather: Value(entry.weather?.name),
+          wave: Value(entry.wave?.name),
+          fuelLiters: Value(entry.fuelLiters),
+          costRupiah: Value(entry.costRupiah),
+          crewCount: Value(entry.crewCount),
+          notes: Value(entry.notes),
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
 
       final entryId = entry.id.isEmpty ? _uuid.v4() : entry.id;
       await _insertCatchItems(entryId, entry.catches);
@@ -106,11 +108,13 @@ class LogBookRepository {
       tripId: row.tripId,
       haulId: row.haulId,
       catches: catchRows
-          .map((c) => CatchItem(
-                id: c.id,
-                species: c.species,
-                weightKg: c.weightKg,
-              ),)
+          .map(
+            (c) => CatchItem(
+              id: c.id,
+              species: c.species,
+              weightKg: c.weightKg,
+            ),
+          )
           .toList(),
       weather: row.weather == null
           ? null
@@ -138,12 +142,14 @@ class LogBookRepository {
     List<CatchItem> catches,
   ) async {
     for (final item in catches) {
-      await _dao.insertCatchItem(CatchItemsCompanion.insert(
-        id: item.id.isEmpty ? _uuid.v4() : item.id,
-        logBookEntryId: logBookEntryId,
-        species: item.species,
-        weightKg: Value(item.weightKg),
-      ),);
+      await _dao.insertCatchItem(
+        CatchItemsCompanion.insert(
+          id: item.id.isEmpty ? _uuid.v4() : item.id,
+          logBookEntryId: logBookEntryId,
+          species: item.species,
+          weightKg: Value(item.weightKg),
+        ),
+      );
     }
   }
 }

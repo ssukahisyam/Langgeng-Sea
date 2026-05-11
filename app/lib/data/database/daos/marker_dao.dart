@@ -8,18 +8,15 @@ part 'marker_dao.g.dart';
 class MarkerDao extends DatabaseAccessor<AppDatabase> with _$MarkerDaoMixin {
   MarkerDao(super.db);
 
-  Future<void> insertMarker(MarkersCompanion row) =>
-      into(markers).insert(row);
+  Future<void> insertMarker(MarkersCompanion row) => into(markers).insert(row);
 
   Future<List<MarkerRow>> findAll() {
-    return (select(markers)
-          ..orderBy([(m) => OrderingTerm.desc(m.createdAt)]))
+    return (select(markers)..orderBy([(m) => OrderingTerm.desc(m.createdAt)]))
         .get();
   }
 
   Stream<List<MarkerRow>> watchAll() {
-    return (select(markers)
-          ..orderBy([(m) => OrderingTerm.desc(m.createdAt)]))
+    return (select(markers)..orderBy([(m) => OrderingTerm.desc(m.createdAt)]))
         .watch();
   }
 

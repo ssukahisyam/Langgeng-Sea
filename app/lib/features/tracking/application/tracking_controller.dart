@@ -218,10 +218,14 @@ class TrackingController extends Notifier<TrackingState> {
     final latLngs = existing.map((p) => p.latLng).toList();
     _distanceMeters = GeoCalculator.totalDistanceMeters(latLngs);
     _lastPoint = latLngs.isNotEmpty ? latLngs.last : null;
-    _replayHeadingSpeed(existing.map((p) => (
+    _replayHeadingSpeed(
+      existing.map(
+        (p) => (
           p.headingDegrees,
           p.speedMps,
-        ),),);
+        ),
+      ),
+    );
 
     _retryCount = 0;
 
@@ -313,8 +317,7 @@ class TrackingController extends Notifier<TrackingState> {
 
     if (accept) {
       if (_lastPoint != null) {
-        _distanceMeters +=
-            GeoCalculator.haversineMeters(_lastPoint!, newPoint);
+        _distanceMeters += GeoCalculator.haversineMeters(_lastPoint!, newPoint);
       }
       _lastPoint = newPoint;
 
@@ -425,8 +428,7 @@ class TrackingController extends Notifier<TrackingState> {
 
       state = state.copyWith(backgroundStatus: status);
 
-      if (status == BackgroundTrackingStatus.stopped &&
-          state.isRecording) {
+      if (status == BackgroundTrackingStatus.stopped && state.isRecording) {
         // Service was killed by OS — attempt exponential retry.
         _attemptRetry();
       } else if (status == BackgroundTrackingStatus.running) {

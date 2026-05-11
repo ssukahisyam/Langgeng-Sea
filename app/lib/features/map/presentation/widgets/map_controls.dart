@@ -5,6 +5,8 @@ import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/glass_card.dart';
 
+import 'package:flutter_map/flutter_map.dart';
+
 /// Floating column of map-related action buttons (right-aligned).
 class MapControls extends StatelessWidget {
   const MapControls({
@@ -13,12 +15,14 @@ class MapControls extends StatelessWidget {
     this.onCompassReset,
     this.showCompass = false,
     this.centerEnabled = true,
+    this.mapController,
   });
 
   final VoidCallback onCenterOnMe;
   final VoidCallback? onCompassReset;
   final bool showCompass;
   final bool centerEnabled;
+  final MapController? mapController;
 
   @override
   Widget build(BuildContext context) {
@@ -26,12 +30,38 @@ class MapControls extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (showCompass && onCompassReset != null) ...[
-          _ControlButton(
-            icon: PhosphorIconsBold.compass,
-            tooltip: 'Kiblat ulang',
-            onTap: onCompassReset!,
-          ),
-          const SizedBox(height: AppSizes.sp2),
+          if (mapController != null)
+            StreamBuilder<MapEvent>(
+              stream: mapController!.mapEventStream,
+              builder: (context, snapshot) {
+                final rotation = mapController!.camera.rotation;
+                if (rotation == 0.0) return const SizedBox.shrink();
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _ControlButton(
+                      icon: PhosphorIconsBold.compass,
+                      tooltip: 'Kiblat ulang',
+                      onTap: onCompassReset!,
+                      rotation: -rotation * (3.141592653589793 / 180.0),
+                    ),
+                    const SizedBox(height: AppSizes.sp2),
+                  ],
+                );
+              },
+            )
+          else
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _ControlButton(
+                  icon: PhosphorIconsBold.compass,
+                  tooltip: 'Kiblat ulang',
+                  onTap: onCompassReset!,
+                ),
+                const SizedBox(height: AppSizes.sp2),
+              ],
+            ),
         ],
         _ControlButton(
           icon: PhosphorIconsBold.navigationArrow,
@@ -50,12 +80,14 @@ class _ControlButton extends StatelessWidget {
     required this.tooltip,
     required this.onTap,
     this.primary = false,
+    this.rotation,
   });
 
   final IconData icon;
   final String tooltip;
   final VoidCallback? onTap;
   final bool primary;
+  final double? rotation;
 
   @override
   Widget build(BuildContext context) {
@@ -89,7 +121,12 @@ class _ControlButton extends StatelessWidget {
                 child: SizedBox(
                   width: 48,
                   height: 48,
-                  child: Icon(icon, color: iconColor, size: 20),
+                  child: rotation == null
+                      ? Icon(icon, color: iconColor, size: 20)
+                      : Transform.rotate(
+                          angle: rotation!,
+                          child: Icon(icon, color: iconColor, size: 20),
+                        ),
                 ),
               ),
             ),

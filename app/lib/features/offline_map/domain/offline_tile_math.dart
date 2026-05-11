@@ -22,7 +22,8 @@ class OfflineTileMath {
     final clamped = lat.clamp(-85.05112878, 85.05112878);
     final latRad = clamped * math.pi / 180.0;
     final n = math.pow(2, zoom).toDouble();
-    return ((1.0 - math.log(math.tan(latRad) + 1 / math.cos(latRad)) / math.pi) /
+    return ((1.0 -
+                math.log(math.tan(latRad) + 1 / math.cos(latRad)) / math.pi) /
             2.0 *
             n)
         .floor();

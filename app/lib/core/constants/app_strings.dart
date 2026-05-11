@@ -54,7 +54,8 @@ class AppStrings {
 
   // Empty states
   static const String emptyHistoryTitle = 'Belum Ada Trip';
-  static const String emptyHistorySub = 'Mulai trip pertama Anda dari tab Peta.';
+  static const String emptyHistorySub =
+      'Mulai trip pertama Anda dari tab Peta.';
   static const String emptyMarkersTitle = 'Belum Ada Penanda';
   static const String emptyMarkersSub =
       'Tekan tombol + di peta untuk menandai lokasi penting.';
