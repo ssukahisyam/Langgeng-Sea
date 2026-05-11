@@ -49,17 +49,23 @@ import '../application/all_history_visible_provider.dart';
 import '../application/current_reading_provider.dart';
 import '../application/history_overlay_providers.dart';
 import '../application/map_camera_controller.dart';
+import '../application/map_mode.dart';
+import '../application/map_mode_provider.dart';
 import '../application/map_overlay_state.dart';
 import '../application/markers_overlay_provider.dart';
 import 'providers/location_permission_provider.dart';
 import 'widgets/boat_marker.dart';
+import 'widgets/collapsed_tracking_mini.dart';
 import 'widgets/gps_accuracy_chip.dart';
 import 'widgets/gps_error_banner.dart';
+import 'widgets/history_overlay_controls.dart';
 import 'widgets/history_polyline_layer.dart';
 import 'widgets/location_permission_sheet.dart';
 import 'widgets/map_attribution.dart';
 import 'widgets/map_controls.dart';
+import 'widgets/map_overflow_menu.dart';
 import 'widgets/track_popup.dart';
+import 'widgets/tracking_bottom_sheet.dart';
 
 /// Home tab — map + live GPS position + haul recording controls.
 class MapScreen extends ConsumerStatefulWidget {
@@ -474,6 +480,70 @@ class _MapScreenState extends ConsumerState<MapScreen>
   // Build
   // ---------------------------------------------------------------------
 
+  /// Build the mode-appropriate bottom controls widget.
+  ///
+  /// Key on the [MapMode] value so [AnimatedSwitcher] detects swaps.
+  Widget _buildModeControls({
+    required MapMode mode,
+    required bool isRecording,
+    required TrackingState trackingState,
+    required bool hasPermission,
+    required bool hasFix,
+    required NavigationActive? navActive,
+    required bool allHistoryOn,
+    required AsyncValue<HistoryOverlayRender>? allHistoryAsync,
+  }) {
+    // When navigating, the full NavigationPanel is at the top.
+    // If also tracking, CollapsedTrackingMini is under NavPanel.
+    // So the bottom should show either the old _ActionPanel or nothing.
+    if (navActive != null) {
+      // Navigating mode — bottom controls hidden (NavPanel is up top).
+      // But if NOT recording, show the idle "start haul" CTA so the
+      // user can begin tracking while navigating.
+      if (!isRecording) {
+        return _ActionPanel(
+          key: const ValueKey(MapMode.navigating),
+          isRecording: false,
+          state: trackingState,
+          onStart: _onStartHaulPressed,
+          onStop: _onStopHaulPressed,
+          onEndTrip: () =>
+              ref.read(trackingControllerProvider.notifier).endTrip(),
+          hasPermission: hasPermission,
+          hasFix: hasFix,
+        );
+      }
+      // Navigating + tracking: bottom is empty since
+      // CollapsedTrackingMini is shown under NavPanel at top.
+      return SizedBox.shrink(key: const ValueKey('nav-tracking'));
+    }
+
+    return switch (mode) {
+      MapMode.idle => _ActionPanel(
+        key: const ValueKey(MapMode.idle),
+        isRecording: false,
+        state: trackingState,
+        onStart: _onStartHaulPressed,
+        onStop: _onStopHaulPressed,
+        onEndTrip: () =>
+            ref.read(trackingControllerProvider.notifier).endTrip(),
+        hasPermission: hasPermission,
+        hasFix: hasFix,
+      ),
+      MapMode.tracking => TrackingBottomSheet(
+        key: const ValueKey(MapMode.tracking),
+        onStopPressed: _onStopHaulPressed,
+      ),
+      MapMode.viewingHistory => HistoryOverlayControls(
+        key: const ValueKey(MapMode.viewingHistory),
+        cameraController: _cameraController,
+      ),
+      MapMode.navigating => const SizedBox.shrink(
+        key: ValueKey('nav-fallback'),
+      ),
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen<AsyncValue<GpsReading>>(currentReadingProvider, (_, next) {
@@ -485,6 +555,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final hasPermission = permState == LocationPermissionState.ready;
     final trackingState = ref.watch(trackingControllerProvider);
     final isRecording = trackingState.isRecording;
+    final mode = ref.watch(mapModeProvider);
 
     // Navigation overlay state -- drives the top-of-map panel, the
     // dashed go-to polyline, and the bearing arrow on the boat marker.
@@ -514,32 +585,40 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final markersAsync =
         markersOn ? ref.watch(allMarkersProvider) : null;
 
-    // Reset remembered camera fit when the pinned overlay is cleared so
-    // the next time a pinned overlay becomes active, the camera re-fits.
-    if (!overlayActive) {
-      _cameraController.deactivate();
-    }
-    // Also reset when the footprints toggle is OFF so that flipping
-    // it back ON triggers a fresh camera fit.
-    if (!allHistoryOn && _cameraController.isActive) {
-      _cameraController.deactivate();
-    }
+    // Camera controller lifecycle — use ref.listen so activate/deactivate
+    // fire ONLY on state transitions, not every rebuild. This prevents
+    // the snap-back bug where activate() reset _userLatched on every
+    // frame, making zoom/pan impossible while history was active.
+    ref.listen<MapOverlayMode>(mapOverlayControllerProvider, (prev, next) {
+      if (next is! MapOverlayNone) {
+        _cameraController.activate(_overlayKey(next));
+      } else if (prev is! MapOverlayNone) {
+        _cameraController.deactivate();
+      }
+    });
+    ref.listen<bool>(allHistoryVisibleProvider, (prev, next) {
+      // Only manage camera when no pinned overlay is active (pinned wins).
+      if (overlayActive) return;
+      if (prev == false && next == true) {
+        _cameraController.activate('all-history:on');
+      } else if (prev == true && next == false) {
+        _cameraController.deactivate();
+      }
+    });
 
-    // Auto-zoom via MapCameraController:
-    //   1. A freshly-pinned single trip / haul always wins.
-    //   2. Otherwise, when footprints toggle turns ON and no pinned
-    //      overlay exists, fit to full-history bounds.
-    if (overlayActive) {
-      _cameraController.activate(_overlayKey(overlayMode));
-      overlayAsync?.whenData((render) {
+    // Auto-zoom via MapCameraController — maybeInitialFit is gated by the
+    // internal latch so it only fires once per activation cycle. Calling it
+    // here on every data-ready build is safe: the latch no-ops after the
+    // first successful fit, and user gestures suppress it permanently.
+    if (overlayActive && overlayAsync != null) {
+      overlayAsync.whenData((render) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted || render.bounds == null) return;
           _cameraController.maybeInitialFit(render.bounds!);
         });
       });
-    } else if (allHistoryOn) {
-      _cameraController.activate('all-history:on');
-      allHistoryAsync?.whenData((render) {
+    } else if (allHistoryOn && allHistoryAsync != null) {
+      allHistoryAsync.whenData((render) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted || render.bounds == null) return;
           _cameraController.maybeInitialFit(render.bounds!);
@@ -716,7 +795,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               ),
             ),
 
-            // --- Top panel (swaps between vessel info and recording banner) ---
+            // --- Top panel (mode-aware) ---
             Positioned(
               top: AppSizes.sp3,
               left: AppSizes.sp4,
@@ -737,8 +816,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   // Navigation panel sits under the top banner whenever
                   // a target is active -- it does NOT replace the
                   // recording banner / app bar because the user may be
-                  // navigating AND recording simultaneously (spec
-                  // acceptance M.5).
+                  // navigating AND recording simultaneously (spec M.5).
                   if (navActive != null) ...[
                     const SizedBox(height: AppSizes.sp2),
                     NavigationPanel(
@@ -747,13 +825,21 @@ class _MapScreenState extends ConsumerState<MapScreen>
                           .read(navigationControllerProvider.notifier)
                           .stop(),
                     ),
+                    // Collapsed tracking mini-banner for concurrent
+                    // navigating + tracking (Requirement 4.12).
+                    if (isRecording) ...[
+                      const SizedBox(height: AppSizes.sp2),
+                      CollapsedTrackingMini(
+                        onStop: _onStopHaulPressed,
+                      ),
+                    ],
                   ],
                 ],
               ),
             ),
 
-            // --- Live stats (only while recording) ---
-            if (isRecording)
+            // --- Live stats (only while recording and nav NOT active) ---
+            if (isRecording && navActive == null)
               const Positioned(
                 top: 80,
                 left: AppSizes.sp4,
@@ -761,7 +847,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 child: LiveStatsPanel(),
               ),
 
-            // --- GPS accuracy chip + Footprints toggle (top-right column) ---
+            // --- GPS accuracy chip + toggles + overflow menu (top-right) ---
             Positioned(
               top: isRecording ? 170 : 100,
               right: AppSizes.sp5,
@@ -786,6 +872,23 @@ class _MapScreenState extends ConsumerState<MapScreen>
                           ref.read(markersOverlayEnabledProvider.notifier);
                       notifier.state = !notifier.state;
                     },
+                  ),
+                  const SizedBox(height: AppSizes.sp2),
+                  // Three-dot overflow menu (Requirement 4.10) — always
+                  // visible regardless of mode, adapts entries internally.
+                  MapOverflowMenu(
+                    onAddMarkerHere: hasPermission
+                        ? () => _onAddMarkerPressed(context, ref)
+                        : null,
+                    onFitAll: allHistoryOn
+                        ? () {
+                            final bounds = allHistoryAsync
+                                ?.asData?.value.bounds;
+                            if (bounds != null) {
+                              _cameraController.fitCameraExplicit(bounds);
+                            }
+                          }
+                        : null,
                   ),
                 ],
               ),
@@ -818,7 +921,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               child: MapAttribution(),
             ),
 
-            // --- Bottom action panel ---
+            // --- Bottom action panel (mode-driven via AnimatedSwitcher) ---
             Positioned(
               left: AppSizes.sp4,
               right: AppSizes.sp4,
@@ -862,15 +965,21 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     ),
                   const GpsErrorBanner(),
                   const SizedBox(height: AppSizes.sp2),
-                  _ActionPanel(
-                    isRecording: isRecording,
-                    state: trackingState,
-                    onStart: _onStartHaulPressed,
-                    onStop: _onStopHaulPressed,
-                    onEndTrip: () =>
-                        ref.read(trackingControllerProvider.notifier).endTrip(),
-                    hasPermission: hasPermission,
-                    hasFix: reading != null,
+                  // Mode-driven bottom controls (Task 9.6)
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 250),
+                    switchInCurve: Curves.easeOut,
+                    switchOutCurve: Curves.easeIn,
+                    child: _buildModeControls(
+                      mode: mode,
+                      isRecording: isRecording,
+                      trackingState: trackingState,
+                      hasPermission: hasPermission,
+                      hasFix: reading != null,
+                      navActive: navActive,
+                      allHistoryOn: allHistoryOn,
+                      allHistoryAsync: allHistoryAsync,
+                    ),
                   ),
                 ],
               ),

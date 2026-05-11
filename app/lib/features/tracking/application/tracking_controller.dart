@@ -223,14 +223,38 @@ class TrackingController extends Notifier<TrackingState> {
           p.speedMps,
         )));
 
+    _retryCount = 0;
+
     state = TrackingState(
       activeTrip: trip,
       haul: haul,
       metrics: _currentMetrics(DateTime.now().difference(haul.startedAt)),
       livePoints: latLngs,
+      backgroundStatus: BackgroundTrackingStatus.starting,
     );
 
     _gpsSub = _gps.watchPosition().listen(_onReading, onError: (_) {});
+
+    // Start background service for persistent tracking (Requirement 1.1).
+    // Without this, resuming a haul only uses the foreground GPS stream
+    // which is suspended by Android Doze when the screen turns off —
+    // resulting in the straight-line bug between lock and unlock.
+    try {
+      await _bgService.start(
+        haulId: haul.id,
+        notificationTitle: 'Langgeng Sea — Merekam',
+        notificationBody: '${haul.displayName()} — dilanjutkan',
+      );
+      _subscribeBgStatus();
+    } catch (e) {
+      Logger.instance.warn(
+        'tracking.bg_resume_failed',
+        {'error': e.toString()},
+      );
+      state = state.copyWith(
+        backgroundStatus: BackgroundTrackingStatus.failed,
+      );
+    }
   }
 
   /// Abandon an orphan recording haul (user picked "Akhiri sekarang" in

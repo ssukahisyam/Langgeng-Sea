@@ -62,35 +62,35 @@ class _HistoryPolylineLayerState extends State<HistoryPolylineLayer> {
       );
 
       if (widget.isBackground) {
-        // Background layer: thinner, lower alpha, no border.
+        // Background layer: visible but subdued so focused tracks stand out.
         polylines.add(
           Polyline<HaulTrackRender>(
             points: track.points,
-            strokeWidth: 3,
-            color: color.withValues(alpha: 0.28),
+            strokeWidth: 4,
+            color: color.withValues(alpha: 0.55),
             hitValue: track,
           ),
         );
       } else {
         // Focused layer: compound stroke for WCAG compliance.
-        // 1. White border for contrast
+        // 1. Contrast border for visibility against any tile background.
         final borderColor = _borderColorForContrast(color);
         polylines.add(
           Polyline<HaulTrackRender>(
             points: track.points,
-            strokeWidth: 6,
-            color: borderColor.withValues(alpha: 0.40),
+            strokeWidth: 7,
+            color: borderColor.withValues(alpha: 0.70),
             hitValue: track,
           ),
         );
-        // 2. Main colour stroke
+        // 2. Main colour stroke — full opacity for maximum clarity.
         polylines.add(
           Polyline<HaulTrackRender>(
             points: track.points,
-            strokeWidth: 4,
-            color: color.withValues(alpha: 0.75),
-            borderStrokeWidth: 0.6,
-            borderColor: Colors.white.withValues(alpha: 0.35),
+            strokeWidth: 4.5,
+            color: color.withValues(alpha: 1.0),
+            borderStrokeWidth: 0.8,
+            borderColor: Colors.white.withValues(alpha: 0.55),
             hitValue: track,
           ),
         );
