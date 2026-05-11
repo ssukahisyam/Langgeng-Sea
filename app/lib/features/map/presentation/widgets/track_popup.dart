@@ -258,7 +258,7 @@ class TrackPopup extends StatelessWidget {
 
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: tokens.surface,
+      backgroundColor: colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppSizes.radiusLg)),
       ),
@@ -311,7 +311,7 @@ class TrackPopup extends StatelessWidget {
     final colors = context.colors;
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: tokens.surface,
+      backgroundColor: colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppSizes.radiusLg)),
       ),

@@ -986,9 +986,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       _dismissPopup();
                       ref
                           .read(navigationControllerProvider.notifier)
-                          .startNavigateTo(
+                          .startGoto(
                             GotoTarget(
-                              destination: targetLatLng,
+                              position: targetLatLng,
                               label: label,
                             ),
                           );
