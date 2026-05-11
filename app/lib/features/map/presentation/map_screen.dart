@@ -1376,6 +1376,7 @@ class _IdleAppBar extends ConsumerWidget {
 
 class _ActionPanel extends StatelessWidget {
   const _ActionPanel({
+    super.key,
     required this.isRecording,
     required this.state,
     required this.onStart,
