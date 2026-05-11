@@ -42,7 +42,6 @@ import '../../tracking/domain/entities/haul.dart';
 import '../../tracking/domain/entities/trip.dart';
 import '../../tracking/presentation/widgets/active_haul_polyline.dart';
 import '../../tracking/presentation/widgets/haul_summary_sheet.dart';
-import '../../tracking/presentation/widgets/live_stats_panel.dart';
 import '../../tracking/presentation/widgets/recording_banner.dart';
 import '../application/all_history_visible_provider.dart';
 import '../application/current_reading_provider.dart';
@@ -865,65 +864,65 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       ),
                     ],
                   ],
-                ],
-              ),
-            ),
-
-            // --- Live stats (only while recording and nav NOT active) ---
-            if (isRecording && navActive == null)
-              const Positioned(
-                top: 80,
-                left: AppSizes.sp4,
-                right: AppSizes.sp4,
-                child: LiveStatsPanel(),
-              ),
-
-            // --- GPS accuracy chip + toggles + overflow menu (top-right) ---
-            Positioned(
-              top: isRecording ? 170 : 100,
-              right: AppSizes.sp5,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  const GpsAccuracyChip(),
+                  // GPS accuracy chip + toggles + overflow menu — placed
+                  // inside the top Column so they flow below whatever
+                  // panels are active (recording banner, nav panel, etc)
+                  // instead of using a hardcoded top offset that can
+                  // overlap.
                   const SizedBox(height: AppSizes.sp2),
-                  _AllHistoryToggle(
-                    on: allHistoryOn,
-                    onTap: () {
-                      final notifier =
-                          ref.read(allHistoryVisibleProvider.notifier);
-                      notifier.state = !notifier.state;
-                    },
-                  ),
-                  const SizedBox(height: AppSizes.sp2),
-                  _MarkersToggle(
-                    on: markersOn,
-                    onTap: () {
-                      final notifier =
-                          ref.read(markersOverlayEnabledProvider.notifier);
-                      notifier.state = !notifier.state;
-                    },
-                  ),
-                  const SizedBox(height: AppSizes.sp2),
-                  // Three-dot overflow menu (Requirement 4.10) — always
-                  // visible regardless of mode, adapts entries internally.
-                  MapOverflowMenu(
-                    onAddMarkerHere: hasPermission
-                        ? () => _onAddMarkerPressed(context, ref)
-                        : null,
-                    onFitAll: allHistoryOn
-                        ? () {
-                            final bounds = allHistoryAsync
-                                ?.asData?.value.bounds;
-                            if (bounds != null) {
-                              _cameraController.fitCameraExplicit(bounds);
-                            }
-                          }
-                        : null,
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        const GpsAccuracyChip(),
+                        const SizedBox(height: AppSizes.sp2),
+                        _AllHistoryToggle(
+                          on: allHistoryOn,
+                          onTap: () {
+                            final notifier =
+                                ref.read(allHistoryVisibleProvider.notifier);
+                            notifier.state = !notifier.state;
+                          },
+                        ),
+                        const SizedBox(height: AppSizes.sp2),
+                        _MarkersToggle(
+                          on: markersOn,
+                          onTap: () {
+                            final notifier =
+                                ref.read(markersOverlayEnabledProvider.notifier);
+                            notifier.state = !notifier.state;
+                          },
+                        ),
+                        const SizedBox(height: AppSizes.sp2),
+                        MapOverflowMenu(
+                          onAddMarkerHere: hasPermission
+                              ? () => _onAddMarkerPressed(context, ref)
+                              : null,
+                          onFitAll: allHistoryOn
+                              ? () {
+                                  final bounds = allHistoryAsync
+                                      ?.asData?.value.bounds;
+                                  if (bounds != null) {
+                                    _cameraController.fitCameraExplicit(bounds);
+                                  }
+                                }
+                              : null,
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
+
+            // LiveStatsPanel removed — TrackingBottomSheet already
+            // shows duration, distance, and speed in its expanded body,
+            // making the top-bar duplicate redundant and the cause of
+            // the "tracking UI covers the map" layout bug.
+
+            // GPS accuracy chip + toggles moved into the top Column
+            // above so they flow below the nav/recording panels.
 
             // --- Map controls ---
             Positioned(
