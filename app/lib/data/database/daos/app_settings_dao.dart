@@ -70,6 +70,18 @@ class AppSettingsDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  /// Set the polyline width (in pixels). Clamped to [4, 16] by caller.
+  Future<void> setPolylineWidth(int width) async {
+    await ensureSeeded();
+    await (update(appSettingsTable)..where((t) => t.id.equals(kSettingsRowId)))
+        .write(
+      AppSettingsTableCompanion(
+        polylineWidth: Value(width),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
   /// Idempotent: inserts the sentinel row if missing. The schema
   /// migration already seeds it on upgrade paths, but fresh unit tests
   /// sometimes open an AppDatabase against an in-memory executor that

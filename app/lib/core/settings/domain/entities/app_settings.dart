@@ -1,6 +1,7 @@
 /// Device-local application preferences.
 ///
-/// Presently hosts the M11 navigation alarm toggles (TTS + vibrate).
+/// Presently hosts the M11 navigation alarm toggles (TTS + vibrate)
+/// and map polyline width.
 /// Lives in [core/settings] — not in a feature module — because other
 /// milestones may deposit cross-cutting preferences here too (theme
 /// override, units, etc.) and keeping them behind one table avoids
@@ -13,6 +14,7 @@ class AppSettings {
   const AppSettings({
     required this.alarmSoundEnabled,
     required this.alarmVibrateEnabled,
+    required this.polylineWidth,
     required this.updatedAt,
   });
 
@@ -26,6 +28,10 @@ class AppSettings {
   /// first install.
   final bool alarmVibrateEnabled;
 
+  /// Width in pixels for map polylines (history tracks, active haul,
+  /// navigation guides). Range 4–16, default 10.
+  final int polylineWidth;
+
   /// Bookkeeping only — bumped on every mutation so future "history
   /// of setting changes" screens have a hook.
   final DateTime updatedAt;
@@ -36,17 +42,20 @@ class AppSettings {
   static final AppSettings defaults = AppSettings(
     alarmSoundEnabled: true,
     alarmVibrateEnabled: true,
+    polylineWidth: 10,
     updatedAt: DateTime.fromMillisecondsSinceEpoch(0),
   );
 
   AppSettings copyWith({
     bool? alarmSoundEnabled,
     bool? alarmVibrateEnabled,
+    int? polylineWidth,
     DateTime? updatedAt,
   }) {
     return AppSettings(
       alarmSoundEnabled: alarmSoundEnabled ?? this.alarmSoundEnabled,
       alarmVibrateEnabled: alarmVibrateEnabled ?? this.alarmVibrateEnabled,
+      polylineWidth: polylineWidth ?? this.polylineWidth,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
@@ -56,14 +65,20 @@ class AppSettings {
     return other is AppSettings &&
         other.alarmSoundEnabled == alarmSoundEnabled &&
         other.alarmVibrateEnabled == alarmVibrateEnabled &&
+        other.polylineWidth == polylineWidth &&
         other.updatedAt == updatedAt;
   }
 
   @override
-  int get hashCode =>
-      Object.hash(alarmSoundEnabled, alarmVibrateEnabled, updatedAt);
+  int get hashCode => Object.hash(
+        alarmSoundEnabled,
+        alarmVibrateEnabled,
+        polylineWidth,
+        updatedAt,
+      );
 
   @override
   String toString() =>
-      'AppSettings(sound: $alarmSoundEnabled, vibrate: $alarmVibrateEnabled)';
+      'AppSettings(sound: $alarmSoundEnabled, vibrate: $alarmVibrateEnabled, '
+      'polylineWidth: $polylineWidth)';
 }

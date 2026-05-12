@@ -232,6 +232,12 @@ class AppSettingsTable extends Table {
       boolean().withDefault(const Constant(true))();
   BoolColumn get alarmVibrateEnabled =>
       boolean().withDefault(const Constant(true))();
+
+  /// User-configurable polyline width in pixels for map track lines.
+  /// Range: 4–16, default: 10.
+  IntColumn get polylineWidth =>
+      integer().withDefault(const Constant(10))();
+
   DateTimeColumn get updatedAt => dateTime()();
 
   @override

@@ -23,9 +23,12 @@ class AppSettingsRepository {
   Future<void> setVibrateEnabled(bool value) =>
       _dao.updateVibrateEnabled(value);
 
+  Future<void> setPolylineWidth(int width) => _dao.setPolylineWidth(width);
+
   AppSettings _fromRow(AppSettingsRow r) => AppSettings(
         alarmSoundEnabled: r.alarmSoundEnabled,
         alarmVibrateEnabled: r.alarmVibrateEnabled,
+        polylineWidth: r.polylineWidth,
         updatedAt: r.updatedAt,
       );
 }

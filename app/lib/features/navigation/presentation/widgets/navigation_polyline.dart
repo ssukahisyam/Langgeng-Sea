@@ -1,4 +1,4 @@
-import 'dart:math' as math;
+
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
+import '../../../../core/settings/application/app_settings_provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../map/application/current_reading_provider.dart';
 import '../../application/navigation_state.dart';
@@ -27,10 +28,7 @@ import '../../domain/entities/navigation_target.dart';
 /// ```
 ///
 /// Modes:
-///   * Go-to: dashed polyline from user → target in primary colour.
-///     flutter_map 7.x `Polyline` has no dash pattern so the line is
-///     built from hand-sliced segments (~150 m per dash, scaled to
-///     total distance). Only polyline — no marker layer.
+///   * Go-to: solid polyline from user → target in primary colour.
 ///   * Follow-track: solid, thick warning-coloured stroke along the
 ///     reference polyline with a subtle white halo for visibility on
 ///     busy tiles; a separate [MarkerLayer] places a green "start"
@@ -38,19 +36,6 @@ import '../../domain/entities/navigation_target.dart';
 ///     so the user can orient themselves without reading metadata.
 class NavigationPolyline {
   NavigationPolyline._();
-
-  /// How far (in meters) between the midpoint of each dash for go-to
-  /// mode. Tuned empirically in the prototype — shorter and the dash
-  /// pattern turns into a solid line on zoom 10, longer and you only
-  /// see two or three dashes on 200 m runs.
-  static const double _gotoDashSpacingMeters = 150.0;
-
-  /// Main stroke width for the follow-track reference polyline. Thicker
-  /// than the active haul polyline (strokeWidth 5 at level-2 glow,
-  /// see `ActiveHaulPolyline`) so that when the user is recording
-  /// *and* following, the reference track reads as the dominant
-  /// guidance layer, not a peer.
-  static const double _followTrackStrokeWidth = 8.0;
 
   /// Build the list of map layers for the active navigation target.
   /// Returns an empty list when there is nothing reasonable to draw
@@ -63,17 +48,27 @@ class NavigationPolyline {
   ) {
     final target = state.target;
     final userReading = ref.watch(currentReadingProvider).asData?.value;
+    // Navigation polyline is always thicker than the user-configured
+    // width to stand out as guidance. Use user width + 2.
+    final userWidth = ref.watch(polylineWidthProvider);
+    final navWidth = userWidth + 2;
 
     if (target is GotoTarget) {
       if (userReading == null) return const [];
-      return [_GotoSolidLayer(from: userReading.latLng, to: target.position)];
+      return [
+        _GotoSolidLayer(
+          from: userReading.latLng,
+          to: target.position,
+          strokeWidth: navWidth,
+        ),
+      ];
     }
 
     if (target is FollowTrackTarget) {
       final path = target.pathPoints;
       if (path.length < 2) return const [];
       return [
-        _FollowTrackStroke(points: path),
+        _FollowTrackStroke(points: path, strokeWidth: navWidth),
         _FollowTrackEndpoints(points: path),
       ];
     }
@@ -87,10 +82,15 @@ class NavigationPolyline {
 // ===========================================================================
 
 class _GotoSolidLayer extends StatelessWidget {
-  const _GotoSolidLayer({required this.from, required this.to});
+  const _GotoSolidLayer({
+    required this.from,
+    required this.to,
+    required this.strokeWidth,
+  });
 
   final LatLng from;
   final LatLng to;
+  final double strokeWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -99,7 +99,7 @@ class _GotoSolidLayer extends StatelessWidget {
       polylines: [
         Polyline(
           points: [from, to],
-          strokeWidth: 8.0,
+          strokeWidth: strokeWidth,
           color: color.withValues(alpha: 0.95),
           borderStrokeWidth: 1.5,
           borderColor: Colors.white.withValues(alpha: 0.5),
@@ -114,9 +114,13 @@ class _GotoSolidLayer extends StatelessWidget {
 // ===========================================================================
 
 class _FollowTrackStroke extends StatelessWidget {
-  const _FollowTrackStroke({required this.points});
+  const _FollowTrackStroke({
+    required this.points,
+    required this.strokeWidth,
+  });
 
   final List<LatLng> points;
+  final double strokeWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -129,12 +133,12 @@ class _FollowTrackStroke extends StatelessWidget {
         // sea chart tiles.
         Polyline(
           points: points,
-          strokeWidth: NavigationPolyline._followTrackStrokeWidth + 4,
+          strokeWidth: strokeWidth + 4,
           color: color.withValues(alpha: 0.22),
         ),
         Polyline(
           points: points,
-          strokeWidth: NavigationPolyline._followTrackStrokeWidth,
+          strokeWidth: strokeWidth,
           color: color,
           borderStrokeWidth: 1.5,
           borderColor: Colors.white.withValues(alpha: 0.9),

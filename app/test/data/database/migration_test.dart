@@ -1,10 +1,10 @@
 // Migration test for AppDatabase.
 //
-// Verifies the v1 → v7 upgrade path adds the tables introduced in later
+// Verifies the v1 → v8 upgrade path adds the tables introduced in later
 // milestones (offline_regions at v2; log_book_entries, catch_items,
 // markers at v3; user_profiles at v4; hauls.color_value at v5;
-// app_settings at v6; trips.color_value at v7) without losing any
-// existing data.
+// app_settings at v6; trips.color_value at v7;
+// app_settings.polyline_width at v8) without losing any existing data.
 //
 // drift_dev ships schema-version helpers (`dart run drift_dev schema
 // dump`) but we don't have a dumped `drift_schemas/` directory yet, so
@@ -14,7 +14,7 @@
 // The trick: NativeDatabase.memory(setup: (raw) { … }) gives us access
 // to the raw `sqlite3` handle *before* Drift runs its migration
 // strategy. We create the v1 tables and set user_version=1 there, then
-// Drift reads user_version, sees schemaVersion=7, and runs onUpgrade.
+// Drift reads user_version, sees schemaVersion=8, and runs onUpgrade.
 
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
@@ -73,7 +73,7 @@ CREATE TABLE track_points (
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('AppDatabase migration v1 → v7', () {
+  group('AppDatabase migration v1 → v8', () {
     late AppDatabase db;
 
     setUp(() {
@@ -114,15 +114,15 @@ void main() {
       await db.close();
     });
 
-    test('onUpgrade runs and reaches schemaVersion 7', () async {
+    test('onUpgrade runs and reaches schemaVersion 8', () async {
       // Any query forces the migration to run.
       final row = await db
           .customSelect('PRAGMA user_version')
           .getSingle();
       expect(
         row.data.values.first,
-        7,
-        reason: 'migration should land at schemaVersion 7',
+        8,
+        reason: 'migration should land at schemaVersion 8',
       );
     });
 
@@ -288,6 +288,29 @@ void main() {
           .getSingle();
       expect(profile.data['name'], 'Pak Hasan');
       expect(profile.data['vessel_name'], 'KM Harapan');
+    });
+
+    test('app_settings.polyline_width column exists after upgrade (v8)',
+        () async {
+      final rows = await db
+          .customSelect('PRAGMA table_info(app_settings)')
+          .get();
+      final colNames = rows.map((r) => r.data['name'] as String).toList();
+      expect(
+        colNames,
+        contains('polyline_width'),
+        reason: 'v8 migration should add app_settings.polyline_width column',
+      );
+    });
+
+    test('polyline_width defaults to 10 for pre-v8 rows', () async {
+      final rows = await db
+          .customSelect(
+            'SELECT polyline_width FROM app_settings WHERE id = 1',
+          )
+          .get();
+      expect(rows, hasLength(1));
+      expect(rows.single.data['polyline_width'], 10);
     });
   });
 }

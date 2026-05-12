@@ -5,6 +5,7 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../core/constants/app_strings.dart';
 import '../../../core/router/app_router.dart';
+import '../../../core/settings/application/app_settings_provider.dart';
 import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/theme_controller.dart';
@@ -138,6 +139,11 @@ class SettingsScreen extends ConsumerWidget {
                 ],
               ),
             ),
+
+            const SizedBox(height: AppSizes.sp3),
+
+            // Polyline width slider
+            _PolylineWidthCard(),
 
             const SizedBox(height: AppSizes.sp3),
 
@@ -329,6 +335,101 @@ class _SettingsTile extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Card with a slider to adjust the map polyline width (4–16px).
+class _PolylineWidthCard extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final text = context.text;
+    final tokens = context.tokens;
+    final currentWidth = ref.watch(polylineWidthProvider);
+
+    return GlassCard(
+      level: GlassLevel.level2,
+      padding: const EdgeInsets.all(AppSizes.sp1),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSizes.sp3 + 2,
+          AppSizes.sp3,
+          AppSizes.sp3 + 2,
+          AppSizes.sp2,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: tokens.primarySoft,
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: Icon(
+                    PhosphorIconsBold.lineSegments,
+                    size: 16,
+                    color: context.colors.primary,
+                  ),
+                ),
+                const SizedBox(width: AppSizes.sp3),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Ketebalan Garis Peta', style: text.labelMedium),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${currentWidth.round()} px',
+                        style: text.bodySmall?.copyWith(
+                          color: tokens.textTertiary,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSizes.sp2),
+            // Visual preview line
+            Container(
+              height: currentWidth,
+              decoration: BoxDecoration(
+                gradient: tokens.primaryGradient,
+                borderRadius: BorderRadius.circular(currentWidth / 2),
+              ),
+            ),
+            SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                activeTrackColor: context.colors.primary,
+                inactiveTrackColor: tokens.border,
+                thumbColor: context.colors.primary,
+                overlayColor: context.colors.primary.withValues(alpha: 0.12),
+                trackHeight: 3,
+                thumbShape: const RoundSliderThumbShape(
+                  enabledThumbRadius: 8,
+                ),
+              ),
+              child: Slider(
+                value: currentWidth,
+                min: 4,
+                max: 16,
+                divisions: 12,
+                onChanged: (value) {
+                  ref
+                      .read(appSettingsRepositoryProvider)
+                      .setPolylineWidth(value.round());
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );

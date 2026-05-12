@@ -13,6 +13,7 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/services/gps_reading.dart';
 import '../../../core/services/gps_service.dart';
+import '../../../core/settings/application/app_settings_provider.dart';
 import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
@@ -53,6 +54,7 @@ import '../application/map_overlay_state.dart';
 import '../application/markers_overlay_provider.dart';
 import 'providers/location_permission_provider.dart';
 import 'widgets/boat_marker.dart';
+import 'widgets/compass_indicator.dart';
 import 'widgets/gps_accuracy_chip.dart';
 import 'widgets/gps_error_banner.dart';
 import 'widgets/history_overlay_controls.dart';
@@ -196,6 +198,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   Future<void> _focusOnMarker(String markerId) async {
     try {
+      // Enable markers overlay so the marker pin is visible on the map.
+      ref.read(markersOverlayEnabledProvider.notifier).state = true;
       final markers = await ref.read(allMarkersProvider.future);
       final marker = markers.firstWhere((m) => m.id == markerId);
       if (mounted) {
@@ -209,7 +213,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   Future<void> _focusOnTrip(String tripId) async {
     try {
+      // Set the overlay state first so the build() method starts
+      // watching the tripRenderProvider via _watchOverlayRender.
       ref.read(mapOverlayControllerProvider.notifier).showTrip(tripId);
+      // Wait for one frame so the build cycle picks up the new
+      // overlay mode and subscribes to the render provider.
+      await Future<void>.delayed(const Duration(milliseconds: 50));
       final tripRender = await ref.read(tripRenderProvider(tripId).future);
       if (mounted && tripRender.bounds != null) {
         setState(() => _followingUser = false);
@@ -222,7 +231,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   Future<void> _focusOnHaul(String haulId) async {
     try {
+      // Set the overlay state first so the build() method starts
+      // watching the haulRenderProvider via _watchOverlayRender.
       ref.read(mapOverlayControllerProvider.notifier).showHaul(haulId);
+      // Wait for one frame so the build cycle picks up the new
+      // overlay mode and subscribes to the render provider.
+      await Future<void>.delayed(const Duration(milliseconds: 50));
       final haulRender = await ref.read(haulRenderProvider(haulId).future);
       if (mounted && haulRender.bounds != null) {
         setState(() => _followingUser = false);
@@ -732,7 +746,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     }
                   },
                   interactionOptions: const InteractionOptions(
-                    flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                    flags: InteractiveFlag.all,
                   ),
                   // Long-press anywhere on the map opens the LongPressMenu
                   // with two primary actions: start navigation to the
@@ -761,12 +775,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       tracks: allHistoryTracks,
                       onTrackTap: _onTrackTap,
                       isBackground: true,
+                      strokeWidth: ref.watch(polylineWidthProvider),
                     ),
                   if (pinnedTracks.isNotEmpty)
                     HistoryPolylineLayer(
                       tracks: pinnedTracks,
                       onTrackTap: _onTrackTap,
                       isBackground: false,
+                      strokeWidth: ref.watch(polylineWidthProvider),
                     ),
                   // Active haul polyline (empty layer when not recording).
                   const ActiveHaulPolyline(),
@@ -921,6 +937,21 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 mapController: _mapController,
                 onCompassReset: () => _mapController.rotate(0.0),
               ),
+            ),
+
+            // --- Compass indicator (top-left of map area) ---
+            Positioned(
+              left: AppSizes.sp4,
+              top: () {
+                double t = AppSizes.sp3 + (isRecording ? 104 : 68);
+                if (overlayActive) t += 56;
+                if (navActive != null) {
+                  t += 104;
+                  if (isRecording) t += 62;
+                }
+                return t;
+              }(),
+              child: CompassIndicator(mapController: _mapController),
             ),
 
             // --- Add-marker FAB (left side, sejajar MapControls) ---
