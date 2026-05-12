@@ -72,7 +72,7 @@ class _CompassScreenState extends State<CompassScreen> {
           child: !_sensorAvailable
               ? _NoSensorMessage(tokens: tokens, text: text)
               : _heading == null
-                  ? CircularProgressIndicator(color: tokens.primary)
+                  ? CircularProgressIndicator(color: context.colors.primary)
                   : _CompassDisplay(
                       heading: _heading!,
                       headingLabel: _headingLabel(_heading!),
@@ -92,7 +92,7 @@ class _CompassScreenState extends State<CompassScreen> {
 class _NoSensorMessage extends StatelessWidget {
   const _NoSensorMessage({required this.tokens, required this.text});
 
-  final AppTokens tokens;
+  final LangTokens tokens;
   final TextTheme text;
 
   @override
@@ -139,7 +139,7 @@ class _CompassDisplay extends StatelessWidget {
 
   final double heading;
   final String headingLabel;
-  final AppTokens tokens;
+  final LangTokens tokens;
   final TextTheme text;
 
   @override
@@ -160,7 +160,7 @@ class _CompassDisplay extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           decoration: BoxDecoration(
             gradient: tokens.primaryGradient,
-            borderRadius: BorderRadius.circular(AppSizes.radiusFull),
+            borderRadius: BorderRadius.circular(AppSizes.radiusPill),
           ),
           child: Text(
             headingLabel,
