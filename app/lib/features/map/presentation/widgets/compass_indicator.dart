@@ -64,90 +64,38 @@ class _CompassPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2 - 6;
+    final radius = size.width / 2 - 4;
 
-    // --- Compass tick marks ---
-    final tickPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.4)
-      ..strokeWidth = 1.0
-      ..strokeCap = StrokeCap.round;
-
-    for (int i = 0; i < 12; i++) {
-      final angle = (i * 30) * math.pi / 180;
-      final isCardinal = i % 3 == 0;
-      final inner = isCardinal ? radius - 8 : radius - 5;
-      final outer = radius - 2;
-      canvas.drawLine(
-        Offset(
-          center.dx + inner * math.sin(angle),
-          center.dy - inner * math.cos(angle),
-        ),
-        Offset(
-          center.dx + outer * math.sin(angle),
-          center.dy - outer * math.cos(angle),
-        ),
-        tickPaint..strokeWidth = (isCardinal ? 1.5 : 1.0),
-      );
-    }
-
-    // --- North arrow (red) ---
+    // A simple, high-visibility compass needle (two large triangles)
+    // Red triangle pointing North
     final northPath = Path()
-      ..moveTo(center.dx, center.dy - radius + 10)
-      ..lineTo(center.dx - 5, center.dy - 2)
-      ..lineTo(center.dx + 5, center.dy - 2)
+      ..moveTo(center.dx, center.dy - radius) // Top tip
+      ..lineTo(center.dx - 6, center.dy)      // Left base
+      ..lineTo(center.dx + 6, center.dy)      // Right base
       ..close();
-    canvas.drawPath(
-      northPath,
-      Paint()..color = const Color(0xFFEF4444),
-    );
+    canvas.drawPath(northPath, Paint()..color = const Color(0xFFEF4444));
 
-    // --- South arrow (white, subdued) ---
+    // White/grey triangle pointing South
     final southPath = Path()
-      ..moveTo(center.dx, center.dy + radius - 10)
-      ..lineTo(center.dx - 5, center.dy + 2)
-      ..lineTo(center.dx + 5, center.dy + 2)
+      ..moveTo(center.dx, center.dy + radius) // Bottom tip
+      ..lineTo(center.dx - 6, center.dy)      // Left base
+      ..lineTo(center.dx + 6, center.dy)      // Right base
       ..close();
     canvas.drawPath(
       southPath,
-      Paint()..color = Colors.white.withValues(alpha: 0.45),
+      Paint()..color = Colors.white.withValues(alpha: 0.8),
     );
 
-    // --- Cardinal labels ---
-    _drawLabel(canvas, center, radius, 0, 'N', const Color(0xFFEF4444));
-    _drawLabel(
-        canvas, center, radius, 90, 'E', Colors.white.withValues(alpha: 0.7));
-    _drawLabel(canvas, center, radius, 180, 'S',
-        Colors.white.withValues(alpha: 0.7));
-    _drawLabel(
-        canvas, center, radius, 270, 'W', Colors.white.withValues(alpha: 0.7));
-  }
-
-  void _drawLabel(Canvas canvas, Offset center, double radius,
-      double angleDegrees, String label, Color color) {
-    final angle = angleDegrees * math.pi / 180;
-    final labelRadius = radius - 15;
-    final offset = Offset(
-      center.dx + labelRadius * math.sin(angle),
-      center.dy - labelRadius * math.cos(angle),
+    // Small dot in the center for the pin
+    canvas.drawCircle(
+      center,
+      2.5,
+      Paint()..color = Colors.black.withValues(alpha: 0.7),
     );
-
-    final textSpan = TextSpan(
-      text: label,
-      style: TextStyle(
-        color: color,
-        fontSize: 9,
-        fontWeight: FontWeight.w800,
-        letterSpacing: 0.5,
-      ),
-    );
-    final tp = TextPainter(
-      text: textSpan,
-      textDirection: TextDirection.ltr,
-    )..layout();
-
-    tp.paint(
-      canvas,
-      Offset(offset.dx - tp.width / 2, offset.dy - tp.height / 2),
+    canvas.drawCircle(
+      center,
+      1.5,
+      Paint()..color = Colors.white,
     );
   }
 

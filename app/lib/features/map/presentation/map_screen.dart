@@ -202,9 +202,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
       ref.read(markersOverlayEnabledProvider.notifier).state = true;
       final markers = await ref.read(allMarkersProvider.future);
       final marker = markers.firstWhere((m) => m.id == markerId);
+      // Wait for one frame so the MapController has time to bind to the
+      // newly built FlutterMap if this was triggered during navigation.
+      await Future<void>.delayed(const Duration(milliseconds: 50));
       if (mounted) {
         setState(() => _followingUser = false);
-        _mapController.move(marker.latLng, 16.0);
+        final targetZoom = math.max(_mapController.camera.zoom, 17.0);
+        _mapController.move(marker.latLng, targetZoom);
       }
     } catch (e) {
       // Marker not found or provider error, ignore.
@@ -681,15 +685,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
         _cameraController.deactivate();
       }
     });
-    ref.listen<bool>(allHistoryVisibleProvider, (prev, next) {
-      // Only manage camera when no pinned overlay is active (pinned wins).
-      if (overlayActive) return;
-      if (prev == false && next == true) {
-        _cameraController.activate('all-history:on');
-      } else if (prev == true && next == false) {
-        _cameraController.deactivate();
-      }
-    });
+    // Removed ref.listen<bool>(allHistoryVisibleProvider, ...) as requested:
+    // Toggling the "Tampilkan Jejak" button should only show/hide the tracks 
+    // without automatically shifting or zooming the map camera.
 
     // Compose polyline layers using HistoryPolylineLayer for tap detection.
     // All-history is the background layer, pinned overlay is the focused layer.
