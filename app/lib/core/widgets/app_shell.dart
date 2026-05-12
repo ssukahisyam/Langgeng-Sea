@@ -36,9 +36,12 @@ const double _kNavBarContentHeight = 56;
 const double _kGapAboveNav = 8;
 
 class AppShell extends StatefulWidget {
-  const AppShell({super.key, required this.child});
+  const AppShell({super.key, required this.navigationShell});
 
-  final Widget child;
+  /// The [StatefulNavigationShell] provided by [StatefulShellRoute].
+  /// It manages the indexed stack of tab bodies and handles
+  /// branch switching without disposing cached widgets.
+  final StatefulNavigationShell navigationShell;
 
   static const tabs = <_NavTab>[
     _NavTab(
@@ -74,21 +77,9 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _prevIndex = 0;
 
-  static int _indexFromLocation(String location) {
-    for (var i = 0; i < AppShell.tabs.length; i++) {
-      final path = AppShell.tabs[i].path;
-      if (location == path ||
-          (location != '/' && location.startsWith(path) && path != '/')) {
-        return i;
-      }
-    }
-    return 0;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final location = GoRouterState.of(context).uri.toString();
-    final currentIndex = _indexFromLocation(location);
+    final currentIndex = widget.navigationShell.currentIndex;
     final tokens = context.tokens;
 
     // Direction for the tab transition. +1 = user moved right (new
@@ -120,14 +111,22 @@ class _AppShellState extends State<AppShell> {
             child: _TabTransition(
               direction: direction,
               index: currentIndex,
-              child: widget.child,
+              child: widget.navigationShell,
             ),
           ),
           Positioned(
             left: AppSizes.sp3,
             right: AppSizes.sp3,
             bottom: AppSizes.sp3 + mq.padding.bottom,
-            child: _NavBar(currentIndex: currentIndex, tokens: tokens),
+            child: _NavBar(
+              currentIndex: currentIndex,
+              tokens: tokens,
+              onTap: (index) => widget.navigationShell.goBranch(
+                index,
+                // If already on this tab, pop to the root of the branch.
+                initialLocation: index == currentIndex,
+              ),
+            ),
           ),
         ],
       ),
@@ -141,10 +140,15 @@ class _AppShellState extends State<AppShell> {
 /// background instead, which reads the same at typical viewing
 /// distance but costs ~0 ms per frame.
 class _NavBar extends StatelessWidget {
-  const _NavBar({required this.currentIndex, required this.tokens});
+  const _NavBar({
+    required this.currentIndex,
+    required this.tokens,
+    required this.onTap,
+  });
 
   final int currentIndex;
   final LangTokens tokens;
+  final ValueChanged<int> onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -176,7 +180,7 @@ class _NavBar extends StatelessWidget {
                   child: _NavButton(
                     tab: AppShell.tabs[i],
                     selected: i == currentIndex,
-                    onTap: () => context.go(AppShell.tabs[i].path),
+                    onTap: () => onTap(i),
                   ),
                 ),
             ],

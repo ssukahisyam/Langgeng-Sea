@@ -45,6 +45,7 @@ import '../../tracking/presentation/widgets/active_haul_polyline.dart';
 import '../../tracking/presentation/widgets/haul_summary_sheet.dart';
 import '../../tracking/presentation/widgets/live_stats_panel.dart';
 import '../application/all_history_visible_provider.dart';
+import '../application/compass_heading_provider.dart';
 import '../application/current_reading_provider.dart';
 import '../application/history_overlay_providers.dart';
 import '../application/map_camera_controller.dart';
@@ -91,7 +92,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
   late final MapCameraController _cameraController;
   bool _followingUser = true;
   bool _headingUpMode = false;
-  bool _checkedRecovery = false;
+  static bool _checkedRecovery = false;
 
   /// Active popup for tapped polyline track. Null when no popup is shown.
   HaulTrackRender? _activePopupTrack;
@@ -683,6 +684,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     });
 
     final reading = ref.watch(currentReadingProvider).asData?.value;
+    final compassHeading = ref.watch(compassHeadingProvider).asData?.value;
     final permState = ref.watch(locationPermissionProvider);
     final hasPermission = permState == LocationPermissionState.ready;
     final trackingState = ref.watch(trackingControllerProvider);
@@ -897,6 +899,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                             isTracking: isRecording,
                             bearingToTarget: navActive?.progress.bearingDegrees,
                             navArrived: navArrived,
+                            compassHeading: compassHeading,
                           ),
                         ),
                       ],
