@@ -182,7 +182,7 @@ class _CompassDisplay extends StatelessWidget {
               heading: heading,
               northColor: const Color(0xFFEF4444),
               tickColor: tokens.textSecondary,
-              labelColor: tokens.textPrimary,
+              labelColor: context.colors.onSurface,
               ringColor: tokens.border,
             ),
           ),
