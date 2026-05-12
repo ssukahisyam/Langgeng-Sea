@@ -96,6 +96,18 @@ class _MapScreenState extends ConsumerState<MapScreen>
   HaulTrackRender? _activePopupTrack;
   LatLng? _activePopupLatLng;
 
+  bool _isMapReady = false;
+
+  void _processInitialFocus() {
+    if (widget.focusMarkerId != null) {
+      _focusOnMarker(widget.focusMarkerId!);
+    } else if (widget.focusTripId != null) {
+      _focusOnTrip(widget.focusTripId!);
+    } else if (widget.focusHaulId != null) {
+      _focusOnHaul(widget.focusHaulId!);
+    }
+  }
+
   /// Tracks the current map zoom so the marker layer can decide
   /// whether to show name labels (see MarkerPin.labelZoomThreshold).
   double _currentZoom = _initialZoom;
@@ -163,13 +175,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
         await _showRecoveryDialog(orphan);
       }
 
-      if (widget.focusMarkerId != null) {
-        _focusOnMarker(widget.focusMarkerId!);
-      } else if (widget.focusTripId != null) {
-        _focusOnTrip(widget.focusTripId!);
-      } else if (widget.focusHaulId != null) {
-        _focusOnHaul(widget.focusHaulId!);
-      }
     });
   }
 
@@ -184,6 +189,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
   @override
   void didUpdateWidget(MapScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!_isMapReady) return;
     if (widget.focusMarkerId != oldWidget.focusMarkerId &&
         widget.focusMarkerId != null) {
       _focusOnMarker(widget.focusMarkerId!);
@@ -196,20 +202,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
     }
   }
 
-  Future<void> _waitForMapReady() async {
-    while (mounted) {
-      try {
-        // Accessing the camera throws a StateError if the MapController is not yet bound.
-        // Even if bound, it needs a non-zero size to properly calculate fitCamera or move bounds.
-        final camera = _mapController.camera;
-        if (camera.size.x > 0 && camera.size.y > 0) {
-          return;
-        }
-      } catch (_) {}
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-    }
-  }
-
   Future<void> _focusOnMarker(String markerId) async {
     try {
       // Enable markers overlay so the marker pin is visible on the map.
@@ -217,11 +209,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
       final markers = await ref.read(allMarkersProvider.future);
       final marker = markers.firstWhere((m) => m.id == markerId);
       
-      await _waitForMapReady();
-      
       if (mounted) {
         setState(() => _followingUser = false);
-        final targetZoom = math.max(_mapController.camera.zoom, 17.0);
+        final targetZoom = math.max(_mapController.camera.zoom, 18.0);
         _mapController.move(marker.latLng, targetZoom);
       }
     } catch (e) {
@@ -235,8 +225,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
       // watching the tripRenderProvider via _watchOverlayRender.
       ref.read(mapOverlayControllerProvider.notifier).showTrip(tripId);
       final tripRender = await ref.read(tripRenderProvider(tripId).future);
-      
-      await _waitForMapReady();
       
       if (mounted && tripRender.bounds != null) {
         setState(() => _followingUser = false);
@@ -253,8 +241,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
       // watching the haulRenderProvider via _watchOverlayRender.
       ref.read(mapOverlayControllerProvider.notifier).showHaul(haulId);
       final haulRender = await ref.read(haulRenderProvider(haulId).future);
-      
-      await _waitForMapReady();
       
       if (mounted && haulRender.bounds != null) {
         setState(() => _followingUser = false);
@@ -729,6 +715,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
               child: FlutterMap(
                 mapController: _mapController,
                 options: MapOptions(
+                  onMapReady: () {
+                    if (mounted) {
+                      setState(() => _isMapReady = true);
+                      _processInitialFocus();
+                    }
+                  },
                   initialCenter: reading?.latLng ?? _initialCenter,
                   initialZoom: _initialZoom,
                   minZoom: 3,
