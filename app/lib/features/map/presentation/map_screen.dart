@@ -196,15 +196,29 @@ class _MapScreenState extends ConsumerState<MapScreen>
     }
   }
 
+  Future<void> _waitForMapReady() async {
+    while (mounted) {
+      try {
+        // Accessing the camera throws a StateError if the MapController is not yet bound.
+        // Even if bound, it needs a non-zero size to properly calculate fitCamera or move bounds.
+        final camera = _mapController.camera;
+        if (camera.size.x > 0 && camera.size.y > 0) {
+          return;
+        }
+      } catch (_) {}
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+  }
+
   Future<void> _focusOnMarker(String markerId) async {
     try {
       // Enable markers overlay so the marker pin is visible on the map.
       ref.read(markersOverlayEnabledProvider.notifier).state = true;
       final markers = await ref.read(allMarkersProvider.future);
       final marker = markers.firstWhere((m) => m.id == markerId);
-      // Wait for one frame so the MapController has time to bind to the
-      // newly built FlutterMap if this was triggered during navigation.
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+      
+      await _waitForMapReady();
+      
       if (mounted) {
         setState(() => _followingUser = false);
         final targetZoom = math.max(_mapController.camera.zoom, 17.0);
@@ -220,10 +234,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
       // Set the overlay state first so the build() method starts
       // watching the tripRenderProvider via _watchOverlayRender.
       ref.read(mapOverlayControllerProvider.notifier).showTrip(tripId);
-      // Wait for one frame so the build cycle picks up the new
-      // overlay mode and subscribes to the render provider.
-      await Future<void>.delayed(const Duration(milliseconds: 50));
       final tripRender = await ref.read(tripRenderProvider(tripId).future);
+      
+      await _waitForMapReady();
+      
       if (mounted && tripRender.bounds != null) {
         setState(() => _followingUser = false);
         _cameraController.fitCameraExplicit(tripRender.bounds!);
@@ -238,10 +252,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
       // Set the overlay state first so the build() method starts
       // watching the haulRenderProvider via _watchOverlayRender.
       ref.read(mapOverlayControllerProvider.notifier).showHaul(haulId);
-      // Wait for one frame so the build cycle picks up the new
-      // overlay mode and subscribes to the render provider.
-      await Future<void>.delayed(const Duration(milliseconds: 50));
       final haulRender = await ref.read(haulRenderProvider(haulId).future);
+      
+      await _waitForMapReady();
+      
       if (mounted && haulRender.bounds != null) {
         setState(() => _followingUser = false);
         _cameraController.fitCameraExplicit(haulRender.bounds!);
