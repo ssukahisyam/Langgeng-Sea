@@ -42,7 +42,7 @@ class MapControls extends StatelessWidget {
                       icon: PhosphorIconsBold.compass,
                       tooltip: 'Kiblat ulang',
                       onTap: onCompassReset!,
-                      rotation: -rotation * (3.141592653589793 / 180.0),
+                      rotation: rotation * (3.141592653589793 / 180.0),
                     ),
                     const SizedBox(height: AppSizes.sp2),
                   ],

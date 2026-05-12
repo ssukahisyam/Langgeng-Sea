@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/compass/presentation/compass_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
 import '../../features/export_import/presentation/import_screen.dart';
 import '../../features/history/presentation/haul_detail_screen.dart';
@@ -48,6 +49,7 @@ abstract class AppRoutes {
   // Coming in later milestones
   static const String markerList = '/markers';
   static const String importData = '/import';
+  static const String compass = '/compass';
   static const String profile = '/settings/profile';
   static const String logBookHaul = '/log-book/haul/:id';
   static const String logBookTrip = '/log-book/trip/:id';
@@ -189,6 +191,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.importData,
         parentNavigatorKey: _rootNavigatorKey,
         pageBuilder: (_, __) => _slideUp(const ImportScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.compass,
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (_, __) => _slideUp(const CompassScreen()),
       ),
       GoRoute(
         path: AppRoutes.onboarding,

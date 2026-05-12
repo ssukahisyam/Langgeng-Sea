@@ -90,6 +90,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
   final MapController _mapController = MapController();
   late final MapCameraController _cameraController;
   bool _followingUser = true;
+  bool _headingUpMode = false;
   bool _checkedRecovery = false;
 
   /// Active popup for tapped polyline track. Null when no popup is shown.
@@ -303,7 +304,19 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   void _maybeFollow(GpsReading reading) {
     if (!_followingUser) return;
-    _mapController.move(reading.latLng, _mapController.camera.zoom);
+
+    if (_headingUpMode && reading.hasReliableHeading) {
+      // Heading-up: rotate map so the boat's heading points to screen-top.
+      // flutter_map rotation convention: positive = CCW. To make heading
+      // point up, we rotate by -heading degrees.
+      _mapController.moveAndRotate(
+        reading.latLng,
+        _mapController.camera.zoom,
+        -reading.headingDegrees!,
+      );
+    } else {
+      _mapController.move(reading.latLng, _mapController.camera.zoom);
+    }
   }
 
   void _centerOnMe() {
@@ -315,8 +328,21 @@ class _MapScreenState extends ConsumerState<MapScreen>
       }
       return;
     }
-    setState(() => _followingUser = true);
-    _mapController.move(reading.latLng, 18);
+
+    // Check if navigation is active — if so, enable heading-up mode.
+    final navState = ref.read(navigationControllerProvider);
+    final isNav = navState is NavigationActive;
+
+    setState(() {
+      _followingUser = true;
+      _headingUpMode = isNav;
+    });
+
+    if (isNav && reading.hasReliableHeading) {
+      _mapController.moveAndRotate(reading.latLng, 18, -reading.headingDegrees!);
+    } else {
+      _mapController.moveAndRotate(reading.latLng, 18, 0);
+    }
   }
 
   /// Handle polyline tap from HistoryPolylineLayer.
@@ -641,6 +667,21 @@ class _MapScreenState extends ConsumerState<MapScreen>
       next.whenData(_maybeFollow);
     });
 
+    // Auto-enable heading-up when navigation starts, reset when it stops.
+    ref.listen<NavigationState>(navigationControllerProvider, (prev, next) {
+      if (next is NavigationActive && prev is! NavigationActive) {
+        // Navigation just started → enable heading-up + follow
+        setState(() {
+          _headingUpMode = true;
+          _followingUser = true;
+        });
+      } else if (next is NavigationIdle && prev is NavigationActive) {
+        // Navigation stopped → disable heading-up, reset map to north-up
+        setState(() => _headingUpMode = false);
+        _mapController.rotate(0);
+      }
+    });
+
     final reading = ref.watch(currentReadingProvider).asData?.value;
     final permState = ref.watch(locationPermissionProvider);
     final hasPermission = permState == LocationPermissionState.ready;
@@ -744,8 +785,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     }
                     if (hasGesture) {
                       _cameraController.onUserGesture();
-                      if (_followingUser) {
-                        setState(() => _followingUser = false);
+                      if (_followingUser || _headingUpMode) {
+                        setState(() {
+                          _followingUser = false;
+                          _headingUpMode = false;
+                        });
                       }
                     }
                   },
