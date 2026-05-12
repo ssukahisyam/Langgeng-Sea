@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -52,10 +51,11 @@ class HaulDetailScreen extends ConsumerWidget {
               haul: haul,
               pointsAsync: pointsAsync,
               onExpandMap: () {
-                ref
-                    .read(mapOverlayControllerProvider.notifier)
-                    .showHaul(haul.id);
-                context.go(AppRoutes.map);
+                final uri = Uri(
+                  path: AppRoutes.map,
+                  queryParameters: {'focusHaulId': haul.id},
+                );
+                context.go(uri.toString());
               },
             );
           },
@@ -81,9 +81,8 @@ class HaulDetailScreen extends ConsumerWidget {
       ),
       actions: [
         IconButton(
-          onPressed: haul == null
-              ? null
-              : () => _onOptionsPressed(context, ref, haul),
+          onPressed:
+              haul == null ? null : () => _onOptionsPressed(context, ref, haul),
           tooltip: 'Opsi',
           icon: const Icon(PhosphorIconsRegular.dotsThree),
         ),
@@ -102,7 +101,8 @@ class HaulDetailScreen extends ConsumerWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-              'Selesaikan tarikan terlebih dulu (tekan "Berhenti").',),
+            'Selesaikan tarikan terlebih dulu (tekan "Berhenti").',
+          ),
           duration: Duration(seconds: 2),
         ),
       );
@@ -222,9 +222,8 @@ class _Hero extends StatelessWidget {
     final text = context.text;
     final tokens = context.tokens;
     final startClock = Formatters.wallClock(haul.startedAt);
-    final endClock = haul.endedAt != null
-        ? Formatters.wallClock(haul.endedAt!)
-        : '…';
+    final endClock =
+        haul.endedAt != null ? Formatters.wallClock(haul.endedAt!) : '…';
 
     return GlassCard(
       level: GlassLevel.level2,
@@ -264,8 +263,11 @@ class _Hero extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(PhosphorIconsFill.record,
-                      size: 10, color: tokens.danger,),
+                  Icon(
+                    PhosphorIconsFill.record,
+                    size: 10,
+                    color: tokens.danger,
+                  ),
                   const SizedBox(width: 5),
                   Text(
                     'MASIH MEREKAM',
@@ -299,49 +301,53 @@ class _MetricGrid extends StatelessWidget {
     final tokens = context.tokens;
     return Column(
       children: [
-        Row(children: [
-          Expanded(
-            child: _Tile(
-              icon: PhosphorIconsBold.ruler,
-              iconBg: tokens.primarySoft,
-              iconColor: context.colors.primary,
-              value: Formatters.distance(haul.distanceMeters),
-              label: 'Jarak Tarik',
+        Row(
+          children: [
+            Expanded(
+              child: _Tile(
+                icon: PhosphorIconsBold.ruler,
+                iconBg: tokens.primarySoft,
+                iconColor: context.colors.primary,
+                value: Formatters.distance(haul.distanceMeters),
+                label: 'Jarak Tarik',
+              ),
             ),
-          ),
-          const SizedBox(width: AppSizes.sp2),
-          Expanded(
-            child: _Tile(
-              icon: PhosphorIconsBold.timer,
-              iconBg: tokens.accentSoft,
-              iconColor: context.colors.secondary,
-              value: Formatters.duration(haul.duration),
-              label: 'Durasi',
+            const SizedBox(width: AppSizes.sp2),
+            Expanded(
+              child: _Tile(
+                icon: PhosphorIconsBold.timer,
+                iconBg: tokens.accentSoft,
+                iconColor: context.colors.secondary,
+                value: Formatters.duration(haul.duration),
+                label: 'Durasi',
+              ),
             ),
-          ),
-        ],),
+          ],
+        ),
         const SizedBox(height: AppSizes.sp2),
-        Row(children: [
-          Expanded(
-            child: _Tile(
-              icon: PhosphorIconsBold.speedometer,
-              iconBg: tokens.primarySoft,
-              iconColor: context.colors.primary,
-              value: Formatters.knots(haul.avgSpeedKnots),
-              label: 'Kecepatan rata-rata',
+        Row(
+          children: [
+            Expanded(
+              child: _Tile(
+                icon: PhosphorIconsBold.speedometer,
+                iconBg: tokens.primarySoft,
+                iconColor: context.colors.primary,
+                value: Formatters.knots(haul.avgSpeedKnots),
+                label: 'Kecepatan rata-rata',
+              ),
             ),
-          ),
-          const SizedBox(width: AppSizes.sp2),
-          Expanded(
-            child: _Tile(
-              icon: PhosphorIconsBold.compass,
-              iconBg: tokens.accentSoft,
-              iconColor: context.colors.secondary,
-              value: Formatters.heading(haul.avgHeadingDegrees),
-              label: 'Arah dominan',
+            const SizedBox(width: AppSizes.sp2),
+            Expanded(
+              child: _Tile(
+                icon: PhosphorIconsBold.compass,
+                iconBg: tokens.accentSoft,
+                iconColor: context.colors.secondary,
+                value: Formatters.heading(haul.avgHeadingDegrees),
+                label: 'Arah dominan',
+              ),
             ),
-          ),
-        ],),
+          ],
+        ),
         const SizedBox(height: AppSizes.sp2),
         _Tile(
           icon: PhosphorIconsBold.frameCorners,
@@ -517,7 +523,8 @@ class _LogBookCardShell extends StatelessWidget {
     final tokens = context.tokens;
     final text = context.text;
     final accent = saved ? tokens.success : context.colors.primary;
-    final iconBg = saved ? tokens.success.withValues(alpha: 0.14) : tokens.primarySoft;
+    final iconBg =
+        saved ? tokens.success.withValues(alpha: 0.14) : tokens.primarySoft;
 
     return GlassCard(
       level: GlassLevel.level1,
@@ -588,7 +595,8 @@ class _LogBookCardShell extends StatelessWidget {
 }
 
 class _MiniCta extends StatelessWidget {
-  const _MiniCta({required this.label, required this.icon, required this.color});
+  const _MiniCta(
+      {required this.label, required this.icon, required this.color});
 
   final String label;
   final IconData icon;
@@ -668,9 +676,8 @@ class _NavigationCtaRow extends ConsumerWidget {
         const SizedBox(width: AppSizes.sp2),
         Expanded(
           child: OutlinedButton.icon(
-            onPressed: hasPath
-                ? () => _onGotoEndPressed(context, ref, points)
-                : null,
+            onPressed:
+                hasPath ? () => _onGotoEndPressed(context, ref, points) : null,
             icon: const Icon(PhosphorIconsBold.navigationArrow, size: 18),
             label: const Text('Pandu ke Akhir'),
             style: OutlinedButton.styleFrom(
@@ -844,8 +851,7 @@ class _MapSkeleton extends StatelessWidget {
             height: 24,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              valueColor:
-                  AlwaysStoppedAnimation<Color>(context.colors.primary),
+              valueColor: AlwaysStoppedAnimation<Color>(context.colors.primary),
             ),
           ),
         ),

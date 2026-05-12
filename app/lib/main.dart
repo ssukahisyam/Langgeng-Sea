@@ -105,9 +105,13 @@ void main() async {
       }
       // Best-effort: the container may not have been built yet.
       try {
-        const NoopCrashReporter().recordError(error, stack, context: const {
-          'source': 'runZonedGuarded',
-        },);
+        const NoopCrashReporter().recordError(
+          error,
+          stack,
+          context: const {
+            'source': 'runZonedGuarded',
+          },
+        );
       } catch (_) {
         // Swallow — we've already logged above.
       }

@@ -69,15 +69,14 @@ class MapCameraController {
   bool _userLatched = false;
 
   /// Padding applied to [CameraFit.bounds] when fitting the camera.
-  /// Matches the previous `_fitOverlayBounds` / `_fitAllHistoryBounds`
-  /// helpers in `map_screen.dart` (both used `EdgeInsets.all(64)`) so
-  /// the visual behaviour before and after this refactor is identical.
-  static const _defaultPadding = EdgeInsets.all(64);
+  /// Reduced from 64 to 32 to allow tighter zoom fits without pushing
+  /// small bounds too far out on smaller screens.
+  static const _defaultPadding = EdgeInsets.all(32);
 
   /// Minimum zoom used when recentering on degenerate bounds (AC 2.8).
-  /// Chosen high enough that a single-point Track is still visible as
-  /// a recognisable area, not a global view.
-  static const _degenerateFallbackZoom = 15.0;
+  /// Increased to 17.0 so focusing on single-point/tiny tracks provides
+  /// a tight, close-up view instead of a distant overview.
+  static const _degenerateFallbackZoom = 17.0;
 
   /// Whether an activation cycle is currently in progress. Useful for
   /// widget tests and the future `HistoryOverlayControls` "Paskan

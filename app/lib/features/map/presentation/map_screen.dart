@@ -13,6 +13,7 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/services/gps_reading.dart';
 import '../../../core/services/gps_service.dart';
+import '../../../core/settings/application/app_settings_provider.dart';
 import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
@@ -53,6 +54,7 @@ import '../application/map_overlay_state.dart';
 import '../application/markers_overlay_provider.dart';
 import 'providers/location_permission_provider.dart';
 import 'widgets/boat_marker.dart';
+import 'widgets/compass_indicator.dart';
 import 'widgets/gps_accuracy_chip.dart';
 import 'widgets/gps_error_banner.dart';
 import 'widgets/history_overlay_controls.dart';
@@ -67,10 +69,14 @@ class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({
     super.key,
     this.focusMarkerId,
+    this.focusTripId,
+    this.focusHaulId,
   });
 
   /// Optional marker ID to focus the camera on when the screen loads.
   final String? focusMarkerId;
+  final String? focusTripId;
+  final String? focusHaulId;
 
   @override
   ConsumerState<MapScreen> createState() => _MapScreenState();
@@ -90,10 +96,21 @@ class _MapScreenState extends ConsumerState<MapScreen>
   HaulTrackRender? _activePopupTrack;
   LatLng? _activePopupLatLng;
 
+  bool _isMapReady = false;
+
+  void _processInitialFocus() {
+    if (widget.focusMarkerId != null) {
+      _focusOnMarker(widget.focusMarkerId!);
+    } else if (widget.focusTripId != null) {
+      _focusOnTrip(widget.focusTripId!);
+    } else if (widget.focusHaulId != null) {
+      _focusOnHaul(widget.focusHaulId!);
+    }
+  }
+
   /// Tracks the current map zoom so the marker layer can decide
   /// whether to show name labels (see MarkerPin.labelZoomThreshold).
   double _currentZoom = _initialZoom;
-
 
   // Subscribes to the OS-level location service toggle. When the user
   // flips GPS on from the system shade / Settings and returns to the
@@ -119,10 +136,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
     // immediately to GPS-toggle changes even while the app is
     // foregrounded.
     try {
-      _serviceStatusSub = ref
-          .read(gpsServiceProvider)
-          .watchServiceStatus()
-          .listen((status) {
+      _serviceStatusSub =
+          ref.read(gpsServiceProvider).watchServiceStatus().listen((status) {
         if (!mounted) return;
         // Re-check permission on every transition so the sheet text
         // updates in place ("Aktifkan Lokasi" → "Lokasi Aktif") without
@@ -160,9 +175,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
         await _showRecoveryDialog(orphan);
       }
 
-      if (widget.focusMarkerId != null) {
-        _focusOnMarker(widget.focusMarkerId!);
-      }
     });
   }
 
@@ -177,22 +189,65 @@ class _MapScreenState extends ConsumerState<MapScreen>
   @override
   void didUpdateWidget(MapScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!_isMapReady) return;
     if (widget.focusMarkerId != oldWidget.focusMarkerId &&
         widget.focusMarkerId != null) {
       _focusOnMarker(widget.focusMarkerId!);
+    } else if (widget.focusTripId != oldWidget.focusTripId &&
+        widget.focusTripId != null) {
+      _focusOnTrip(widget.focusTripId!);
+    } else if (widget.focusHaulId != oldWidget.focusHaulId &&
+        widget.focusHaulId != null) {
+      _focusOnHaul(widget.focusHaulId!);
     }
   }
 
   Future<void> _focusOnMarker(String markerId) async {
     try {
+      // Enable markers overlay so the marker pin is visible on the map.
+      ref.read(markersOverlayEnabledProvider.notifier).state = true;
       final markers = await ref.read(allMarkersProvider.future);
       final marker = markers.firstWhere((m) => m.id == markerId);
+      
       if (mounted) {
         setState(() => _followingUser = false);
-        _mapController.move(marker.latLng, 14.0);
+        final targetZoom = math.max(_mapController.camera.zoom, 18.0);
+        _mapController.move(marker.latLng, targetZoom);
       }
     } catch (e) {
       // Marker not found or provider error, ignore.
+    }
+  }
+
+  Future<void> _focusOnTrip(String tripId) async {
+    try {
+      // Set the overlay state first so the build() method starts
+      // watching the tripRenderProvider via _watchOverlayRender.
+      ref.read(mapOverlayControllerProvider.notifier).showTrip(tripId);
+      final tripRender = await ref.read(tripRenderProvider(tripId).future);
+      
+      if (mounted && tripRender.bounds != null) {
+        setState(() => _followingUser = false);
+        _cameraController.fitCameraExplicit(tripRender.bounds!);
+      }
+    } catch (e) {
+      // Trip not found or provider error, ignore.
+    }
+  }
+
+  Future<void> _focusOnHaul(String haulId) async {
+    try {
+      // Set the overlay state first so the build() method starts
+      // watching the haulRenderProvider via _watchOverlayRender.
+      ref.read(mapOverlayControllerProvider.notifier).showHaul(haulId);
+      final haulRender = await ref.read(haulRenderProvider(haulId).future);
+      
+      if (mounted && haulRender.bounds != null) {
+        setState(() => _followingUser = false);
+        _cameraController.fitCameraExplicit(haulRender.bounds!);
+      }
+    } catch (e) {
+      // Haul not found or provider error, ignore.
     }
   }
 
@@ -266,7 +321,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   /// Handle polyline tap from HistoryPolylineLayer.
   void _onTrackTap(HaulTrackRender track, Offset tapPosition) {
-    final latLng = _mapController.camera.pointToLatLng(math.Point(tapPosition.dx, tapPosition.dy));
+    final latLng = _mapController.camera
+        .pointToLatLng(math.Point(tapPosition.dx, tapPosition.dy));
     setState(() {
       _activePopupTrack = track;
       _activePopupLatLng = latLng;
@@ -280,7 +336,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
       _activePopupLatLng = null;
     });
   }
-
 
   // Marker handlers
   // ---------------------------------------------------------------------
@@ -435,8 +490,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSizes.radiusXl),
         ),
-        icon: Icon(PhosphorIconsFill.warningCircle,
-            color: tokens.warning, size: 36,),
+        icon: Icon(
+          PhosphorIconsFill.warningCircle,
+          color: tokens.warning,
+          size: 36,
+        ),
         title: Text('Tarikan Belum Selesai', style: text.titleLarge),
         content: Text(
           '${orphan.displayName()} masih tercatat sedang merekam. '
@@ -454,11 +512,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogCtx).pop(true),
-            child: Text('Lanjutkan',
-                style: text.labelMedium?.copyWith(
-                  color: context.colors.primary,
-                  fontWeight: FontWeight.w700,
-                ),),
+            child: Text(
+              'Lanjutkan',
+              style: text.labelMedium?.copyWith(
+                color: context.colors.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
@@ -544,34 +604,34 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
     return switch (mode) {
       MapMode.idle => _ActionPanel(
-        key: const ValueKey(MapMode.idle),
-        isRecording: false,
-        state: trackingState,
-        onStart: _onStartHaulPressed,
-        onStop: _onStopHaulPressed,
-        onEndTrip: () =>
-            ref.read(trackingControllerProvider.notifier).endTrip(),
-        hasPermission: hasPermission,
-        hasFix: hasFix,
-      ),
+          key: const ValueKey(MapMode.idle),
+          isRecording: false,
+          state: trackingState,
+          onStart: _onStartHaulPressed,
+          onStop: _onStopHaulPressed,
+          onEndTrip: () =>
+              ref.read(trackingControllerProvider.notifier).endTrip(),
+          hasPermission: hasPermission,
+          hasFix: hasFix,
+        ),
       MapMode.tracking => _ActionPanel(
-        key: const ValueKey(MapMode.tracking),
-        isRecording: true,
-        state: trackingState,
-        onStart: _onStartHaulPressed,
-        onStop: _onStopHaulPressed,
-        onEndTrip: () =>
-            ref.read(trackingControllerProvider.notifier).endTrip(),
-        hasPermission: hasPermission,
-        hasFix: hasFix,
-      ),
+          key: const ValueKey(MapMode.tracking),
+          isRecording: true,
+          state: trackingState,
+          onStart: _onStartHaulPressed,
+          onStop: _onStopHaulPressed,
+          onEndTrip: () =>
+              ref.read(trackingControllerProvider.notifier).endTrip(),
+          hasPermission: hasPermission,
+          hasFix: hasFix,
+        ),
       MapMode.viewingHistory => HistoryOverlayControls(
-        key: const ValueKey(MapMode.viewingHistory),
-        cameraController: _cameraController,
-      ),
+          key: const ValueKey(MapMode.viewingHistory),
+          cameraController: _cameraController,
+        ),
       MapMode.navigating => const SizedBox.shrink(
-        key: ValueKey('nav-fallback'),
-      ),
+          key: ValueKey('nav-fallback'),
+        ),
     };
   }
 
@@ -593,8 +653,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     // Idle when the user has not picked a target.
     final navState = ref.watch(navigationControllerProvider);
     final navActive = navState is NavigationActive ? navState : null;
-    final navArrived =
-        navActive?.alarmState == NavigationAlarmState.arrived;
+    final navArrived = navActive?.alarmState == NavigationAlarmState.arrived;
 
     final overlayMode = ref.watch(mapOverlayControllerProvider);
     final overlayAsync = _watchOverlayRender(overlayMode);
@@ -613,8 +672,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     // User-placed markers overlay (persistent toggle, see
     // markersOverlayEnabledProvider).
     final markersOn = ref.watch(markersOverlayEnabledProvider);
-    final markersAsync =
-        markersOn ? ref.watch(allMarkersProvider) : null;
+    final markersAsync = markersOn ? ref.watch(allMarkersProvider) : null;
 
     // Camera controller lifecycle — use ref.listen so activate/deactivate
     // fire ONLY on state transitions, not every rebuild. This prevents
@@ -627,16 +685,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
         _cameraController.deactivate();
       }
     });
-    ref.listen<bool>(allHistoryVisibleProvider, (prev, next) {
-      // Only manage camera when no pinned overlay is active (pinned wins).
-      if (overlayActive) return;
-      if (prev == false && next == true) {
-        _cameraController.activate('all-history:on');
-      } else if (prev == true && next == false) {
-        _cameraController.deactivate();
-      }
-    });
-
+    // Removed ref.listen<bool>(allHistoryVisibleProvider, ...) as requested:
+    // Toggling the "Tampilkan Jejak" button should only show/hide the tracks 
+    // without automatically shifting or zooming the map camera.
 
     // Compose polyline layers using HistoryPolylineLayer for tap detection.
     // All-history is the background layer, pinned overlay is the focused layer.
@@ -664,6 +715,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
               child: FlutterMap(
                 mapController: _mapController,
                 options: MapOptions(
+                  onMapReady: () {
+                    if (mounted) {
+                      setState(() => _isMapReady = true);
+                      _processInitialFocus();
+                    }
+                  },
                   initialCenter: reading?.latLng ?? _initialCenter,
                   initialZoom: _initialZoom,
                   minZoom: 3,
@@ -679,8 +736,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     final z = pos.zoom;
                     final wasShowing =
                         _currentZoom >= MarkerPin.labelZoomThreshold;
-                    final nowShowing =
-                        z >= MarkerPin.labelZoomThreshold;
+                    final nowShowing = z >= MarkerPin.labelZoomThreshold;
                     if (wasShowing != nowShowing) {
                       setState(() => _currentZoom = z);
                     } else {
@@ -694,7 +750,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     }
                   },
                   interactionOptions: const InteractionOptions(
-                    flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                    flags: InteractiveFlag.all,
                   ),
                   // Long-press anywhere on the map opens the LongPressMenu
                   // with two primary actions: start navigation to the
@@ -708,11 +764,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     userAgentPackageName: 'id.co.langgengsea',
                     maxNativeZoom: 19,
                     retinaMode: RetinaMode.isHighDensity(context),
-                    tileProvider: ref
-                        .read(tileCacheServiceProvider)
-                        .cachedTileProvider(
-                          userAgentPackageName: 'id.co.langgengsea',
-                        ),
+                    tileProvider:
+                        ref.read(tileCacheServiceProvider).cachedTileProvider(
+                              userAgentPackageName: 'id.co.langgengsea',
+                            ),
                   ),
                   TileLayer(
                     urlTemplate:
@@ -724,12 +779,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       tracks: allHistoryTracks,
                       onTrackTap: _onTrackTap,
                       isBackground: true,
+                      strokeWidth: ref.watch(polylineWidthProvider),
                     ),
                   if (pinnedTracks.isNotEmpty)
                     HistoryPolylineLayer(
                       tracks: pinnedTracks,
                       onTrackTap: _onTrackTap,
                       isBackground: false,
+                      strokeWidth: ref.watch(polylineWidthProvider),
                     ),
                   // Active haul polyline (empty layer when not recording).
                   const ActiveHaulPolyline(),
@@ -759,8 +816,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       markers: () {
                         final showLabel =
                             _currentZoom >= MarkerPin.labelZoomThreshold;
-                        final size =
-                            MarkerPin.markerSize(showLabel: showLabel);
+                        final size = MarkerPin.markerSize(showLabel: showLabel);
                         final alignment = MarkerPin.markerAlignment(
                           showLabel: showLabel,
                         );
@@ -774,8 +830,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                                 child: MarkerPin(
                                   marker: m,
                                   showLabel: showLabel,
-                                  onTap: () =>
-                                      MarkerInfoSheet.show(context, m),
+                                  onTap: () => MarkerInfoSheet.show(context, m),
                                 ),
                               ),
                             )
@@ -796,8 +851,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                           child: BoatMarker(
                             reading: reading,
                             isTracking: isRecording,
-                            bearingToTarget:
-                                navActive?.progress.bearingDegrees,
+                            bearingToTarget: navActive?.progress.bearingDegrees,
                             navArrived: navArrived,
                           ),
                         ),
@@ -814,10 +868,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               right: AppSizes.sp4,
               child: Column(
                 children: [
-                  if (isRecording)
-                    const LiveStatsPanel()
-                  else
-                    _IdleAppBar(),
+                  if (isRecording) const LiveStatsPanel() else _IdleAppBar(),
                   if (overlayActive && overlayAsync != null) ...[
                     const SizedBox(height: AppSizes.sp2),
                     _OverlayContextChip(
@@ -886,7 +937,25 @@ class _MapScreenState extends ConsumerState<MapScreen>
               child: MapControls(
                 onCenterOnMe: _centerOnMe,
                 centerEnabled: hasPermission,
+                showCompass: true,
+                mapController: _mapController,
+                onCompassReset: () => _mapController.rotate(0.0),
               ),
+            ),
+
+            // --- Compass indicator (top-left of map area) ---
+            Positioned(
+              left: AppSizes.sp4,
+              top: () {
+                double t = AppSizes.sp3 + (isRecording ? 104 : 68);
+                if (overlayActive) t += 56;
+                if (navActive != null) {
+                  t += 104;
+                  if (isRecording) t += 62;
+                }
+                return t;
+              }(),
+              child: CompassIndicator(mapController: _mapController),
             ),
 
             // --- Add-marker FAB (left side, sejajar MapControls) ---
@@ -900,10 +969,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
             ),
 
             // --- Attribution ---
-            const Positioned(
+            Positioned(
               left: AppSizes.sp4,
-              bottom: 280,
-              child: MapAttribution(),
+              bottom: (mode == MapMode.idle ||
+                      mode == MapMode.tracking ||
+                      isRecording)
+                  ? 130.0
+                  : 4.0,
+              child: const MapAttribution(),
             ),
 
             // --- Bottom action panel (mode-driven via AnimatedSwitcher) ---
@@ -984,9 +1057,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     onClose: _dismissPopup,
                     onNavigateTo: (targetLatLng, label) {
                       _dismissPopup();
-                      ref
-                          .read(navigationControllerProvider.notifier)
-                          .startGoto(
+                      ref.read(navigationControllerProvider.notifier).startGoto(
                             GotoTarget(
                               position: targetLatLng,
                               label: label,
@@ -996,7 +1067,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     onFollowTrack: (reversed) {
                       final track = _activePopupTrack!;
                       _dismissPopup();
-                      final points = reversed ? track.points.reversed.toList() : track.points;
+                      final points = reversed
+                          ? track.points.reversed.toList()
+                          : track.points;
                       ref
                           .read(navigationControllerProvider.notifier)
                           .startFollowTrack(
@@ -1037,8 +1110,10 @@ class _AllHistoryToggle extends StatelessWidget {
       label: on ? 'Sembunyikan jejak riwayat' : 'Tampilkan semua riwayat',
       button: true,
       toggled: on,
-      child: Material(
-        color: Colors.transparent,
+      child: GlassCard(
+        level: GlassLevel.level2,
+        borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+        padding: EdgeInsets.zero,
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(AppSizes.radiusPill),
@@ -1046,18 +1121,6 @@ class _AllHistoryToggle extends StatelessWidget {
             width: 40,
             height: 40,
             alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: tokens.surface3,
-              shape: BoxShape.circle,
-              border: Border.all(color: tokens.borderStrong),
-              boxShadow: [
-                BoxShadow(
-                  color: tokens.shadowMd,
-                  blurRadius: 14,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
             child: Icon(
               on
                   ? PhosphorIconsFill.footprints
@@ -1090,8 +1153,10 @@ class _MarkersToggle extends StatelessWidget {
       label: on ? 'Sembunyikan penanda' : 'Tampilkan penanda',
       button: true,
       toggled: on,
-      child: Material(
-        color: Colors.transparent,
+      child: GlassCard(
+        level: GlassLevel.level2,
+        borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+        padding: EdgeInsets.zero,
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(AppSizes.radiusPill),
@@ -1099,18 +1164,6 @@ class _MarkersToggle extends StatelessWidget {
             width: 40,
             height: 40,
             alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: tokens.surface3,
-              shape: BoxShape.circle,
-              border: Border.all(color: tokens.borderStrong),
-              boxShadow: [
-                BoxShadow(
-                  color: tokens.shadowMd,
-                  blurRadius: 14,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
             child: Icon(
               on ? PhosphorIconsFill.mapPin : PhosphorIconsRegular.mapPin,
               color: color,
@@ -1140,8 +1193,10 @@ class _AddMarkerButton extends StatelessWidget {
       label: 'Tambah penanda di posisi saat ini',
       button: true,
       enabled: enabled,
-      child: Material(
-        color: Colors.transparent,
+      child: GlassCard(
+        level: GlassLevel.level2,
+        borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+        padding: EdgeInsets.zero,
         child: InkWell(
           onTap: enabled ? onTap : null,
           borderRadius: BorderRadius.circular(AppSizes.radiusPill),
@@ -1149,23 +1204,9 @@ class _AddMarkerButton extends StatelessWidget {
             width: 52,
             height: 52,
             alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: tokens.surface3,
-              shape: BoxShape.circle,
-              border: Border.all(color: tokens.borderStrong),
-              boxShadow: [
-                BoxShadow(
-                  color: tokens.shadowMd,
-                  blurRadius: 14,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
             child: Icon(
               PhosphorIconsBold.mapPinPlus,
-              color: enabled
-                  ? context.colors.primary
-                  : tokens.textTertiary,
+              color: enabled ? context.colors.primary : tokens.textTertiary,
               size: 22,
             ),
           ),
@@ -1269,9 +1310,8 @@ class _OverlayContextChip extends ConsumerWidget {
         final tripAsync = ref.watch(tripByIdProvider(id));
         final trip = tripAsync.asData?.value;
         final titleBase = _tripTitle(trip);
-        final countLabel = render == null
-            ? 'Memuat…'
-            : '$tripHeadCount tarikan';
+        final countLabel =
+            render == null ? 'Memuat…' : '$tripHeadCount tarikan';
         return ('Trip: $titleBase', countLabel);
       case MapOverlaySingleHaul(haulId: final id):
         final haulAsync = ref.watch(haulByIdProvider(id));
@@ -1279,9 +1319,8 @@ class _OverlayContextChip extends ConsumerWidget {
         final title = haul == null
             ? 'Tarikan'
             : 'Tarikan #${haul.orderIndex}: ${haul.displayName()}';
-        final subtitle = haul == null
-            ? 'Memuat…'
-            : Formatters.sectionDate(haul.startedAt);
+        final subtitle =
+            haul == null ? 'Memuat…' : Formatters.sectionDate(haul.startedAt);
         return (title, subtitle);
     }
   }
@@ -1432,9 +1471,10 @@ class _ActionPanel extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       _subtitle(
-                          state: state,
-                          hasPermission: hasPermission,
-                          hasFix: hasFix,),
+                        state: state,
+                        hasPermission: hasPermission,
+                        hasFix: hasFix,
+                      ),
                       style: text.bodySmall?.copyWith(
                         color: tokens.textTertiary,
                       ),
@@ -1445,11 +1485,13 @@ class _ActionPanel extends StatelessWidget {
               if (state.hasTrip)
                 TextButton(
                   onPressed: onEndTrip,
-                  child: Text('Akhiri Trip',
-                      style: text.labelMedium?.copyWith(
-                        color: tokens.danger,
-                        fontWeight: FontWeight.w700,
-                      ),),
+                  child: Text(
+                    'Akhiri Trip',
+                    style: text.labelMedium?.copyWith(
+                      color: tokens.danger,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
             ],
           ),

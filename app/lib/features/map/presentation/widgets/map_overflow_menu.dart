@@ -58,8 +58,7 @@ class MapOverflowMenu extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final mode = ref.watch(mapModeProvider);
     final historyOn = ref.watch(allHistoryVisibleProvider);
-    final showFitAll =
-        onFitAll != null && mode != MapMode.viewingHistory;
+    final showFitAll = onFitAll != null && mode != MapMode.viewingHistory;
 
     return PopupMenuButton<_MenuAction>(
       tooltip: 'Menu peta',
@@ -73,9 +72,7 @@ class MapOverflowMenu extends ConsumerWidget {
             icon: historyOn
                 ? PhosphorIconsRegular.footprints
                 : PhosphorIconsBold.footprints,
-            label: historyOn
-                ? 'Nonaktifkan riwayat'
-                : 'Aktifkan riwayat',
+            label: historyOn ? 'Nonaktifkan riwayat' : 'Aktifkan riwayat',
           ),
         ),
         PopupMenuItem<_MenuAction>(

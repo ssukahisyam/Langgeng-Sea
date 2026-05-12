@@ -85,7 +85,11 @@ class PolylineSimplifier {
     final cosLat = math.cos(lat0);
 
     double toX(double lonDeg) =>
-        (lonDeg - a.longitude) * math.pi / 180.0 * cosLat * earthMetersPerRadian;
+        (lonDeg - a.longitude) *
+        math.pi /
+        180.0 *
+        cosLat *
+        earthMetersPerRadian;
     double toY(double latDeg) =>
         (latDeg - a.latitude) * math.pi / 180.0 * earthMetersPerRadian;
 

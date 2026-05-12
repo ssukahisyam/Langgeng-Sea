@@ -13,20 +13,24 @@ class MapAttribution extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
 
-    return GlassCard(
-      level: GlassLevel.level1,
+    return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSizes.sp2 + 2,
         vertical: 4,
       ),
-      borderRadius: BorderRadius.circular(AppSizes.radiusPill),
-      elevated: false,
       child: Text(
         '© OpenStreetMap · OpenSeaMap',
         style: TextStyle(
           fontSize: 9.5,
           fontWeight: FontWeight.w500,
-          color: tokens.textTertiary,
+          color: Colors.white70,
+          shadows: [
+            Shadow(
+              color: Colors.black.withValues(alpha: 0.8),
+              blurRadius: 3,
+              offset: const Offset(0, 1),
+            ),
+          ],
         ),
       ),
     );

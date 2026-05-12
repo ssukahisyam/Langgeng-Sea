@@ -13,8 +13,7 @@ class OfflineRegionDao extends DatabaseAccessor<AppDatabase>
       into(offlineRegions).insert(row);
 
   Future<OfflineRegionRow?> findById(String id) =>
-      (select(offlineRegions)..where((r) => r.id.equals(id)))
-          .getSingleOrNull();
+      (select(offlineRegions)..where((r) => r.id.equals(id))).getSingleOrNull();
 
   Future<List<OfflineRegionRow>> findAll() {
     return (select(offlineRegions)

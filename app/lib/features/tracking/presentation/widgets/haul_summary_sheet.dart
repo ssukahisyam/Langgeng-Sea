@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -84,7 +83,8 @@ class _HaulSummarySheetState extends ConsumerState<HaulSummarySheet> {
   Future<void> _persistEdits() async {
     final typed = _nameCtl.text.trim();
     final original = widget.completion.haul;
-    final name = typed.isEmpty || typed == original.displayName() ? null : typed;
+    final name =
+        typed.isEmpty || typed == original.displayName() ? null : typed;
     final repo = ref.read(haulRepositoryProvider);
 
     if (name != original.name) {
@@ -143,25 +143,31 @@ class _HaulSummarySheetState extends ConsumerState<HaulSummarySheet> {
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: AppSizes.sp3, vertical: 6,),
+                      horizontal: AppSizes.sp3,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: tokens.success.withValues(alpha: 0.12),
-                      borderRadius:
-                          BorderRadius.circular(AppSizes.radiusPill),
+                      borderRadius: BorderRadius.circular(AppSizes.radiusPill),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(PhosphorIconsBold.checkCircle,
-                            size: 14, color: tokens.success,),
+                        Icon(
+                          PhosphorIconsBold.checkCircle,
+                          size: 14,
+                          color: tokens.success,
+                        ),
                         const SizedBox(width: 4),
-                        Text('TARIKAN SELESAI',
-                            style: text.labelSmall?.copyWith(
-                              color: tokens.success,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 11,
-                              letterSpacing: 0.5,
-                            ),),
+                        Text(
+                          'TARIKAN SELESAI',
+                          style: text.labelSmall?.copyWith(
+                            color: tokens.success,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 11,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -173,17 +179,19 @@ class _HaulSummarySheetState extends ConsumerState<HaulSummarySheet> {
                 ],
               ),
               const SizedBox(height: AppSizes.sp3),
-              Text('Tarikan #${h.orderIndex}',
-                  style: text.bodySmall?.copyWith(
-                    color: tokens.textTertiary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 11,
-                  ),),
+              Text(
+                'Tarikan #${h.orderIndex}',
+                style: text.bodySmall?.copyWith(
+                  color: tokens.textTertiary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 11,
+                ),
+              ),
               const SizedBox(height: 2),
               TextField(
                 controller: _nameCtl,
-                style: text.headlineSmall
-                    ?.copyWith(fontWeight: FontWeight.w800),
+                style:
+                    text.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
                 decoration: InputDecoration(
                   isDense: true,
                   border: InputBorder.none,
@@ -257,8 +265,8 @@ class _HaulSummarySheetState extends ConsumerState<HaulSummarySheet> {
                 },
                 child: Text(
                   'Akhiri Trip',
-                  style: text.labelMedium
-                      ?.copyWith(color: tokens.textSecondary),
+                  style:
+                      text.labelMedium?.copyWith(color: tokens.textSecondary),
                 ),
               ),
             ],
@@ -447,49 +455,53 @@ class _MetricGrid extends StatelessWidget {
 
     return Column(
       children: [
-        Row(children: [
-          Expanded(
-            child: _Tile(
-              icon: PhosphorIconsBold.ruler,
-              iconBg: tokens.primarySoft,
-              iconColor: context.colors.primary,
-              value: Formatters.distance(haul.distanceMeters),
-              label: 'Jarak Tarik',
+        Row(
+          children: [
+            Expanded(
+              child: _Tile(
+                icon: PhosphorIconsBold.ruler,
+                iconBg: tokens.primarySoft,
+                iconColor: context.colors.primary,
+                value: Formatters.distance(haul.distanceMeters),
+                label: 'Jarak Tarik',
+              ),
             ),
-          ),
-          const SizedBox(width: AppSizes.sp2),
-          Expanded(
-            child: _Tile(
-              icon: PhosphorIconsBold.timer,
-              iconBg: tokens.accentSoft,
-              iconColor: context.colors.secondary,
-              value: Formatters.duration(haul.duration),
-              label: 'Durasi',
+            const SizedBox(width: AppSizes.sp2),
+            Expanded(
+              child: _Tile(
+                icon: PhosphorIconsBold.timer,
+                iconBg: tokens.accentSoft,
+                iconColor: context.colors.secondary,
+                value: Formatters.duration(haul.duration),
+                label: 'Durasi',
+              ),
             ),
-          ),
-        ],),
+          ],
+        ),
         const SizedBox(height: AppSizes.sp2),
-        Row(children: [
-          Expanded(
-            child: _Tile(
-              icon: PhosphorIconsBold.speedometer,
-              iconBg: tokens.primarySoft,
-              iconColor: context.colors.primary,
-              value: Formatters.knots(haul.avgSpeedKnots),
-              label: 'Kecepatan rata-rata',
+        Row(
+          children: [
+            Expanded(
+              child: _Tile(
+                icon: PhosphorIconsBold.speedometer,
+                iconBg: tokens.primarySoft,
+                iconColor: context.colors.primary,
+                value: Formatters.knots(haul.avgSpeedKnots),
+                label: 'Kecepatan rata-rata',
+              ),
             ),
-          ),
-          const SizedBox(width: AppSizes.sp2),
-          Expanded(
-            child: _Tile(
-              icon: PhosphorIconsBold.compass,
-              iconBg: tokens.accentSoft,
-              iconColor: context.colors.secondary,
-              value: Formatters.heading(haul.avgHeadingDegrees),
-              label: 'Arah dominan',
+            const SizedBox(width: AppSizes.sp2),
+            Expanded(
+              child: _Tile(
+                icon: PhosphorIconsBold.compass,
+                iconBg: tokens.accentSoft,
+                iconColor: context.colors.secondary,
+                value: Formatters.heading(haul.avgHeadingDegrees),
+                label: 'Arah dominan',
+              ),
             ),
-          ),
-        ],),
+          ],
+        ),
         const SizedBox(height: AppSizes.sp2),
         _Tile(
           wide: true,

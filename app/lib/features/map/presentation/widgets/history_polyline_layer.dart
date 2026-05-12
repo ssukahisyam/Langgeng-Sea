@@ -28,6 +28,7 @@ class HistoryPolylineLayer extends StatefulWidget {
     required this.tracks,
     required this.onTrackTap,
     this.isBackground = false,
+    this.strokeWidth = 10.0,
   });
 
   /// The tracks to render as polylines.
@@ -42,6 +43,9 @@ class HistoryPolylineLayer extends StatefulWidget {
   /// When `false`, renders at full saturation (focused layer).
   final bool isBackground;
 
+  /// The user-configured polyline stroke width (from settings).
+  final double strokeWidth;
+
   @override
   State<HistoryPolylineLayer> createState() => _HistoryPolylineLayerState();
 }
@@ -55,6 +59,7 @@ class _HistoryPolylineLayerState extends State<HistoryPolylineLayer> {
 
     final polylines = <Polyline<HaulTrackRender>>[];
     final startEndCircles = <CircleMarker>[];
+    final sw = widget.strokeWidth;
 
     for (final track in widget.tracks) {
       if (track.points.isEmpty) continue;
@@ -93,7 +98,7 @@ class _HistoryPolylineLayerState extends State<HistoryPolylineLayer> {
         polylines.add(
           Polyline<HaulTrackRender>(
             points: track.points,
-            strokeWidth: 4,
+            strokeWidth: sw - 2, // slightly thinner than focused
             color: color.withValues(alpha: 0.55),
             hitValue: track,
           ),
@@ -105,7 +110,7 @@ class _HistoryPolylineLayerState extends State<HistoryPolylineLayer> {
         polylines.add(
           Polyline<HaulTrackRender>(
             points: track.points,
-            strokeWidth: 7,
+            strokeWidth: sw + 3,
             color: borderColor.withValues(alpha: 0.70),
             hitValue: track,
           ),
@@ -114,9 +119,9 @@ class _HistoryPolylineLayerState extends State<HistoryPolylineLayer> {
         polylines.add(
           Polyline<HaulTrackRender>(
             points: track.points,
-            strokeWidth: 4.5,
+            strokeWidth: sw,
             color: color.withValues(alpha: 1.0),
-            borderStrokeWidth: 0.8,
+            borderStrokeWidth: 1.0,
             borderColor: Colors.white.withValues(alpha: 0.55),
             hitValue: track,
           ),

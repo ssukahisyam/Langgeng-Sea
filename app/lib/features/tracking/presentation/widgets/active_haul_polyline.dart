@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/settings/application/app_settings_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../application/tracking_controller.dart';
 
@@ -21,18 +22,19 @@ class ActiveHaulPolyline extends ConsumerWidget {
     }
 
     final color = AppColors.colorForHaul(haul.orderIndex);
+    final sw = ref.watch(polylineWidthProvider);
 
     return PolylineLayer<Object>(
       polylines: [
         // Soft outer glow for visibility on busy tiles.
         Polyline(
           points: points,
-          strokeWidth: 9,
+          strokeWidth: sw + 3,
           color: color.withValues(alpha: 0.22),
         ),
         Polyline(
           points: points,
-          strokeWidth: 5,
+          strokeWidth: sw,
           color: color,
           borderStrokeWidth: 1.5,
           borderColor: Colors.white.withValues(alpha: 0.7),

@@ -163,8 +163,7 @@ class NavigationController extends Notifier<NavigationState> {
         // so the off-route alarm and progress bar both reflect the
         // user's relationship to the reference track, regardless of
         // how close they happen to be to the end point.
-        final near =
-            GeoCalculator.nearestPointOnPolyline(userPos, path);
+        final near = GeoCalculator.nearestPointOnPolyline(userPos, path);
         final percent = GeoCalculator.percentAlongPolyline(
           userPos,
           path,
@@ -182,8 +181,7 @@ class NavigationController extends Notifier<NavigationState> {
   }
 
   double? _etaSeconds(double distanceMeters, double? speedMps) {
-    if (speedMps == null ||
-        speedMps < NavigationConstants.minSpeedForEtaMps) {
+    if (speedMps == null || speedMps < NavigationConstants.minSpeedForEtaMps) {
       return null;
     }
     return distanceMeters / speedMps;
@@ -230,8 +228,8 @@ class NavigationController extends Notifier<NavigationState> {
     // Follow-track branch: the off-route hysteresis machine. Tuning
     // values live in NavigationConstants so post-MVP tuning from
     // real-device logs is a single-file edit.
-    final offRoute = progress.crossTrackMeters >
-        NavigationConstants.offRouteMeters;
+    final offRoute =
+        progress.crossTrackMeters > NavigationConstants.offRouteMeters;
 
     switch (current) {
       case NavigationAlarmState.normal:

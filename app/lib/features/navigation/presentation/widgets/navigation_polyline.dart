@@ -1,4 +1,4 @@
-import 'dart:math' as math;
+
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
+import '../../../../core/settings/application/app_settings_provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../map/application/current_reading_provider.dart';
 import '../../application/navigation_state.dart';
@@ -27,10 +28,7 @@ import '../../domain/entities/navigation_target.dart';
 /// ```
 ///
 /// Modes:
-///   * Go-to: dashed polyline from user → target in primary colour.
-///     flutter_map 7.x `Polyline` has no dash pattern so the line is
-///     built from hand-sliced segments (~150 m per dash, scaled to
-///     total distance). Only polyline — no marker layer.
+///   * Go-to: solid polyline from user → target in primary colour.
 ///   * Follow-track: solid, thick warning-coloured stroke along the
 ///     reference polyline with a subtle white halo for visibility on
 ///     busy tiles; a separate [MarkerLayer] places a green "start"
@@ -38,19 +36,6 @@ import '../../domain/entities/navigation_target.dart';
 ///     so the user can orient themselves without reading metadata.
 class NavigationPolyline {
   NavigationPolyline._();
-
-  /// How far (in meters) between the midpoint of each dash for go-to
-  /// mode. Tuned empirically in the prototype — shorter and the dash
-  /// pattern turns into a solid line on zoom 10, longer and you only
-  /// see two or three dashes on 200 m runs.
-  static const double _gotoDashSpacingMeters = 150.0;
-
-  /// Main stroke width for the follow-track reference polyline. Thicker
-  /// than the active haul polyline (strokeWidth 5 at level-2 glow,
-  /// see `ActiveHaulPolyline`) so that when the user is recording
-  /// *and* following, the reference track reads as the dominant
-  /// guidance layer, not a peer.
-  static const double _followTrackStrokeWidth = 6.0;
 
   /// Build the list of map layers for the active navigation target.
   /// Returns an empty list when there is nothing reasonable to draw
@@ -63,17 +48,27 @@ class NavigationPolyline {
   ) {
     final target = state.target;
     final userReading = ref.watch(currentReadingProvider).asData?.value;
+    // Navigation polyline is always thicker than the user-configured
+    // width to stand out as guidance. Use user width + 2.
+    final userWidth = ref.watch(polylineWidthProvider);
+    final navWidth = userWidth + 2;
 
     if (target is GotoTarget) {
       if (userReading == null) return const [];
-      return [_GotoDashedLayer(from: userReading.latLng, to: target.position)];
+      return [
+        _GotoSolidLayer(
+          from: userReading.latLng,
+          to: target.position,
+          strokeWidth: navWidth,
+        ),
+      ];
     }
 
     if (target is FollowTrackTarget) {
       final path = target.pathPoints;
       if (path.length < 2) return const [];
       return [
-        _FollowTrackStroke(points: path),
+        _FollowTrackStroke(points: path, strokeWidth: navWidth),
         _FollowTrackEndpoints(points: path),
       ];
     }
@@ -83,70 +78,33 @@ class NavigationPolyline {
 }
 
 // ===========================================================================
-// Go-to — dashed polyline from user to target
+// Go-to — solid polyline from user to target
 // ===========================================================================
 
-class _GotoDashedLayer extends StatelessWidget {
-  const _GotoDashedLayer({required this.from, required this.to});
+class _GotoSolidLayer extends StatelessWidget {
+  const _GotoSolidLayer({
+    required this.from,
+    required this.to,
+    required this.strokeWidth,
+  });
 
   final LatLng from;
   final LatLng to;
+  final double strokeWidth;
 
   @override
   Widget build(BuildContext context) {
-    final dashes = _dashedSegments(from, to);
     final color = context.colors.primary;
     return PolylineLayer<Object>(
       polylines: [
-        for (final seg in dashes)
-          Polyline(
-            points: seg,
-            strokeWidth: 3,
-            color: color.withValues(alpha: 0.85),
-          ),
+        Polyline(
+          points: [from, to],
+          strokeWidth: strokeWidth,
+          color: color.withValues(alpha: 0.95),
+          borderStrokeWidth: 1.5,
+          borderColor: Colors.white.withValues(alpha: 0.5),
+        ),
       ],
-    );
-  }
-
-  /// Split the great-circle line user→target into roughly equal
-  /// dashes + gaps. Uses linear interpolation in (lat, lng) space
-  /// which is good enough below ~100 km at our typical latitudes —
-  /// the visible artefact of pretending the line is straight on a
-  /// Mercator tile is sub-pixel.
-  static List<List<LatLng>> _dashedSegments(LatLng from, LatLng to) {
-    if (from == to) return const [];
-
-    const mPerDegLat = 111000.0;
-    final avgLatRad = (from.latitude + to.latitude) / 2 * math.pi / 180.0;
-    final mPerDegLng = mPerDegLat * math.cos(avgLatRad);
-
-    final dLat = (to.latitude - from.latitude) * mPerDegLat;
-    final dLng = (to.longitude - from.longitude) * mPerDegLng;
-    final totalMeters = math.sqrt(dLat * dLat + dLng * dLng);
-    if (totalMeters < 1) return const [];
-
-    // Target 8 dashes for mid-range, min 2, max 40.
-    final approxDashCount =
-        (totalMeters / NavigationPolyline._gotoDashSpacingMeters)
-            .clamp(2.0, 40.0)
-            .round();
-    final step = 1.0 / (approxDashCount * 2); // each dash + gap
-    final segments = <List<LatLng>>[];
-    for (var i = 0; i < approxDashCount * 2; i += 2) {
-      final t0 = i * step;
-      final t1 = (i + 1) * step;
-      segments.add([
-        _lerpLatLng(from, to, t0),
-        _lerpLatLng(from, to, t1),
-      ]);
-    }
-    return segments;
-  }
-
-  static LatLng _lerpLatLng(LatLng a, LatLng b, double t) {
-    return LatLng(
-      a.latitude + (b.latitude - a.latitude) * t,
-      a.longitude + (b.longitude - a.longitude) * t,
     );
   }
 }
@@ -156,9 +114,13 @@ class _GotoDashedLayer extends StatelessWidget {
 // ===========================================================================
 
 class _FollowTrackStroke extends StatelessWidget {
-  const _FollowTrackStroke({required this.points});
+  const _FollowTrackStroke({
+    required this.points,
+    required this.strokeWidth,
+  });
 
   final List<LatLng> points;
+  final double strokeWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -171,12 +133,12 @@ class _FollowTrackStroke extends StatelessWidget {
         // sea chart tiles.
         Polyline(
           points: points,
-          strokeWidth: NavigationPolyline._followTrackStrokeWidth + 4,
+          strokeWidth: strokeWidth + 4,
           color: color.withValues(alpha: 0.22),
         ),
         Polyline(
           points: points,
-          strokeWidth: NavigationPolyline._followTrackStrokeWidth,
+          strokeWidth: strokeWidth,
           color: color,
           borderStrokeWidth: 1.5,
           borderColor: Colors.white.withValues(alpha: 0.9),

@@ -165,8 +165,7 @@ class MarkerPin extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: tokens.surface3.withValues(alpha: 0.92),
-                    borderRadius:
-                        BorderRadius.circular(AppSizes.radiusPill),
+                    borderRadius: BorderRadius.circular(AppSizes.radiusPill),
                     border: Border.all(
                       color: tokens.borderStrong,
                       width: 0.5,

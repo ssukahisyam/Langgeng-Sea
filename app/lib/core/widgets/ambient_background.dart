@@ -48,8 +48,8 @@ class AmbientBackground extends StatelessWidget {
             left: -80,
             child: _Blob(
               size: 280,
-              color: colors.primary
-                  .withValues(alpha: context.isDark ? 0.22 : 0.2),
+              color:
+                  colors.primary.withValues(alpha: context.isDark ? 0.22 : 0.2),
             ),
           ),
         ],

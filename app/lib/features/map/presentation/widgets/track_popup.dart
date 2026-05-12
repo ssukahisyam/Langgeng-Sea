@@ -78,7 +78,7 @@ class TrackPopup extends StatelessWidget {
   /// Called when the user chooses a point to navigate to.
   final void Function(LatLng targetLatLng, String label) onNavigateTo;
 
-  /// Called when the user chooses to follow the track. 
+  /// Called when the user chooses to follow the track.
   /// [reverse] is true if they want to follow it from end to start.
   final void Function(bool reverse) onFollowTrack;
 
@@ -260,7 +260,8 @@ class TrackPopup extends StatelessWidget {
       context: context,
       backgroundColor: colors.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppSizes.radiusLg)),
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppSizes.radiusLg)),
       ),
       builder: (context) {
         return SafeArea(
@@ -269,10 +270,13 @@ class TrackPopup extends StatelessWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.all(AppSizes.sp4),
-                child: Text('Tujuan Navigasi', style: text.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                child: Text('Tujuan Navigasi',
+                    style: text.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.bold)),
               ),
               ListTile(
-                leading: Icon(PhosphorIconsRegular.target, color: colors.primary),
+                leading:
+                    Icon(PhosphorIconsRegular.target, color: colors.primary),
                 title: Text('Titik yang dipilih (Tap)', style: text.bodyLarge),
                 onTap: () {
                   Navigator.pop(context);
@@ -289,7 +293,8 @@ class TrackPopup extends StatelessWidget {
               ),
               if (track.points.length > 1)
                 ListTile(
-                  leading: Icon(PhosphorIconsRegular.flagCheckered, color: colors.primary),
+                  leading: Icon(PhosphorIconsRegular.flagCheckered,
+                      color: colors.primary),
                   title: Text('Titik Akhir (Selesai)', style: text.bodyLarge),
                   onTap: () {
                     Navigator.pop(context);
@@ -313,7 +318,8 @@ class TrackPopup extends StatelessWidget {
       context: context,
       backgroundColor: colors.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppSizes.radiusLg)),
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppSizes.radiusLg)),
       ),
       builder: (context) {
         return SafeArea(
@@ -322,10 +328,13 @@ class TrackPopup extends StatelessWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.all(AppSizes.sp4),
-                child: Text('Arah Mengikuti Jalur', style: text.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                child: Text('Arah Mengikuti Jalur',
+                    style: text.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.bold)),
               ),
               ListTile(
-                leading: Icon(PhosphorIconsRegular.arrowRight, color: colors.primary),
+                leading: Icon(PhosphorIconsRegular.arrowRight,
+                    color: colors.primary),
                 title: Text('Mulai dari Titik Awal', style: text.bodyLarge),
                 onTap: () {
                   Navigator.pop(context);
@@ -334,8 +343,10 @@ class TrackPopup extends StatelessWidget {
               ),
               if (track.points.length > 1)
                 ListTile(
-                  leading: Icon(PhosphorIconsRegular.arrowLeft, color: colors.primary),
-                  title: Text('Mulai dari Titik Akhir (Dibalik)', style: text.bodyLarge),
+                  leading: Icon(PhosphorIconsRegular.arrowLeft,
+                      color: colors.primary),
+                  title: Text('Mulai dari Titik Akhir (Dibalik)',
+                      style: text.bodyLarge),
                   onTap: () {
                     Navigator.pop(context);
                     onFollowTrack(true);

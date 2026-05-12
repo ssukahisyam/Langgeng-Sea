@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -120,7 +119,6 @@ class FollowHaulPickerSheet extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: AppSizes.sp3),
-
               Flexible(
                 child: ListView.separated(
                   shrinkWrap: true,
@@ -134,7 +132,6 @@ class FollowHaulPickerSheet extends ConsumerWidget {
                   ),
                 ),
               ),
-
               const SizedBox(height: AppSizes.sp3),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
@@ -241,9 +238,8 @@ class _HaulCard extends ConsumerWidget {
 
   String _subtitle() {
     final started = Formatters.wallClock(haul.startedAt);
-    final ended = haul.endedAt != null
-        ? Formatters.wallClock(haul.endedAt!)
-        : '…';
+    final ended =
+        haul.endedAt != null ? Formatters.wallClock(haul.endedAt!) : '…';
     return '$started - $ended · ${Formatters.distance(haul.distanceMeters)} · '
         '${Formatters.compactDuration(haul.duration)}';
   }
@@ -303,9 +299,8 @@ class _CatchHintRow extends StatelessWidget {
   String? _hintFor(LogBookEntry entry) {
     if (entry.totalCatchKg > 0) {
       final kg = entry.totalCatchKg;
-      final weight = kg >= 10
-          ? '${kg.round()} kg'
-          : '${kg.toStringAsFixed(1)} kg';
+      final weight =
+          kg >= 10 ? '${kg.round()} kg' : '${kg.toStringAsFixed(1)} kg';
       if (entry.catches.isNotEmpty) {
         // Top 2 species by mass, just enough for "picked the best
         // haul" discrimination without turning the card into a

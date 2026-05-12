@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
@@ -29,9 +28,8 @@ class TripCard extends StatelessWidget {
     final trip = summary.trip;
 
     final startClock = Formatters.wallClock(trip.startedAt);
-    final endClock = trip.endedAt != null
-        ? Formatters.wallClock(trip.endedAt!)
-        : '—';
+    final endClock =
+        trip.endedAt != null ? Formatters.wallClock(trip.endedAt!) : '—';
 
     final title = trip.name?.isNotEmpty == true
         ? trip.name!
@@ -76,8 +74,7 @@ class TripCard extends StatelessWidget {
               else
                 _MetricHero(
                   value: summary.totalDistanceMeters >= 1000
-                      ? (summary.totalDistanceMeters / 1000)
-                          .toStringAsFixed(1)
+                      ? (summary.totalDistanceMeters / 1000).toStringAsFixed(1)
                       : summary.totalDistanceMeters.toStringAsFixed(0),
                   unit: summary.totalDistanceMeters >= 1000 ? 'km' : 'm',
                   label: 'Jarak',
@@ -315,9 +312,12 @@ class _MiniTrackPainter extends CustomPainter {
       final yMid = size.height / 2;
       path.moveTo(x0 + 4, yMid);
       path.cubicTo(
-        x0 + segmentWidth * 0.3, yMid - 12,
-        x0 + segmentWidth * 0.7, yMid + 10,
-        x1 - 4, yMid,
+        x0 + segmentWidth * 0.3,
+        yMid - 12,
+        x0 + segmentWidth * 0.7,
+        yMid + 10,
+        x1 - 4,
+        yMid,
       );
 
       final paint = Paint()

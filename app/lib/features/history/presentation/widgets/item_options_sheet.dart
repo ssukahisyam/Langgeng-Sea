@@ -94,23 +94,20 @@ class ItemOptionsSheet extends StatelessWidget {
             _OptionRow(
               icon: PhosphorIconsBold.pencilSimple,
               label: 'Ubah Nama',
-              onTap: () =>
-                  Navigator.of(context).pop(ItemOption.rename),
+              onTap: () => Navigator.of(context).pop(ItemOption.rename),
             ),
             Divider(height: 1, color: tokens.border),
             _OptionRow(
               icon: PhosphorIconsBold.palette,
               label: 'Ubah Warna',
-              onTap: () =>
-                  Navigator.of(context).pop(ItemOption.changeColor),
+              onTap: () => Navigator.of(context).pop(ItemOption.changeColor),
             ),
             Divider(height: 1, color: tokens.border),
             _OptionRow(
               icon: PhosphorIconsBold.trash,
               label: 'Hapus',
               destructive: true,
-              onTap: () =>
-                  Navigator.of(context).pop(ItemOption.delete),
+              onTap: () => Navigator.of(context).pop(ItemOption.delete),
             ),
           ],
         ),

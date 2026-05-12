@@ -67,9 +67,7 @@ class LocationPermissionSheet extends ConsumerWidget {
           // recheck-then-pop logic that caused PR #17's black screen.
           () async {},
         ),
-      LocationPermissionState.denied ||
-      LocationPermissionState.unknown =>
-        (
+      LocationPermissionState.denied || LocationPermissionState.unknown => (
           'Izinkan Lokasi',
           'Agar bisa merekam jejak kapal dan trawl secara akurat, '
               'Langgeng Sea memerlukan akses ke GPS.\n\n'
@@ -168,8 +166,7 @@ class LocationPermissionSheet extends ConsumerWidget {
                   : () async {
                       await onCta();
                       if (!context.mounted) return;
-                      final newState =
-                          ref.read(locationPermissionProvider);
+                      final newState = ref.read(locationPermissionProvider);
                       if (newState == LocationPermissionState.ready) {
                         Navigator.of(context).pop();
                       }

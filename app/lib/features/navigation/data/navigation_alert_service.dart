@@ -129,8 +129,7 @@ class FlutterTtsNavigationAlertService implements NavigationAlertService {
 
 /// Provider consumed by the controller. Overridable in tests with
 /// a [NoopNavigationAlertService] or mocktail double.
-final navigationAlertServiceProvider =
-    Provider<NavigationAlertService>((ref) {
+final navigationAlertServiceProvider = Provider<NavigationAlertService>((ref) {
   final svc = FlutterTtsNavigationAlertService();
   ref.onDispose(svc.dispose);
   return svc;

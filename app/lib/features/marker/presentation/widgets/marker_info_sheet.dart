@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -91,8 +90,7 @@ class _MarkerInfoBody extends ConsumerWidget {
                   ),
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.14),
-                    borderRadius:
-                        BorderRadius.circular(AppSizes.radiusPill),
+                    borderRadius: BorderRadius.circular(AppSizes.radiusPill),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -127,8 +125,7 @@ class _MarkerInfoBody extends ConsumerWidget {
             // Name
             Text(
               marker.name,
-              style: text.headlineSmall
-                  ?.copyWith(fontWeight: FontWeight.w800),
+              style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: AppSizes.sp2),
 
@@ -253,8 +250,7 @@ class _MarkerInfoBody extends ConsumerWidget {
     final confirmed = await DeleteConfirmDialog.show(
       context,
       title: 'Hapus Penanda?',
-      body:
-          'Penanda "${marker.name}" akan dihapus. Tindakan ini tidak dapat '
+      body: 'Penanda "${marker.name}" akan dihapus. Tindakan ini tidak dapat '
           'dibatalkan.',
     );
     if (!confirmed || !context.mounted) return;

@@ -31,11 +31,13 @@ void main() {
         AppSettings(
           alarmSoundEnabled: true,
           alarmVibrateEnabled: true,
+          polylineWidth: 10,
           updatedAt: t,
         ),
         AppSettings(
           alarmSoundEnabled: true,
           alarmVibrateEnabled: true,
+          polylineWidth: 10,
           updatedAt: t,
         ),
       );

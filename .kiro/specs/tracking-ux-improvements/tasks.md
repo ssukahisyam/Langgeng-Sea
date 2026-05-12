@@ -260,16 +260,16 @@ Implementasi di-layer dari bawah ke atas: foundation utilities (pure functions &
     - File baru: `app/test/features/map/presentation/map_screen_mode_controls_test.dart`
     - Widget test untuk setiap `MapMode`; assert `find.byKey(forbiddenKey).evaluate().isEmpty` dan `find.byKey(allowedKey)` sesuai `allowedControls(mode)`
 
-  - [ ]* 9.8 Property test: mode-change reversibility
+  - [x]* 9.8 Property test: mode-change reversibility
     - **Property 15: Mode-change reversibility**
     - **Validates: Requirements 4.5, 4.11, Round-trip mode-change-reversibility**
     - File baru: `app/test/features/map/presentation/map_screen_mode_reversibility_test.dart`
     - Generator `historyOverlayActive ∈ {true, false}`; sequence `startTracking → stopTracking`; assert mode final dan set kontrol terlihat identik dengan initial
 
-- [~] 10. Checkpoint — Ensure all tests pass
+- [x] 10. Checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 11. Trip color field dan repository
+- [x] 11. Trip color field dan repository
   - [x] 11.1 Tambah field `colorValue` pada entitas `Trip` dan schema Drift
     - File: `app/lib/features/tracking/domain/trip.dart` (tambah `int? colorValue`)
     - File: `app/lib/core/database/tables.dart` (tambah kolom `IntColumn get colorValue => integer().nullable()();` pada tabel `Trips`)

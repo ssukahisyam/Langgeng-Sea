@@ -19,3 +19,12 @@ final appSettingsRepositoryProvider = Provider<AppSettingsRepository>((ref) {
 final appSettingsProvider = StreamProvider<AppSettings>((ref) {
   return ref.watch(appSettingsRepositoryProvider).watch();
 });
+
+/// Convenience provider that exposes only the polyline width as a
+/// double (ready for strokeWidth usage in flutter_map). Falls back to
+/// 10.0 while the DB loads. Map layers watch this instead of the full
+/// [appSettingsProvider] to minimize rebuilds.
+final polylineWidthProvider = Provider<double>((ref) {
+  final settings = ref.watch(appSettingsProvider);
+  return settings.asData?.value.polylineWidth.toDouble() ?? 10.0;
+});

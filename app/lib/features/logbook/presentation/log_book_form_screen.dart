@@ -63,13 +63,17 @@ class _LogBookFormScreenState extends ConsumerState<LogBookFormScreen> {
         _weather = entry.weather;
         _wave = entry.wave;
         _notesController.text = entry.notes ?? '';
-        _catchRows.addAll(entry.catches.map((c) => _CatchRow(
+        _catchRows.addAll(
+          entry.catches.map(
+            (c) => _CatchRow(
               id: c.id,
               speciesController: TextEditingController(text: c.species),
               weightController: TextEditingController(
                 text: c.weightKg?.toString() ?? '',
               ),
-            ),),);
+            ),
+          ),
+        );
       });
     }
 
@@ -88,11 +92,13 @@ class _LogBookFormScreenState extends ConsumerState<LogBookFormScreen> {
 
   void _addCatchRow() {
     setState(() {
-      _catchRows.add(_CatchRow(
-        id: _uuid.v4(),
-        speciesController: TextEditingController(),
-        weightController: TextEditingController(),
-      ),);
+      _catchRows.add(
+        _CatchRow(
+          id: _uuid.v4(),
+          speciesController: TextEditingController(),
+          weightController: TextEditingController(),
+        ),
+      );
     });
   }
 
@@ -106,15 +112,16 @@ class _LogBookFormScreenState extends ConsumerState<LogBookFormScreen> {
   Future<void> _save() async {
     final catches = _catchRows
         .where((r) => r.speciesController.text.trim().isNotEmpty)
-        .map((r) => CatchItem(
-              id: r.id,
-              species: r.speciesController.text.trim(),
-              weightKg: double.tryParse(r.weightController.text.trim()),
-            ),)
+        .map(
+          (r) => CatchItem(
+            id: r.id,
+            species: r.speciesController.text.trim(),
+            weightKg: double.tryParse(r.weightController.text.trim()),
+          ),
+        )
         .toList();
 
-    final scope =
-        widget.haulId != null ? LogBookScope.haul : LogBookScope.trip;
+    final scope = widget.haulId != null ? LogBookScope.haul : LogBookScope.trip;
     final now = DateTime.now();
 
     final entry = LogBookEntry(

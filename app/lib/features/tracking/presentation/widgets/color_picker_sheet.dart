@@ -96,8 +96,10 @@ class _ColorPickerSheetState extends State<ColorPickerSheet> {
                   _SwatchButton(
                     color: entry.color,
                     label: entry.label,
-                    isSelected: widget.currentColorValue == entry.color.toARGB32(),
-                    onTap: () => Navigator.of(context).pop(entry.color.toARGB32()),
+                    isSelected:
+                        widget.currentColorValue == entry.color.toARGB32(),
+                    onTap: () =>
+                        Navigator.of(context).pop(entry.color.toARGB32()),
                   ),
                 // Custom colour button
                 _SwatchButton(
@@ -196,16 +198,14 @@ class _SwatchButton extends StatelessWidget {
             color: isCustom ? tokens.surface3 : color,
             shape: BoxShape.circle,
             border: Border.all(
-              color: isSelected
-                  ? Colors.white
-                  : tokens.borderStrong,
+              color: isSelected ? Colors.white : tokens.borderStrong,
               width: isSelected ? 3 : 1.5,
             ),
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: (color ?? tokens.textTertiary)
-                          .withValues(alpha: 0.4),
+                      color:
+                          (color ?? tokens.textTertiary).withValues(alpha: 0.4),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),

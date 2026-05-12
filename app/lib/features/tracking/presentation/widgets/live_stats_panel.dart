@@ -106,7 +106,8 @@ class _LiveStatsPanelState extends ConsumerState<LiveStatsPanel>
                 ),
               ),
               const Spacer(),
-              Icon(PhosphorIconsBold.ruler, size: 14, color: tokens.textTertiary),
+              Icon(PhosphorIconsBold.ruler,
+                  size: 14, color: tokens.textTertiary),
               const SizedBox(width: 4),
               Text(
                 '${haul.trawlWidthMeters.toStringAsFixed(0)} m',
@@ -141,7 +142,8 @@ class _LiveStatsPanelState extends ConsumerState<LiveStatsPanel>
               Expanded(
                 child: _Stat(
                   label: 'Kecepatan',
-                  value: '${(state.metrics.currentSpeedKnots ?? 0.0).toStringAsFixed(1)} kn',
+                  value:
+                      '${(state.metrics.currentSpeedKnots ?? 0.0).toStringAsFixed(1)} kn',
                 ),
               ),
             ],

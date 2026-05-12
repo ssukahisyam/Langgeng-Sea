@@ -73,18 +73,20 @@ List<HaulTrackRender> _simplifyBatch(List<_SimplifyInput> inputs) {
     if (input.points.length < 2) continue;
     final simplified = PolylineSimplifier.simplify(
       input.points,
-      toleranceMeters: input.toleranceMeters,
+      toleranceMeters: 1.0, // 1 meter tolerance for high accuracy
     );
     if (simplified.length < 2) continue;
-    out.add((
-      haulId: input.haulId,
-      tripId: input.tripId,
-      orderIndex: input.orderIndex,
-      colorValue: input.colorValue,
-      points: simplified,
-      storedName: input.storedName,
-      startedAt: input.startedAt,
-    ),);
+    out.add(
+      (
+        haulId: input.haulId,
+        tripId: input.tripId,
+        orderIndex: input.orderIndex,
+        colorValue: input.colorValue,
+        points: simplified,
+        storedName: input.storedName,
+        startedAt: input.startedAt,
+      ),
+    );
   }
   return out;
 }
@@ -131,10 +133,10 @@ final allHistoryRenderProvider =
         points: [for (final p in b.points) p.latLng],
         storedName: b.haul.name,
         startedAt: b.haul.startedAt,
-        // 20 m tolerance is the sweet spot: the polyline stays visually
-        // indistinguishable at typical fishing-area zoom while cutting
-        // point count by 80-95% on real traces.
-        toleranceMeters: 20.0,
+        // Mengurangi tolerance agar lebih akurat (sama seperti tripRenderProvider)
+        // 5 m tolerance is the sweet spot: the polyline stays visually
+        // accurate while cutting point count.
+        toleranceMeters: 5.0,
       ),
   ];
 
@@ -183,15 +185,17 @@ final tripRenderProvider = FutureProvider.autoDispose
     );
     if (simplified.length < 2) continue;
     allBoundsSource.addAll(simplified);
-    tracks.add((
-      haulId: h.id,
-      tripId: h.tripId,
-      orderIndex: h.orderIndex,
-      colorValue: h.colorValue,
-      points: simplified,
-      storedName: h.name,
-      startedAt: h.startedAt,
-    ),);
+    tracks.add(
+      (
+        haulId: h.id,
+        tripId: h.tripId,
+        orderIndex: h.orderIndex,
+        colorValue: h.colorValue,
+        points: simplified,
+        storedName: h.name,
+        startedAt: h.startedAt,
+      ),
+    );
   }
 
   return HistoryOverlayRender(

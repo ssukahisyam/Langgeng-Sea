@@ -37,8 +37,7 @@ class ProfileEditScreen extends ConsumerWidget {
       body: AmbientBackground(
         child: SafeArea(
           child: profileAsync.when(
-            loading: () =>
-                const Center(child: CircularProgressIndicator()),
+            loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Center(
               child: Text(
                 'Gagal memuat profil: $e',

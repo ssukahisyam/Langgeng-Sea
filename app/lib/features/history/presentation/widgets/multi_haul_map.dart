@@ -153,9 +153,8 @@ class _MultiHaulMapState extends State<MultiHaulMap> {
   }
 
   LatLng _defaultCenter() {
-    final first = widget.pointsByHaulId.values
-        .expand((list) => list)
-        .firstOrNull;
+    final first =
+        widget.pointsByHaulId.values.expand((list) => list).firstOrNull;
     return first?.latLng ?? const LatLng(-7.25, 113.42);
   }
 

@@ -39,15 +39,18 @@ class UserProfileRepository {
     final existing = await _dao.getProfile();
     final createdAt = existing?.createdAt ?? now;
 
-    await _dao.upsertProfile(UserProfilesCompanion(
-      name: Value(name.trim()),
-      vesselName: Value(vesselName.trim()),
-      vesselGt: Value(vesselGt),
-      homePort: Value(homePort?.trim().isEmpty ?? true ? null : homePort!.trim()),
-      trawlWidthMeters: Value(trawlWidthMeters),
-      createdAt: Value(createdAt),
-      updatedAt: Value(now),
-    ),);
+    await _dao.upsertProfile(
+      UserProfilesCompanion(
+        name: Value(name.trim()),
+        vesselName: Value(vesselName.trim()),
+        vesselGt: Value(vesselGt),
+        homePort:
+            Value(homePort?.trim().isEmpty ?? true ? null : homePort!.trim()),
+        trawlWidthMeters: Value(trawlWidthMeters),
+        createdAt: Value(createdAt),
+        updatedAt: Value(now),
+      ),
+    );
 
     return UserProfile(
       name: name.trim(),

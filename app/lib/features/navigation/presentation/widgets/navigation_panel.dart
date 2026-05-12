@@ -43,9 +43,8 @@ class NavigationPanel extends StatelessWidget {
     // *committed* to the alarm, i.e. after the 5s debounce has lapsed.
     // Countdown states deliberately don't trigger the warning UI --
     // doing so would make the warning flicker on borderline jitter.
-    final isOffRoute =
-        state.alarmState == NavigationAlarmState.offRoute ||
-            state.alarmState == NavigationAlarmState.returnCountdown;
+    final isOffRoute = state.alarmState == NavigationAlarmState.offRoute ||
+        state.alarmState == NavigationAlarmState.returnCountdown;
 
     // Pick icon + colour based on target type and arrival state so the
     // same panel reads as "heading there" vs "sudah sampai" at a

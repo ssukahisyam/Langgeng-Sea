@@ -100,8 +100,7 @@ class FollowTrackTarget extends NavigationTarget {
       );
 
   @override
-  String toString() =>
-      'FollowTrackTarget($label, ${pathPoints.length} pts, '
+  String toString() => 'FollowTrackTarget($label, ${pathPoints.length} pts, '
       'source=$sourceType:$sourceId)';
 }
 

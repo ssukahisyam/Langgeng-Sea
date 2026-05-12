@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -61,10 +60,11 @@ class TripDetailScreen extends ConsumerWidget {
                 onHaulTap: (haul) =>
                     context.push(AppRoutes.haulDetail(haul.id)),
                 onExpandMap: () {
-                  ref
-                      .read(mapOverlayControllerProvider.notifier)
-                      .showTrip(trip.id);
-                  context.go(AppRoutes.map);
+                  final uri = Uri(
+                    path: AppRoutes.map,
+                    queryParameters: {'focusTripId': trip.id},
+                  );
+                  context.go(uri.toString());
                 },
               ),
             );
@@ -91,9 +91,8 @@ class TripDetailScreen extends ConsumerWidget {
       ),
       actions: [
         IconButton(
-          onPressed: trip == null
-              ? null
-              : () => _onOptionsPressed(context, ref, trip),
+          onPressed:
+              trip == null ? null : () => _onOptionsPressed(context, ref, trip),
           tooltip: 'Opsi',
           icon: const Icon(PhosphorIconsRegular.dotsThree),
         ),
@@ -181,8 +180,7 @@ class _Body extends StatelessWidget {
     final text = context.text;
     final tokens = context.tokens;
 
-    final totalDistance =
-        hauls.fold<double>(0, (s, h) => s + h.distanceMeters);
+    final totalDistance = hauls.fold<double>(0, (s, h) => s + h.distanceMeters);
     final totalDuration = Duration(
       seconds: hauls.fold<int>(0, (s, h) => s + h.durationSeconds),
     );
@@ -315,9 +313,8 @@ class _StatusPill extends StatelessWidget {
     final tokens = context.tokens;
     final text = context.text;
     final color = active ? tokens.warning : tokens.success;
-    final icon = active
-        ? PhosphorIconsFill.circleNotch
-        : PhosphorIconsFill.checkCircle;
+    final icon =
+        active ? PhosphorIconsFill.circleNotch : PhosphorIconsFill.checkCircle;
     return Container(
       padding:
           const EdgeInsets.symmetric(horizontal: AppSizes.sp3, vertical: 6),
@@ -464,8 +461,7 @@ class _MapSkeleton extends StatelessWidget {
             height: 24,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              valueColor:
-                  AlwaysStoppedAnimation<Color>(context.colors.primary),
+              valueColor: AlwaysStoppedAnimation<Color>(context.colors.primary),
             ),
           ),
         ),
@@ -539,7 +535,14 @@ class _TripLogBookCard extends ConsumerWidget {
           PhosphorIconsBold.plus,
           false,
         ),
-      AsyncData(value: LogBookEntry(:final totalCatchKg, :final crewCount, :final fuelLiters, :final notes)) =>
+      AsyncData(
+        value: LogBookEntry(
+          :final totalCatchKg,
+          :final crewCount,
+          :final fuelLiters,
+          :final notes
+        )
+      ) =>
         (
           'Log Book Trip',
           _tripSummary(
@@ -563,9 +566,8 @@ class _TripLogBookCard extends ConsumerWidget {
     };
 
     final accent = saved ? tokens.success : context.colors.primary;
-    final iconBg = saved
-        ? tokens.success.withValues(alpha: 0.14)
-        : tokens.primarySoft;
+    final iconBg =
+        saved ? tokens.success.withValues(alpha: 0.14) : tokens.primarySoft;
 
     return GlassCard(
       level: GlassLevel.level1,

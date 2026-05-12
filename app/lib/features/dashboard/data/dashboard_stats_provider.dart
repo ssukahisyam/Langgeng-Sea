@@ -78,8 +78,7 @@ final dashboardStatsProvider = FutureProvider<DashboardStats>((ref) async {
   }
 
   // Query hauls belonging to those trips
-  final haulQuery = db.select(db.hauls)
-    ..where((h) => h.tripId.isIn(tripIds));
+  final haulQuery = db.select(db.hauls)..where((h) => h.tripId.isIn(tripIds));
   final hauls = await haulQuery.get();
 
   // Aggregate haul metrics
@@ -164,10 +163,12 @@ final dashboardStatsProvider = FutureProvider<DashboardStats>((ref) async {
 
   final topSpots = haulCatch.entries
       .where((e) => e.value > 0)
-      .map((e) => TopSpot(
-            name: haulNames[e.key] ?? 'Tarikan',
-            catchKg: e.value,
-          ),)
+      .map(
+        (e) => TopSpot(
+          name: haulNames[e.key] ?? 'Tarikan',
+          catchKg: e.value,
+        ),
+      )
       .toList()
     ..sort((a, b) => b.catchKg.compareTo(a.catchKg));
 

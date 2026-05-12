@@ -47,7 +47,8 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
       text: init?.vesselGtOptional == null
           ? ''
           : init!.vesselGtOptional!.toStringAsFixed(
-              init.vesselGtOptional! % 1 == 0 ? 0 : 1,),
+              init.vesselGtOptional! % 1 == 0 ? 0 : 1,
+            ),
     );
     _width = TextEditingController(
       text: (init?.trawlWidthMeters ?? UserProfile.defaultTrawlWidthMeters)
@@ -76,9 +77,8 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
     final width = double.tryParse(_width.text.replaceAll(',', '.')) ??
         UserProfile.defaultTrawlWidthMeters;
     final gtText = _gt.text.trim();
-    final gt = gtText.isEmpty
-        ? null
-        : double.tryParse(gtText.replaceAll(',', '.'));
+    final gt =
+        gtText.isEmpty ? null : double.tryParse(gtText.replaceAll(',', '.'));
 
     final validationError = UserProfile.validate(
       name: _name.text,

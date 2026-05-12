@@ -42,9 +42,11 @@ class GpsErrorBanner extends ConsumerWidget {
           'Ketuk untuk memberi izin',
           PhosphorIconsFill.mapPinArea,
         ),
-      LocationPermissionState.ready ||
-      LocationPermissionState.unknown =>
-        ('', '', PhosphorIconsFill.info),
+      LocationPermissionState.ready || LocationPermissionState.unknown => (
+          '',
+          '',
+          PhosphorIconsFill.info
+        ),
     };
 
     return GlassCard(

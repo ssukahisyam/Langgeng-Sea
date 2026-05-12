@@ -23,8 +23,10 @@ class GeoCalculator {
     final dLon = _toRadians(b.longitude - a.longitude);
 
     final h = math.sin(dLat / 2) * math.sin(dLat / 2) +
-        math.cos(lat1) * math.cos(lat2) *
-            math.sin(dLon / 2) * math.sin(dLon / 2);
+        math.cos(lat1) *
+            math.cos(lat2) *
+            math.sin(dLon / 2) *
+            math.sin(dLon / 2);
     final c = 2 * math.asin(math.min(1.0, math.sqrt(h)));
     return _earthRadiusMeters * c;
   }
@@ -134,13 +136,11 @@ class GeoCalculator {
     }
 
     final d13 = haversineMeters(segStart, point) / _earthRadiusMeters;
-    final theta13 =
-        _toRadians(bearingDegrees(segStart, point));
+    final theta13 = _toRadians(bearingDegrees(segStart, point));
     final theta12 = _toRadians(bearingDegrees(segStart, segEnd));
 
-    final dXt =
-        math.asin(math.sin(d13) * math.sin(theta13 - theta12)) *
-            _earthRadiusMeters;
+    final dXt = math.asin(math.sin(d13) * math.sin(theta13 - theta12)) *
+        _earthRadiusMeters;
     return dXt.abs();
   }
 
@@ -224,8 +224,8 @@ class GeoCalculator {
     final segEnd = polyline[idx + 1];
     final segLen = haversineMeters(segStart, segEnd);
     if (segLen > 0) {
-      final alongSeg = _alongTrackMeters(point, segStart, segEnd)
-          .clamp(0.0, segLen);
+      final alongSeg =
+          _alongTrackMeters(point, segStart, segEnd).clamp(0.0, segLen);
       traversed += alongSeg;
     }
 
@@ -260,7 +260,8 @@ class GeoCalculator {
   ///   dAt = acos( cos(d13 / R) / cos(dXt / R) ) * R
   /// with sign taken from the direction of travel along the segment.
   /// Reference: Movable Type Scripts — "Along-track distance".
-  static double _alongTrackMeters(LatLng point, LatLng segStart, LatLng segEnd) {
+  static double _alongTrackMeters(
+      LatLng point, LatLng segStart, LatLng segEnd) {
     final d13 = haversineMeters(segStart, point) / _earthRadiusMeters;
     final theta13 = _toRadians(bearingDegrees(segStart, point));
     final theta12 = _toRadians(bearingDegrees(segStart, segEnd));
