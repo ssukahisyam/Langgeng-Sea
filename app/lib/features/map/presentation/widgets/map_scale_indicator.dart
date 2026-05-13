@@ -56,7 +56,7 @@ class MapScaleIndicator extends StatelessWidget {
               Text(
                 'Z: ${zoom.toStringAsFixed(1)}',
                 style: text.labelSmall?.copyWith(
-                  color: tokens.textPrimary,
+                  color: context.colors.onSurface,
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                   shadows: [
@@ -70,9 +70,9 @@ class MapScaleIndicator extends StatelessWidget {
                 height: 12,
                 decoration: BoxDecoration(
                   border: Border(
-                    bottom: BorderSide(color: tokens.textPrimary, width: 2),
-                    left: BorderSide(color: tokens.textPrimary, width: 2),
-                    right: BorderSide(color: tokens.textPrimary, width: 2),
+                    bottom: BorderSide(color: context.colors.onSurface, width: 2),
+                    left: BorderSide(color: context.colors.onSurface, width: 2),
+                    right: BorderSide(color: context.colors.onSurface, width: 2),
                   ),
                 ),
                 child: Center(
@@ -81,7 +81,7 @@ class MapScaleIndicator extends StatelessWidget {
                     child: Text(
                       label,
                       style: text.labelSmall?.copyWith(
-                        color: tokens.textPrimary,
+                        color: context.colors.onSurface,
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                         shadows: [

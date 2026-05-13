@@ -205,7 +205,7 @@ class _BodyState extends State<_Body> {
         const SizedBox(height: AppSizes.sp3),
 
         // Map preview
-        pointsAsync.when(
+        widget.pointsAsync.when(
           loading: () => _MapSkeleton(),
           error: (_, __) => const _MapError(),
           data: (pointsMap) => MultiHaulMap(

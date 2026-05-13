@@ -201,7 +201,7 @@ class SettingsScreen extends ConsumerWidget {
               'Manajemen Data',
               style: text.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
-                color: tokens.textPrimary,
+                color: context.colors.onSurface,
               ),
             ),
             const SizedBox(height: AppSizes.sp2),
@@ -238,7 +238,7 @@ class SettingsScreen extends ConsumerWidget {
                   _SettingsTile(
                     iconColor: context.colors.secondary,
                     iconBg: tokens.accentSoft,
-                    icon: PhosphorIconsBold.import,
+                    icon: PhosphorIconsBold.download,
                     title: 'Impor Data (GPX)',
                     subtitle: 'Pulihkan rute dan penanda dari file GPX',
                     onTap: () async {

@@ -124,7 +124,7 @@ class GpxSyncService {
         
         await _markerRepo.create(
           name: name,
-          category: MarkerCategory.lainnya, // Default category
+          category: MarkerCategory.other, // Default category
           latitude: lat,
           longitude: lon,
           notes: 'Imported from GPX',
