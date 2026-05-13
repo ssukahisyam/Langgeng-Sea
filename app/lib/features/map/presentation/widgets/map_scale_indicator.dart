@@ -53,18 +53,7 @@ class MapScaleIndicator extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Z: ${zoom.toStringAsFixed(1)}',
-                style: text.labelSmall?.copyWith(
-                  color: context.colors.onSurface,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  shadows: [
-                    Shadow(color: tokens.surface1, blurRadius: 4),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 2),
+              // Removed zoom level text as requested
               Container(
                 width: scaleWidthPixels,
                 height: 12,

@@ -616,6 +616,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }) {
     // When navigating + tracking, or just tracking, we show the action panel
     // with the stop controls.
+    if (navActive != null) {
+      return const SizedBox.shrink(key: ValueKey('nav-fallback'));
+    }
+
     if (isRecording) {
       return _ActionPanel(
         key: const ValueKey('recording'),
@@ -940,8 +944,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
               ),
             ),
 
-            // --- Right-side floating controls (GPS chip + toggles) ---
+            // --- Top-Left indicators (Compass + Scale) ---
             Positioned(
+              left: AppSizes.sp4,
               top: () {
                 double t = AppSizes.sp3 + (isRecording ? 104 : 68);
                 if (overlayActive) t += 56;
@@ -951,79 +956,73 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 }
                 return t;
               }(),
-              right: AppSizes.sp4,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const GpsAccuracyChip(),
+                  CompassIndicator(mapController: _mapController),
                   const SizedBox(height: AppSizes.sp2),
-                  _AllHistoryToggle(
-                    on: allHistoryOn,
-                    onTap: () {
-                      final notifier =
-                          ref.read(allHistoryVisibleProvider.notifier);
-                      notifier.state = !notifier.state;
-                    },
-                  ),
-                  const SizedBox(height: AppSizes.sp2),
-                  _MarkersToggle(
-                    on: markersOn,
-                    onTap: () {
-                      final notifier =
-                          ref.read(markersOverlayEnabledProvider.notifier);
-                      notifier.state = !notifier.state;
-                    },
-                  ),
+                  MapScaleIndicator(mapController: _mapController),
                 ],
               ),
             ),
 
-            // --- Map controls ---
-            Positioned(
-              right: AppSizes.sp4,
-              bottom: 220,
-              child: MapControls(
-                onCenterOnMe: _centerOnMe,
-                centerEnabled: hasPermission,
-                showCompass: true,
-                onCompassCalibration: () => context.push(AppRoutes.compass),
-              ),
-            ),
-
-            // --- Compass indicator (top-left of map area) ---
+            // --- Add-marker FAB (left side) ---
             Positioned(
               left: AppSizes.sp4,
-              top: () {
-                double t = AppSizes.sp3 + (isRecording ? 104 : 68);
-                if (overlayActive) t += 56;
-                if (navActive != null) {
-                  t += 104;
-                  if (isRecording) t += 62;
-                }
-                return t;
-              }(),
-              child: CompassIndicator(mapController: _mapController),
-            ),
-
-            // --- Add-marker FAB (left side, sejajar MapControls) ---
-            Positioned(
-              left: AppSizes.sp4,
-              bottom: 220,
+              bottom: (mode == MapMode.idle || mode == MapMode.tracking || isRecording) && navActive == null
+                  ? 160.0
+                  : AppSizes.sp4,
               child: _AddMarkerButton(
                 onTap: () => _onAddMarkerPressed(context, ref),
                 enabled: hasPermission,
               ),
             ),
 
-            // --- Scale & Zoom Indicator ---
+            // --- Right-side floating controls ---
             Positioned(
-              left: AppSizes.sp4,
-              bottom: (mode == MapMode.idle ||
-                      mode == MapMode.tracking ||
-                      isRecording)
-                  ? 146.0
-                  : 20.0,
-              child: MapScaleIndicator(mapController: _mapController),
+              right: AppSizes.sp4,
+              bottom: (mode == MapMode.idle || mode == MapMode.tracking || isRecording) && navActive == null
+                  ? 160.0
+                  : AppSizes.sp4,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                verticalDirection: VerticalDirection.up,
+                children: [
+                  MapControls(
+                    onCenterOnMe: _centerOnMe,
+                    centerEnabled: hasPermission,
+                    showCompass: true,
+                    onCompassCalibration: () => context.push(AppRoutes.compass),
+                  ),
+                  if (navActive != null) ...[
+                    const SizedBox(height: AppSizes.sp2),
+                    _MiniTrackingButton(
+                      isRecording: isRecording,
+                      onStart: _onStartHaulPressed,
+                      onStop: _onStopHaulPressed,
+                    ),
+                  ],
+                  const SizedBox(height: AppSizes.sp2),
+                  _MarkersToggle(
+                    on: markersOn,
+                    onTap: () {
+                      final notifier = ref.read(markersOverlayEnabledProvider.notifier);
+                      notifier.state = !notifier.state;
+                    },
+                  ),
+                  const SizedBox(height: AppSizes.sp2),
+                  _AllHistoryToggle(
+                    on: allHistoryOn,
+                    onTap: () {
+                      final notifier = ref.read(allHistoryVisibleProvider.notifier);
+                      notifier.state = !notifier.state;
+                    },
+                  ),
+                  const SizedBox(height: AppSizes.sp2),
+                  const GpsAccuracyChip(),
+                ],
+              ),
             ),
 
             // --- Attribution ---
@@ -1579,5 +1578,66 @@ class _ActionPanel extends StatelessWidget {
     if (!hasFix) return 'Menunggu sinyal GPS…';
     if (state.hasTrip) return 'Tekan untuk tarikan berikutnya';
     return 'Siap rekam tarikan pertama';
+  }
+}
+
+class _MiniTrackingButton extends StatelessWidget {
+  const _MiniTrackingButton({
+    required this.isRecording,
+    required this.onStart,
+    required this.onStop,
+  });
+
+  final bool isRecording;
+  final VoidCallback onStart;
+  final VoidCallback onStop;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final primaryColor = isRecording ? tokens.danger : context.colors.primary;
+    
+    return Tooltip(
+      message: isRecording ? 'Akhiri Tarikan' : 'Mulai Tarikan',
+      child: GlassCard(
+        level: GlassLevel.level3,
+        padding: EdgeInsets.zero,
+        borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+          child: Ink(
+            decoration: BoxDecoration(
+              color: primaryColor,
+              borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+              boxShadow: isRecording
+                  ? [
+                      BoxShadow(
+                        color: tokens.danger.withOpacity(0.3),
+                        blurRadius: 8,
+                        spreadRadius: 2,
+                      )
+                    ]
+                  : null,
+            ),
+            child: InkWell(
+              onTap: isRecording ? onStop : onStart,
+              borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+              child: SizedBox(
+                width: 48,
+                height: 48,
+                child: Icon(
+                  isRecording 
+                      ? PhosphorIconsFill.stopCircle 
+                      : PhosphorIconsFill.playCircle,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
