@@ -58,6 +58,7 @@ import 'widgets/boat_marker.dart';
 import 'widgets/compass_indicator.dart';
 import 'widgets/gps_accuracy_chip.dart';
 import 'widgets/gps_error_banner.dart';
+import 'widgets/map_scale_indicator.dart';
 import 'widgets/history_overlay_controls.dart';
 import 'widgets/history_polyline_layer.dart';
 import 'widgets/location_permission_sheet.dart';
@@ -985,8 +986,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 onCenterOnMe: _centerOnMe,
                 centerEnabled: hasPermission,
                 showCompass: true,
-                mapController: _mapController,
-                onCompassReset: () => _mapController.rotate(0.0),
+                onCompassCalibration: () => context.push(AppRoutes.compass),
               ),
             ),
 
@@ -1013,6 +1013,17 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 onTap: () => _onAddMarkerPressed(context, ref),
                 enabled: hasPermission,
               ),
+            ),
+
+            // --- Scale & Zoom Indicator ---
+            Positioned(
+              left: AppSizes.sp4,
+              bottom: (mode == MapMode.idle ||
+                      mode == MapMode.tracking ||
+                      isRecording)
+                  ? 146.0
+                  : 20.0,
+              child: MapScaleIndicator(mapController: _mapController),
             ),
 
             // --- Attribution ---

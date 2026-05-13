@@ -160,7 +160,7 @@ class TripDetailScreen extends ConsumerWidget {
 // Body
 // ===========================================================================
 
-class _Body extends StatelessWidget {
+class _Body extends StatefulWidget {
   const _Body({
     required this.trip,
     required this.hauls,
@@ -176,15 +176,22 @@ class _Body extends StatelessWidget {
   final VoidCallback onExpandMap;
 
   @override
+  State<_Body> createState() => _BodyState();
+}
+
+class _BodyState extends State<_Body> {
+  String? _selectedHaulId;
+
+  @override
   Widget build(BuildContext context) {
     final text = context.text;
     final tokens = context.tokens;
 
-    final totalDistance = hauls.fold<double>(0, (s, h) => s + h.distanceMeters);
+    final totalDistance = widget.hauls.fold<double>(0, (s, h) => s + h.distanceMeters);
     final totalDuration = Duration(
-      seconds: hauls.fold<int>(0, (s, h) => s + h.durationSeconds),
+      seconds: widget.hauls.fold<int>(0, (s, h) => s + h.durationSeconds),
     );
-    final totalArea = hauls.fold<double>(0, (s, h) => s + h.sweptAreaM2);
+    final totalArea = widget.hauls.fold<double>(0, (s, h) => s + h.sweptAreaM2);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(
@@ -194,7 +201,7 @@ class _Body extends StatelessWidget {
         AppSizes.sp8,
       ),
       children: [
-        _Hero(trip: trip),
+        _Hero(trip: widget.trip),
         const SizedBox(height: AppSizes.sp3),
 
         // Map preview
@@ -202,9 +209,15 @@ class _Body extends StatelessWidget {
           loading: () => _MapSkeleton(),
           error: (_, __) => const _MapError(),
           data: (pointsMap) => MultiHaulMap(
-            hauls: hauls,
+            hauls: widget.hauls,
             pointsByHaulId: pointsMap,
-            onExpandTap: onExpandMap,
+            onExpandTap: widget.onExpandMap,
+            selectedHaulId: _selectedHaulId,
+            onHaulTap: (id) {
+              setState(() {
+                _selectedHaulId = id;
+              });
+            },
           ),
         ),
         const SizedBox(height: AppSizes.sp3),
@@ -220,14 +233,14 @@ class _Body extends StatelessWidget {
         // Navigation CTAs -- shown above the hauls list so they read
         // as actions on the trip as a whole, not on any individual
         // haul below.
-        _NavigationCtaRow(hauls: hauls, pointsAsync: pointsAsync),
+        _NavigationCtaRow(hauls: widget.hauls, pointsAsync: widget.pointsAsync),
         const SizedBox(height: AppSizes.sp5),
 
         // Section header for hauls
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: AppSizes.sp2),
           child: Text(
-            '${hauls.length} TARIKAN',
+            '${widget.hauls.length} TARIKAN',
             style: text.labelSmall?.copyWith(
               color: tokens.textTertiary,
               letterSpacing: 1,
@@ -236,16 +249,16 @@ class _Body extends StatelessWidget {
             ),
           ),
         ),
-        if (hauls.isEmpty)
+        if (widget.hauls.isEmpty)
           _EmptyHauls()
         else
-          for (final haul in hauls) ...[
-            HaulListTile(haul: haul, onTap: () => onHaulTap(haul)),
+          for (final haul in widget.hauls) ...[
+            HaulListTile(haul: haul, onTap: () => widget.onHaulTap(haul)),
             const SizedBox(height: AppSizes.sp2 + 2),
           ],
 
         const SizedBox(height: AppSizes.sp4),
-        _TripLogBookCard(tripId: trip.id),
+        _TripLogBookCard(tripId: widget.trip.id),
       ],
     );
   }
