@@ -132,7 +132,7 @@ jobs:
         with:
           name: langgeng-sea-debug-apk
           path: app/build/app/outputs/flutter-apk/app-debug.apk
-          retention-days: 14
+          retention-days: 3
           if-no-files-found: error
 
   # ---------------------------------------------------------------------------
@@ -194,5 +194,5 @@ jobs:
         with:
           name: langgeng-sea-release-apk
           path: app/build/app/outputs/flutter-apk/app-*-release.apk
-          retention-days: 14
+          retention-days: 3
           if-no-files-found: error
