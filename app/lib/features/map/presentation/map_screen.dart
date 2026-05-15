@@ -54,7 +54,9 @@ import '../application/map_mode_provider.dart';
 import '../application/map_overlay_state.dart';
 import '../application/markers_overlay_provider.dart';
 import 'providers/location_permission_provider.dart';
+import 'widgets/altitude_indicator.dart';
 import 'widgets/boat_marker.dart';
+import 'widgets/collapsed_tracking_mini.dart';
 import 'widgets/compass_indicator.dart';
 import 'widgets/gps_accuracy_chip.dart';
 import 'widgets/gps_error_banner.dart';
@@ -914,13 +916,28 @@ class _MapScreenState extends ConsumerState<MapScreen>
             ),
 
             // --- Top panel (mode-aware) ---
+            //
+            // Issue 1 fix: when navigation is active, hide the idle app
+            // bar / live stats panel above the NavigationPanel so the
+            // map isn't covered by two stacked cards. The vessel name
+            // already moves into the navigation panel header context;
+            // the user can re-open the full top panel by stopping
+            // navigation. This dramatically reduces vertical clutter.
             Positioned(
               top: AppSizes.sp3,
               left: AppSizes.sp4,
               right: AppSizes.sp4,
               child: Column(
                 children: [
-                  if (isRecording) const LiveStatsPanel() else _IdleAppBar(),
+                  // While navigating, suppress the idle/recording header
+                  // entirely. The NavigationPanel below carries the
+                  // primary context (target + progress).
+                  if (navActive == null) ...[
+                    if (isRecording)
+                      const LiveStatsPanel()
+                    else
+                      _IdleAppBar(),
+                  ],
                   if (overlayActive && overlayAsync != null) ...[
                     const SizedBox(height: AppSizes.sp2),
                     _OverlayContextChip(
@@ -932,13 +949,20 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     ),
                   ],
                   if (navActive != null) ...[
-                    const SizedBox(height: AppSizes.sp2),
+                    if (overlayActive) const SizedBox(height: AppSizes.sp2),
                     NavigationPanel(
                       state: navActive,
                       onStop: () => ref
                           .read(navigationControllerProvider.notifier)
                           .stop(),
                     ),
+                    // While navigating + recording, surface a compact
+                    // mini banner so Mulai/Berhenti remains accessible
+                    // from the top region as well as the bottom.
+                    if (isRecording) ...[
+                      const SizedBox(height: AppSizes.sp2),
+                      CollapsedTrackingMini(onStop: _onStopHaulPressed),
+                    ],
                   ],
                 ],
               ),
@@ -948,11 +972,19 @@ class _MapScreenState extends ConsumerState<MapScreen>
             Positioned(
               left: AppSizes.sp4,
               top: () {
-                double t = AppSizes.sp3 + (isRecording ? 104 : 68);
+                // Recompute the top offset so the compass + scale
+                // indicators sit just below whatever top panel is
+                // currently visible. Issue 1 fix: navActive no longer
+                // adds the idle/recording header height on top of the
+                // panel height, since that header is now suppressed.
+                double t = AppSizes.sp3;
+                if (navActive == null) {
+                  t += isRecording ? 104 : 68;
+                }
                 if (overlayActive) t += 56;
                 if (navActive != null) {
                   t += 104;
-                  if (isRecording) t += 62;
+                  if (isRecording) t += 56; // collapsed tracking mini
                 }
                 return t;
               }(),
@@ -962,6 +994,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   CompassIndicator(mapController: _mapController),
                   const SizedBox(height: AppSizes.sp2),
                   MapScaleIndicator(mapController: _mapController),
+                  const SizedBox(height: AppSizes.sp2),
+                  // Issue 4 fix: live altitude readout.
+                  AltitudeIndicator(reading: reading),
                 ],
               ),
             ),
@@ -1509,76 +1544,69 @@ class _ActionPanel extends StatelessWidget {
     }
 
     // Idle (possibly mid-trip).
+    //
+    // Issue 3 fix: the panel was previously a full-width tall card
+    // showing a header row + subtitle + a giant primary button (~140 px
+    // tall), which covered a meaningful slice of the map even when the
+    // user wasn't doing anything. We collapse it into a single slim
+    // pill button (~56 px) that still surfaces the most important
+    // actions: start tracking, plus an "Akhiri Trip" pill when a trip
+    // is mid-flight. Subtitle + greeting now live on the top app bar
+    // / status chip — duplicating them here only added clutter.
     return GlassCard(
       level: GlassLevel.level2,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.sp3,
+        vertical: AppSizes.sp2,
+      ),
+      child: Row(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      state.hasTrip ? 'Trip Berjalan' : AppStrings.readyToSail,
-                      style: text.titleMedium,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _subtitle(
-                        state: state,
-                        hasPermission: hasPermission,
-                        hasFix: hasFix,
-                      ),
-                      style: text.bodySmall?.copyWith(
-                        color: tokens.textTertiary,
-                      ),
-                    ),
-                  ],
-                ),
+          Expanded(
+            child: Semantics(
+              label: 'Mulai tracking',
+              button: true,
+              child: PrimaryActionButton(
+                label: state.hasTrip ? 'Tarikan Berikutnya' : 'Mulai tracking',
+                icon: PhosphorIconsFill.playCircle,
+                variant: ActionButtonVariant.success,
+                critical: true,
+                onPressed: onStart,
               ),
-              if (state.hasTrip)
-                TextButton(
-                  onPressed: onEndTrip,
-                  child: Text(
-                    'Akhiri Trip',
-                    style: text.labelMedium?.copyWith(
+            ),
+          ),
+          if (state.hasTrip) ...[
+            const SizedBox(width: AppSizes.sp2),
+            Tooltip(
+              message: 'Akhiri Trip',
+              child: Material(
+                color: tokens.danger.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                child: InkWell(
+                  onTap: onEndTrip,
+                  borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSizes.sp3,
+                      vertical: AppSizes.sp3,
+                    ),
+                    child: Icon(
+                      PhosphorIconsFill.flagCheckered,
                       color: tokens.danger,
-                      fontWeight: FontWeight.w700,
+                      size: 22,
                     ),
                   ),
                 ),
-            ],
-          ),
-          const SizedBox(height: AppSizes.sp3),
-          Semantics(
-            label: 'Mulai tracking',
-            button: true,
-            child: PrimaryActionButton(
-              label: 'Mulai tracking',
-              icon: PhosphorIconsFill.playCircle,
-              variant: ActionButtonVariant.success,
-              critical: true,
-              onPressed: onStart,
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
   }
 
-  String _subtitle({
-    required TrackingState state,
-    required bool hasPermission,
-    required bool hasFix,
-  }) {
-    if (!hasPermission) return 'Aktifkan lokasi untuk merekam';
-    if (!hasFix) return 'Menunggu sinyal GPS…';
-    if (state.hasTrip) return 'Tekan untuk tarikan berikutnya';
-    return 'Siap rekam tarikan pertama';
-  }
+  // _subtitle no longer used after the panel collapse — kept commented
+  // out as a hint for future state-message reintroduction.
+  // String _subtitle({...}) { ... }
 }
 
 class _MiniTrackingButton extends StatelessWidget {
