@@ -1,0 +1,82 @@
+name: Build & Upload APK to Release
+
+# Manual trigger — jalankan dari GitHub Actions UI kapan saja.
+# Builds debug APK dan upload ke GitHub Releases (BUKAN artifact).
+# Ini TIDAK kena storage quota karena Releases punya limit terpisah.
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to build'
+        required: true
+        default: 'feat/compass-heading-up-pr23'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-upload:
+    name: Build APK & Upload to Release
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./app
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch }}
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.29.x'
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Generate code (drift, riverpod, freezed)
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Build debug APK
+        run: flutter build apk --debug
+
+      - name: Build release APK
+        run: flutter build apk --release --split-per-abi
+
+      - name: Get short SHA
+        id: sha
+        run: echo "short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release with APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: dev-${{ steps.sha.outputs.short }}
+          name: "Dev Build (${{ github.event.inputs.branch }}) - ${{ steps.sha.outputs.short }}"
+          body: |
+            **Development build** dari branch `${{ github.event.inputs.branch }}`
+
+            Commit: `${{ steps.sha.outputs.short }}`
+            Tanggal: ${{ github.event.repository.updated_at }}
+
+            ### Download:
+            - `app-debug.apk` — untuk testing cepat
+            - `app-arm64-v8a-release.apk` — untuk HP Android modern (2018+)
+
+            > APK ini di-sign dengan debug key. Untuk sideload testing saja.
+          files: |
+            app/build/app/outputs/flutter-apk/app-debug.apk
+            app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+            app/build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+          draft: false
+          prerelease: true
