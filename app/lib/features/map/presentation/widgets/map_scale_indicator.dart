@@ -53,7 +53,27 @@ class MapScaleIndicator extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Removed zoom level text as requested
+              // Tampilkan label numeric meters per pixel agar jelas
+              // "info zoom" — sebelumnya scale bar saja tanpa konteks.
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: tokens.surface1.withValues(alpha: 0.8),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'Zoom $label',
+                  style: text.labelSmall?.copyWith(
+                    color: context.colors.onSurface,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
               Container(
                 width: scaleWidthPixels,
                 height: 12,

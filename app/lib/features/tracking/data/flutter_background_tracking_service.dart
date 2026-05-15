@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../../core/observability/logger.dart';
@@ -89,6 +90,24 @@ class FlutterBackgroundTrackingService implements BackgroundTrackingService {
   }) async {
     _lastStatus = BackgroundTrackingStatus.starting;
     _statusController.add(BackgroundTrackingStatus.starting);
+
+    // Request battery-optimisation exemption on Android. Without this
+    // Doze mode throttles the background isolate to a fix every
+    // ~15 minutes regardless of the foreground service notification.
+    // The dialog only shows once — subsequent calls are no-ops if the
+    // user already granted it.
+    if (Platform.isAndroid) {
+      try {
+        final status = await Permission.ignoreBatteryOptimizations.status;
+        if (!status.isGranted) {
+          await Permission.ignoreBatteryOptimizations.request();
+        }
+      } catch (e) {
+        Logger.instance.warn('tracking.battery_opt_request_failed', {
+          'error': e.toString(),
+        });
+      }
+    }
 
     // Acquire CPU wakelock so Android Doze mode doesn't throttle the
     // background isolate's GPS stream when the screen turns off.

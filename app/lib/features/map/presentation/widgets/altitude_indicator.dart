@@ -35,8 +35,9 @@ class AltitudeIndicator extends StatelessWidget {
 
     // Round to whole meters — sub-meter precision is misleading at the
     // accuracy levels typical of consumer GPS chips (±5–15 m).
+    // Label clarifies this is altitude (MDPL) NOT zoom level.
     final meters = altitude.round();
-    final label = meters >= 0 ? 'Alt $meters m' : 'Alt $meters m';
+    final label = 'MDPL $meters m';
 
     return GlassCard(
       level: GlassLevel.level2,

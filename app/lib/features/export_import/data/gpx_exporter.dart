@@ -3,9 +3,11 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../../data/database/app_database.dart';
 import '../../marker/data/marker_repository.dart';
 import '../../marker/domain/entities/marker.dart';
 import '../../../features/tracking/data/haul_repository.dart';
+import '../../../features/tracking/data/mappers.dart';
 import '../../../features/tracking/domain/entities/haul.dart';
 import '../../../features/tracking/domain/entities/track_point.dart';
 import '../../../features/tracking/domain/entities/trip.dart';
@@ -157,16 +159,21 @@ class GpxExporterService {
     List<AppMarker> markers = [];
 
     if (includeTracks) {
+      // Fix: previous code called listAll()/getTrackPoints() which don't
+      // exist on HaulRepository — methods threw and the silent catch in
+      // the export screen produced an empty <gpx/> file. We now use the
+      // real APIs: listAllCompleted() + the track-point DAO directly.
       final haulRepo = _ref.read(haulRepositoryProvider);
-      hauls = await haulRepo.listAll();
+      hauls = await haulRepo.listAllCompleted();
+      final db = _ref.read(appDatabaseProvider);
       for (final haul in hauls) {
-        final pts = await haulRepo.getTrackPoints(haul.id);
-        pointsByHaul[haul.id] = pts;
+        final rows = await db.trackPointDao.findByHaulId(haul.id);
+        pointsByHaul[haul.id] = rows.map(TrackPointMapper.fromRow).toList();
       }
     }
 
     if (includeMarkers) {
-      markers = await _ref.read(allMarkersProvider.future);
+      markers = await _ref.read(markerRepositoryProvider).getAll();
     }
 
     return _exporter.exportAll(
