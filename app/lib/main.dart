@@ -9,6 +9,7 @@ import 'app.dart';
 import 'core/observability/crash_reporter.dart';
 import 'core/observability/logger.dart';
 import 'features/offline_map/data/tile_cache_service.dart';
+import 'features/tracking/data/flutter_background_tracking_service.dart';
 
 void main() async {
   // Wrap the entire bootstrap in a guarded zone so uncaught async
@@ -85,6 +86,32 @@ void main() async {
           error,
           stack,
           context: const {'source': 'FmtcTileCacheService.initialise'},
+        );
+      }
+
+      // Initialise the background tracking service. Pulling it from the
+      // container (rather than constructing a new instance) ensures the
+      // same singleton is reused by TrackingController.startHaul. If the
+      // call fails (e.g. plugin not yet attached on a hot-restart),
+      // we fall back to foreground-only tracking — the controller
+      // surfaces a `failed` status banner.
+      try {
+        final bg = container.read(backgroundTrackingServiceProvider);
+        await bg.initialise();
+        Logger.instance.info('background tracking service initialised');
+      } catch (error, stack) {
+        Logger.instance.warn(
+          'BackgroundTrackingService init failed — foreground-only fallback',
+          null,
+          error,
+          stack,
+        );
+        crashReporter.recordError(
+          error,
+          stack,
+          context: const {
+            'source': 'FlutterBackgroundTrackingService.initialise',
+          },
         );
       }
 

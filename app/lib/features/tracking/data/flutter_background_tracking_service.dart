@@ -14,7 +14,6 @@ import 'mappers.dart';
 /// Notification channel used for the persistent foreground-service
 /// notification on Android.
 const _kNotificationChannelId = 'langgeng_tracking';
-const _kNotificationChannelName = 'Tracking GPS';
 const _kForegroundNotificationId = 888;
 
 /// Key used to pass / receive the active haul id across isolate boundary.
@@ -39,9 +38,13 @@ class FlutterBackgroundTrackingService implements BackgroundTrackingService {
       StreamController<BackgroundTrackingStatus>.broadcast();
 
   BackgroundTrackingStatus _lastStatus = BackgroundTrackingStatus.stopped;
+  bool _initialised = false;
 
   /// Must be called once during app initialisation (before any start/stop).
+  @override
   Future<void> initialise() async {
+    if (_initialised) return;
+    _initialised = true;
     // Set up the notification channel for the foreground service.
     final androidConfig = AndroidConfiguration(
       onStart: onBackgroundStart,
@@ -85,6 +88,10 @@ class FlutterBackgroundTrackingService implements BackgroundTrackingService {
     required String notificationTitle,
     required String notificationBody,
   }) async {
+    // Defensive: if the caller forgot to invoke initialise() during
+    // bootstrap, do it now. initialise() is idempotent.
+    await initialise();
+
     _lastStatus = BackgroundTrackingStatus.starting;
     _statusController.add(BackgroundTrackingStatus.starting);
 
@@ -110,6 +117,12 @@ class FlutterBackgroundTrackingService implements BackgroundTrackingService {
 }
 
 /// Provider for the concrete background tracking service.
+///
+/// Cached as a singleton in the Riverpod container so that the
+/// instance created during bootstrap (`initialise()` in main.dart)
+/// is the same one reached by [TrackingController.startHaul]. A new
+/// `FlutterBackgroundService` per call would silently duplicate the
+/// status stream and leak listeners.
 final backgroundTrackingServiceProvider =
     Provider<BackgroundTrackingService>((ref) {
   return FlutterBackgroundTrackingService();
@@ -138,6 +151,13 @@ Future<void> onBackgroundStart(ServiceInstance service) async {
   }
 
   sendStatus(BackgroundTrackingStatus.starting);
+
+  // Ensure the service runs as Android foreground service so Doze /
+  // background restrictions don't kill us when the screen is off.
+  // (Has no effect on iOS.)
+  if (service is AndroidServiceInstance) {
+    await service.setAsForegroundService();
+  }
 
   service.on('start').listen((event) async {
     final haulId = event?[_kHaulIdKey] as String?;
@@ -192,9 +212,12 @@ Future<void> onBackgroundStart(ServiceInstance service) async {
 
           // Update notification text with point count for user feedback.
           if (service is AndroidServiceInstance) {
+            final shortHaul = haulId.length > 8
+                ? '${haulId.substring(0, 8)}…'
+                : haulId;
             service.setForegroundNotificationInfo(
               title: 'Langgeng Sea — Merekam',
-              content: 'GPS aktif untuk ${haulId.substring(0, 8)}…',
+              content: 'GPS aktif untuk $shortHaul',
             );
           }
         },
