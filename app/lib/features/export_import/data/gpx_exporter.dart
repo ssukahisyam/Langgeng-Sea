@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../../core/observability/logger.dart';
 import '../../../data/database/app_database.dart';
 import '../../marker/data/marker_repository.dart';
 import '../../marker/domain/entities/marker.dart';
@@ -150,7 +151,9 @@ class GpxExporterService {
   final _exporter = GpxExporter();
 
   /// Export all available data with given filters.
-  Future<File> exportAll({
+  ///
+  /// Returns the file with details about counts via [ExportResult].
+  Future<ExportResult> exportAll({
     required bool includeTracks,
     required bool includeMarkers,
   }) async {
@@ -163,27 +166,79 @@ class GpxExporterService {
       // exist on HaulRepository — methods threw and the silent catch in
       // the export screen produced an empty <gpx/> file. We now use the
       // real APIs: listAllCompleted() + the track-point DAO directly.
+      //
+      // Also includes the currently-recording haul (if any) so users can
+      // export mid-trip without first having to stop tracking. The DAO
+      // exposes a recording-aware lookup via findRecording().
       final haulRepo = _ref.read(haulRepositoryProvider);
-      hauls = await haulRepo.listAllCompleted();
       final db = _ref.read(appDatabaseProvider);
+
+      hauls = await haulRepo.listAllCompleted();
+      // Append the currently recording haul if it exists.
+      final recording = await haulRepo.getRecording();
+      if (recording != null && !hauls.any((h) => h.id == recording.id)) {
+        hauls = [...hauls, recording];
+      }
+
       for (final haul in hauls) {
         final rows = await db.trackPointDao.findByHaulId(haul.id);
         pointsByHaul[haul.id] = rows.map(TrackPointMapper.fromRow).toList();
       }
+
+      Logger.instance.info('export.tracks_collected', {
+        'haulCount': hauls.length,
+        'totalPoints':
+            pointsByHaul.values.fold<int>(0, (a, b) => a + b.length),
+      });
     }
 
     if (includeMarkers) {
       markers = await _ref.read(markerRepositoryProvider).getAll();
+      Logger.instance.info('export.markers_collected', {
+        'count': markers.length,
+      });
     }
 
-    return _exporter.exportAll(
+    final file = await _exporter.exportAll(
       includeTracks: includeTracks,
       includeMarkers: includeMarkers,
       hauls: hauls,
       pointsByHaul: pointsByHaul,
       markers: markers,
     );
+
+    final totalPoints =
+        pointsByHaul.values.fold<int>(0, (a, b) => a + b.length);
+
+    return ExportResult(
+      file: file,
+      haulCount: hauls.where((h) {
+        final pts = pointsByHaul[h.id];
+        return pts != null && pts.isNotEmpty;
+      }).length,
+      trackPointCount: totalPoints,
+      markerCount: markers.length,
+    );
   }
+}
+
+/// Summary returned to the UI after exporting so the user can see how
+/// many items were actually written to the GPX file.
+class ExportResult {
+  const ExportResult({
+    required this.file,
+    required this.haulCount,
+    required this.trackPointCount,
+    required this.markerCount,
+  });
+
+  final File file;
+  final int haulCount;
+  final int trackPointCount;
+  final int markerCount;
+
+  bool get isEmpty =>
+      haulCount == 0 && trackPointCount == 0 && markerCount == 0;
 }
 
 final gpxExporterProvider = Provider<GpxExporterService>((ref) {

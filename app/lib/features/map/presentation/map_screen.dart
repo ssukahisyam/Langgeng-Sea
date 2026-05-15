@@ -54,7 +54,6 @@ import '../application/map_mode_provider.dart';
 import '../application/map_overlay_state.dart';
 import '../application/markers_overlay_provider.dart';
 import 'providers/location_permission_provider.dart';
-import 'widgets/altitude_indicator.dart';
 import 'widgets/boat_marker.dart';
 import 'widgets/collapsed_tracking_mini.dart';
 import 'widgets/compass_indicator.dart';
@@ -994,9 +993,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   CompassIndicator(mapController: _mapController),
                   const SizedBox(height: AppSizes.sp2),
                   MapScaleIndicator(mapController: _mapController),
-                  const SizedBox(height: AppSizes.sp2),
-                  // Issue 4 fix: live altitude readout.
-                  AltitudeIndicator(reading: reading),
                 ],
               ),
             ),

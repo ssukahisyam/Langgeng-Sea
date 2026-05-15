@@ -80,15 +80,38 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
 
     try {
       final exporter = ref.read(gpxExporterProvider);
-      final file = await exporter.exportAll(
+      final result = await exporter.exportAll(
         includeTracks: _includeTracks,
         includeMarkers: _includeMarkers,
       );
 
       if (!mounted) return;
 
+      if (result.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Tidak ada data untuk diekspor. Pastikan Anda sudah '
+              'merekam tarikan atau menambahkan penanda.',
+            ),
+          ),
+        );
+        return;
+      }
+
+      // Show summary so user knows what was packed into the file.
+      final summary = <String>[
+        if (result.haulCount > 0)
+          '${result.haulCount} jalur (${result.trackPointCount} titik)',
+        if (result.markerCount > 0) '${result.markerCount} penanda',
+      ].join(', ');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Berhasil ekspor: $summary')),
+      );
+
       await Share.shareXFiles(
-        [XFile(file.path)],
+        [XFile(result.file.path)],
         subject: 'Data GPX - Langgeng Sea',
         text: 'Data navigasi dari Langgeng Sea',
       );
