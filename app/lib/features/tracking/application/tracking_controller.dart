@@ -109,6 +109,31 @@ class TrackingController extends Notifier<TrackingState> {
         notificationBody: '${haul.displayName()} sedang direkam',
       );
       _subscribeBgStatus();
+    } on NotificationPermissionDeniedException catch (e) {
+      // PR #27 follow-up: POST_NOTIFICATIONS ditolak.
+      // Tanpa permission ini, foreground service akan crash dengan
+      // `CannotPostForegroundServiceNotificationException`. Kita
+      // PILIH untuk degrade ke foreground-only GPS daripada crash —
+      // user melihat banner "tracking degraded" via
+      // `backgroundDegraded` di TrackingState; foreground GPS
+      // subscription di atas tetap merekam selama app di depan.
+      Logger.instance.warn(
+        'tracking.bg_start_blocked_notification_denied',
+        {'reason': e.toString()},
+      );
+      state = state.copyWith(
+        backgroundStatus: BackgroundTrackingStatus.failed,
+      );
+    } on BackgroundServiceStartException catch (e) {
+      // Plugin / OEM lempar PlatformException saat startService().
+      // Sama seperti notification denied — degrade ke foreground.
+      Logger.instance.warn(
+        'tracking.bg_start_failed',
+        {'error': e.toString()},
+      );
+      state = state.copyWith(
+        backgroundStatus: BackgroundTrackingStatus.failed,
+      );
     } catch (e) {
       // Background service failed to start — continue with foreground
       // GPS only (AC 1a graceful degradation).
