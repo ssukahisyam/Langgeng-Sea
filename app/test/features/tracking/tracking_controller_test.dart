@@ -344,5 +344,59 @@ void main() {
         );
       },
     );
+
+    test(
+      'finalizes orphan haul instead of crashing when parent trip was deleted',
+      () async {
+        // Skenario PR #27 R2: user manual-delete trip dari Riwayat tapi
+        // ada haul recovery yang ketinggal (status=`recording` di DB).
+        // Sebelumnya `resumeHaul` panggil `state.activeTrip = trip`
+        // dengan `trip == null`, lalu downstream code `!`-bang dan
+        // crash. Sekarang fungsi harus return HaulCompletion (haul
+        // di-finalize) tanpa exception.
+        final controller = container.read(trackingControllerProvider.notifier);
+        final haulRepo = container.read(haulRepositoryProvider);
+        final tripRepo = container.read(tripRepositoryProvider);
+
+        final trip = await tripRepo.getOrStartActiveTrip();
+        final haul = await haulRepo.startHaul(
+          tripId: trip.id,
+          trawlWidthMeters: 20,
+          startedAt: DateTime(2025, 1, 1, 6),
+        );
+
+        // Tulis 1 titik supaya ada data buat di-finalize.
+        await container.read(trackPointRepositoryProvider).appendReading(
+              haulId: haul.id,
+              reading: GpsReading(
+                latitude: -7.2,
+                longitude: 113.4,
+                timestamp: DateTime(2025, 1, 1, 6, 0, 10),
+                accuracyMeters: 6,
+                speedMps: 2,
+                headingDegrees: 90,
+              ),
+            );
+
+        // Hapus parent trip — sekarang haul orphan.
+        await tripRepo.deleteTrip(trip.id);
+
+        // Resume tidak boleh throw; harus return HaulCompletion.
+        final completion = await controller.resumeHaul(haul);
+
+        expect(completion, isNotNull,
+            reason: 'orphan haul must be finalized, returning completion',);
+        expect(completion!.haul.status, HaulStatus.completed);
+        expect(controller.state.isRecording, isFalse,
+            reason:
+                'orphan path must not flip controller into recording state',);
+
+        // Haul row di DB juga harus completed, jadi crash-recovery
+        // dialog tidak akan muncul lagi di restart berikutnya.
+        final stored = await db.haulDao.findById(haul.id);
+        expect(stored, isNotNull);
+        expect(stored!.status, HaulStatus.completed.name);
+      },
+    );
   });
 }

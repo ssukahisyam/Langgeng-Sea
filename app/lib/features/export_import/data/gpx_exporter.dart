@@ -1,41 +1,55 @@
 import 'package:xml/xml.dart';
 
+import 'package:xml/xml.dart';
+
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:xml/xml.dart';
 
 import '../../../core/observability/logger.dart';
 import '../../../data/database/app_database.dart';
 import '../../marker/data/marker_repository.dart';
 import '../../marker/domain/entities/marker.dart';
+import '../../onboarding/domain/entities/user_profile.dart';
 import '../../tracking/data/haul_repository.dart';
 import '../../tracking/data/mappers.dart';
 import '../../tracking/domain/entities/haul.dart';
 import '../../tracking/domain/entities/track_point.dart';
 import '../../tracking/domain/entities/trip.dart';
+import '../domain/entities/export_filter.dart';
 
 /// Generates GPX 1.1 XML from haul/trip track data.
 ///
-/// Implementation now uses the `xml` package (already in pubspec) so the
-/// output is always well-formed and properly escaped, regardless of edge
-/// cases (empty hauls, empty trip, special characters in names, etc).
+/// Implementation uses the `xml` package (already in pubspec) so the
+/// output is always well-formed and properly escaped, regardless of
+/// edge cases (empty hauls, empty trip, special characters in names,
+/// etc).
 ///
-/// The previous string-buffer implementation produced a self-closing
-/// root `<gpx ... />` element when the trip had no hauls or all hauls
-/// had no track points, which made the file look broken to users
-/// ("hanya menghasilkan tag gpx kosong"). The builder below always
-/// emits at minimum a `<metadata>` block so the file is informative
-/// even when no track data is available, and emits a `<trk>` per haul
-/// so the receiver can see which hauls existed even when they have no
-/// fixes recorded.
+/// PR #25/26 fixed the "self-closing root" bug — the file always emits
+/// at least a `<metadata>` block so it makes sense to humans even when
+/// no track data is available.
+///
+/// PR #27 (R4) extends this with:
+/// - `<author><name>` + `<lsea:exporter>` block carrying nelayan name,
+///   vessel name, home port, exported-at timestamp, and a
+///   human-readable filter description.
+/// - `<lsea:summary>` block with rolled-up totals across all
+///   included trips/hauls/markers — useful for receivers who want a
+///   quick glance without parsing every `<trk>`.
+/// - `<lsea:trip>` extension on every `<trk>` so receivers know which
+///   parent trip a haul belongs to (previously only haul stats were
+///   carried).
+/// - `<lsea:haul colorValue colorHex>` so the user-picked polyline
+///   colour round-trips through GPX.
+/// - `<lsea:filterDescription>` so the receiver knows whether the file
+///   is a slice (e.g. "7 hari terakhir") or full data.
 ///
 /// GPX namespace + Langgeng Sea custom extensions (`xmlns:lsea`) make
-/// it possible to round-trip extra fields (haul stats, marker
-/// category, trawl width) without breaking compatibility with
-/// generic GPX consumers like Google Earth, Garmin BaseCamp, or
-/// QGIS — they just ignore the unknown extension namespace.
+/// it possible to round-trip extra fields without breaking
+/// compatibility with generic GPX consumers like Google Earth, Garmin
+/// BaseCamp, or QGIS — they just ignore the unknown extension
+/// namespace.
 class GpxExporter {
   static const String _gpxNs = 'http://www.topografix.com/GPX/1/1';
   static const String _xsiNs = 'http://www.w3.org/2001/XMLSchema-instance';
@@ -63,26 +77,116 @@ class GpxExporter {
         description: parentTrip?.name,
         bounds: _boundsForPoints(points),
       );
-      _writeTrack(builder, haul, points);
+      _writeTrack(builder, haul, points, parentTrip: parentTrip);
     });
     return builder.buildDocument().toXmlString(pretty: true, indent: '  ');
   }
 
-  /// Export an entire trip as a multi-track GPX, with optional waypoints
-  /// for the user's saved markers. This is the format used by the
-  /// "Bagikan Sekarang" flow when the user picks "GPX Universal".
+  /// Export an entire trip as a multi-track GPX, with optional
+  /// waypoints for the user's saved markers.
+  ///
+  /// Backward-compat shim — internally builds an [ExportFilter] that
+  /// targets just this trip, then delegates to [exportFiltered]. New
+  /// callers should pass an explicit [exporter] / [filter] for full
+  /// metadata coverage.
   String exportTrip(
     Trip trip,
     List<Haul> hauls,
     Map<String, List<TrackPoint>> pointsByHaul, {
     List<AppMarker> markers = const [],
+    UserProfile? exporter,
   }) {
+    return exportFiltered(
+      filter: ExportFilter(
+        includeTracks: true,
+        includeMarkers: markers.isNotEmpty,
+        tripIds: {trip.id},
+      ),
+      exporter: exporter,
+      trips: [trip],
+      haulsByTripId: {trip.id: hauls},
+      pointsByHaulId: pointsByHaul,
+      markers: markers,
+    );
+  }
+
+  /// Export semua data yang lewat filter (PR #27 R4).
+  ///
+  /// Kontrak input:
+  /// - [trips]: SEMUA trip yang sudah lolos `filter.matchesTrip`.
+  ///   Caller boleh juga menyodorkan superset — exporter akan re-filter
+  ///   secara defensif.
+  /// - [haulsByTripId]: untuk setiap trip yang masuk, list haul-nya.
+  ///   Hanya haul completed yang punya entry di sini biasanya;
+  ///   haul `recording` yang masih hidup tidak ikut diekspor.
+  /// - [pointsByHaulId]: untuk setiap haul, list track point. Boleh
+  ///   kosong (haul tanpa fix) — kita tetap emit `<trk>` stub supaya
+  ///   penerima tahu haul itu ada.
+  /// - [markers]: SEMUA marker yang sudah lolos `filter.matchesMarker`.
+  ///   Re-filter defensif dilakukan.
+  /// - [exporter]: profil pengekspor (nelayan + kapal). `null` = tidak
+  ///   tulis blok `<lsea:exporter>`, `<author><name>` fallback ke
+  ///   "Langgeng Sea".
+  ///
+  /// Selalu menghasilkan dokumen yang well-formed — minimal
+  /// `<gpx><metadata/></gpx>` walau filter menghasilkan 0 trip / 0
+  /// marker.
+  String exportFiltered({
+    required ExportFilter filter,
+    required List<Trip> trips,
+    required Map<String, List<Haul>> haulsByTripId,
+    required Map<String, List<TrackPoint>> pointsByHaulId,
+    required List<AppMarker> markers,
+    UserProfile? exporter,
+    DateTime? exportedAt,
+  }) {
+    final now = exportedAt ?? DateTime.now();
+
+    // Defensive re-filter — caller mungkin sudah filter, tapi kita
+    // tidak bisa percaya begitu saja. ExportFilter punya semantics
+    // yang halus (tripIds override dateRange) jadi jalankan ulang di
+    // sini sebagai safety net.
+    final filteredTrips = trips.where(filter.matchesTrip).toList();
+    final filteredMarkers =
+        filter.includeMarkers ? markers.where(filter.matchesMarker).toList() : <AppMarker>[];
+
+    // Flatten haul list dari trip yang lolos filter, hanya kalau user
+    // include tracks. Urutan dipertahankan: outer trip-startedAt,
+    // inner haul-orderIndex.
+    final filteredHauls = <_HaulWithTrip>[];
+    if (filter.includeTracks) {
+      for (final trip in filteredTrips) {
+        final haulsOfTrip = haulsByTripId[trip.id] ?? const <Haul>[];
+        for (final haul in haulsOfTrip) {
+          filteredHauls.add(_HaulWithTrip(haul: haul, trip: trip));
+        }
+      }
+    }
+
+    // Hitung total — dipakai di metadata & `<lsea:summary>`.
+    final totalDistance =
+        filteredHauls.fold<double>(0, (s, hw) => s + hw.haul.distanceMeters);
+    final totalDuration =
+        filteredHauls.fold<int>(0, (s, hw) => s + hw.haul.durationSeconds);
+    final totalSweptArea =
+        filteredHauls.fold<double>(0, (s, hw) => s + hw.haul.sweptAreaM2);
+
     final allPoints = <TrackPoint>[
-      for (final list in pointsByHaul.values) ...list,
+      for (final hw in filteredHauls)
+        ...?pointsByHaulId[hw.haul.id],
     ];
-    final markerLatLngs = markers
+    final markerLatLngs = filteredMarkers
         .map((m) => _LatLng(m.latitude, m.longitude))
         .toList(growable: false);
+
+    final summary = _ExportSummary(
+      tripCount: filteredTrips.length,
+      haulCount: filteredHauls.length,
+      markerCount: filteredMarkers.length,
+      totalDistanceMeters: totalDistance,
+      totalDurationSeconds: totalDuration,
+      totalSweptAreaM2: totalSweptArea,
+    );
 
     final builder = XmlBuilder();
     builder.processing('xml', 'version="1.0" encoding="UTF-8"');
@@ -90,28 +194,27 @@ class GpxExporter {
       _writeRootAttributes(builder);
       _writeMetadata(
         builder,
-        title: trip.name ?? 'Trip Langgeng Sea',
-        description: _tripDescription(trip, hauls),
+        title: _titleForFilter(filter),
+        description: _descriptionForSummary(summary),
         bounds: _boundsCombined(
           allPoints.map((p) => _LatLng(p.latitude, p.longitude)),
           markerLatLngs,
         ),
-        tripExtensions: () => _writeTripExtensions(builder, trip, hauls),
+        exportedAt: now,
+        exporter: exporter,
+        filter: filter,
+        summary: summary,
       );
 
-      // Markers first so they show up at the top of typical GPX
-      // viewers. GPX 1.1 schema requires <wpt>* before <rte>* /
-      // <trk>*, so this also keeps the document schema-valid.
-      for (final marker in markers) {
+      // Markers first (GPX 1.1 schema requires `<wpt>*` before
+      // `<trk>*`).
+      for (final marker in filteredMarkers) {
         _writeWaypoint(builder, marker);
       }
 
-      // One <trk> per haul. Hauls with no points still get a stub so
-      // the receiver knows the haul exists, with an `<lsea:note>`
-      // explaining why the segment is empty.
-      for (final haul in hauls) {
-        final points = pointsByHaul[haul.id] ?? const <TrackPoint>[];
-        _writeTrack(builder, haul, points);
+      for (final hw in filteredHauls) {
+        final points = pointsByHaulId[hw.haul.id] ?? const <TrackPoint>[];
+        _writeTrack(builder, hw.haul, points, parentTrip: hw.trip);
       }
     });
 
@@ -136,24 +239,27 @@ class GpxExporter {
     required String title,
     String? description,
     _Bounds? bounds,
-    void Function()? tripExtensions,
+    DateTime? exportedAt,
+    UserProfile? exporter,
+    ExportFilter? filter,
+    _ExportSummary? summary,
   }) {
+    final exportTimestamp = (exportedAt ?? DateTime.now()).toUtc();
+    final authorName = exporter?.name ?? _creator;
+
     builder.element('metadata', nest: () {
       builder.element('name', nest: title);
       if (description != null && description.isNotEmpty) {
         builder.element('desc', nest: description);
       }
       builder.element('author', nest: () {
-        builder.element('name', nest: _creator);
+        builder.element('name', nest: authorName);
         builder.element('link', nest: () {
           builder.attribute('href', 'https://langgengsea.id');
           builder.element('text', nest: 'Langgeng Sea');
         });
       });
-      builder.element(
-        'time',
-        nest: DateTime.now().toUtc().toIso8601String(),
-      );
+      builder.element('time', nest: exportTimestamp.toIso8601String());
       if (bounds != null) {
         builder.element('bounds', nest: () {
           builder.attribute('minlat', _formatCoord(bounds.minLat));
@@ -162,59 +268,94 @@ class GpxExporter {
           builder.attribute('maxlon', _formatCoord(bounds.maxLon));
         });
       }
-      if (tripExtensions != null) {
-        builder.element('extensions', nest: tripExtensions);
+
+      // Always emit extensions block when we have exporter / filter /
+      // summary to surface — keeps the structural shape predictable
+      // for receivers regardless of how rich the data is.
+      final hasExtensionContent =
+          exporter != null || filter != null || summary != null;
+      if (hasExtensionContent) {
+        builder.element('extensions', nest: () {
+          if (exporter != null) {
+            _writeExporterBlock(
+              builder,
+              exporter: exporter,
+              filter: filter,
+              exportedAt: exportTimestamp,
+            );
+          } else if (filter != null) {
+            // Even tanpa user profile, kita tetap surface
+            // filterDescription standalone supaya penerima tahu.
+            builder.element('lsea:exporter', nest: () {
+              builder.attribute('hasUserProfile', 'false');
+              builder.element(
+                'lsea:exportedAt',
+                nest: exportTimestamp.toIso8601String(),
+              );
+              builder.element(
+                'lsea:filterDescription',
+                nest: filter.describe(),
+              );
+            });
+          }
+          if (summary != null) {
+            _writeSummaryBlock(builder, summary);
+          }
+        });
       }
     });
   }
 
-  void _writeTripExtensions(
-    XmlBuilder builder,
-    Trip trip,
-    List<Haul> hauls,
-  ) {
-    final totalDistance = hauls.fold<double>(
-      0,
-      (sum, h) => sum + h.distanceMeters,
-    );
-    final totalDuration = hauls.fold<int>(
-      0,
-      (sum, h) => sum + h.durationSeconds,
-    );
-    final totalSweptArea = hauls.fold<double>(
-      0,
-      (sum, h) => sum + h.sweptAreaM2,
-    );
-
-    builder.element('lsea:trip', nest: () {
-      builder.attribute('id', trip.id);
-      builder.attribute('status', trip.status.name);
-      builder.element(
-        'lsea:startedAt',
-        nest: trip.startedAt.toUtc().toIso8601String(),
-      );
-      if (trip.endedAt != null) {
+  void _writeExporterBlock(
+    XmlBuilder builder, {
+    required UserProfile exporter,
+    required DateTime exportedAt,
+    ExportFilter? filter,
+  }) {
+    builder.element('lsea:exporter', nest: () {
+      builder.element('lsea:vesselName', nest: exporter.vesselName);
+      builder.element('lsea:ownerName', nest: exporter.name);
+      if (exporter.homePortOptional != null &&
+          exporter.homePortOptional!.isNotEmpty) {
+        builder.element('lsea:homePort', nest: exporter.homePortOptional!);
+      }
+      if (exporter.vesselGtOptional != null) {
         builder.element(
-          'lsea:endedAt',
-          nest: trip.endedAt!.toUtc().toIso8601String(),
+          'lsea:vesselGt',
+          nest: exporter.vesselGtOptional!.toStringAsFixed(2),
         );
       }
-      builder.element('lsea:haulCount', nest: hauls.length.toString());
       builder.element(
-        'lsea:totalDistanceMeters',
-        nest: totalDistance.toStringAsFixed(2),
+        'lsea:trawlWidthMeters',
+        nest: exporter.trawlWidthMeters.toStringAsFixed(2),
       );
       builder.element(
-        'lsea:totalDurationSeconds',
-        nest: totalDuration.toString(),
+        'lsea:exportedAt',
+        nest: exportedAt.toIso8601String(),
       );
-      builder.element(
-        'lsea:totalSweptAreaM2',
-        nest: totalSweptArea.toStringAsFixed(2),
-      );
-      if (trip.homePort != null && trip.homePort!.isNotEmpty) {
-        builder.element('lsea:homePort', nest: trip.homePort!);
+      if (filter != null) {
+        builder.element('lsea:filterDescription', nest: filter.describe());
       }
+    });
+  }
+
+  void _writeSummaryBlock(XmlBuilder builder, _ExportSummary summary) {
+    builder.element('lsea:summary', nest: () {
+      builder.attribute('tripCount', summary.tripCount.toString());
+      builder.attribute('haulCount', summary.haulCount.toString());
+      builder.attribute('markerCount', summary.markerCount.toString());
+      builder.attribute(
+        'totalDistanceMeters',
+        summary.totalDistanceMeters.toStringAsFixed(2),
+      );
+      builder.attribute(
+        'totalDurationSeconds',
+        summary.totalDurationSeconds.toString(),
+      );
+      builder.attribute(
+        'totalSweptAreaM2',
+        summary.totalSweptAreaM2.toStringAsFixed(2),
+      );
     });
   }
 
@@ -236,69 +377,37 @@ class GpxExporter {
         builder.element('lsea:marker', nest: () {
           builder.attribute('id', marker.id);
           builder.attribute('category', marker.category.storageKey);
+          builder.attribute(
+            'categoryLabel',
+            marker.category.displayLabel,
+          );
         });
       });
     });
   }
 
-  void _writeTrack(XmlBuilder builder, Haul haul, List<TrackPoint> points) {
+  void _writeTrack(
+    XmlBuilder builder,
+    Haul haul,
+    List<TrackPoint> points, {
+    Trip? parentTrip,
+  }) {
     builder.element('trk', nest: () {
       builder.element('name', nest: haul.displayName());
-      builder.element(
-        'desc',
-        nest: 'Tarikan #${haul.orderIndex} '
-            '· lebar trawl ${haul.trawlWidthMeters.toStringAsFixed(1)} m',
-      );
+      builder.element('desc', nest: _haulDescription(haul));
       builder.element('type', nest: 'fishing-haul');
 
       builder.element('extensions', nest: () {
-        builder.element('lsea:haul', nest: () {
-          builder.attribute('id', haul.id);
-          builder.attribute('orderIndex', haul.orderIndex.toString());
-          builder.attribute('status', haul.status.name);
-          builder.element(
-            'lsea:startedAt',
-            nest: haul.startedAt.toUtc().toIso8601String(),
-          );
-          if (haul.endedAt != null) {
-            builder.element(
-              'lsea:endedAt',
-              nest: haul.endedAt!.toUtc().toIso8601String(),
-            );
-          }
-          builder.element(
-            'lsea:trawlWidthMeters',
-            nest: haul.trawlWidthMeters.toStringAsFixed(2),
-          );
-          builder.element(
-            'lsea:distanceMeters',
-            nest: haul.distanceMeters.toStringAsFixed(2),
-          );
-          builder.element(
-            'lsea:durationSeconds',
-            nest: haul.durationSeconds.toString(),
-          );
-          if (haul.avgSpeedKnots != null) {
-            builder.element(
-              'lsea:avgSpeedKnots',
-              nest: haul.avgSpeedKnots!.toStringAsFixed(2),
-            );
-          }
-          if (haul.avgHeadingDegrees != null) {
-            builder.element(
-              'lsea:avgHeadingDegrees',
-              nest: haul.avgHeadingDegrees!.toStringAsFixed(1),
-            );
-          }
-          builder.element(
-            'lsea:sweptAreaM2',
-            nest: haul.sweptAreaM2.toStringAsFixed(2),
-          );
-        });
+        // Parent trip extension — receiver bisa rekonstruksi
+        // grouping trip → haul tanpa harus parsing nama.
+        if (parentTrip != null) {
+          _writeTripExtensionAttrs(builder, parentTrip);
+        }
+        _writeHaulExtensionAttrs(builder, haul);
       });
 
-      // Always emit a <trkseg>, even when empty, so the document
-      // schema stays consistent. Empty <trkseg/> is valid GPX 1.1.
+      // Always emit a `<trkseg>`, even when empty, so the document
+      // schema stays consistent. Empty `<trkseg/>` is valid GPX 1.1.
       builder.element('trkseg', nest: () {
         for (final pt in points) {
           builder.element('trkpt', nest: () {
@@ -347,22 +456,134 @@ class GpxExporter {
     });
   }
 
+  void _writeTripExtensionAttrs(XmlBuilder builder, Trip trip) {
+    builder.element('lsea:trip', nest: () {
+      builder.attribute('id', trip.id);
+      if (trip.name != null && trip.name!.isNotEmpty) {
+        builder.attribute('name', trip.name!);
+      }
+      builder.attribute('status', trip.status.name);
+      builder.attribute(
+        'startedAt',
+        trip.startedAt.toUtc().toIso8601String(),
+      );
+      if (trip.endedAt != null) {
+        builder.attribute(
+          'endedAt',
+          trip.endedAt!.toUtc().toIso8601String(),
+        );
+      }
+      if (trip.homePort != null && trip.homePort!.isNotEmpty) {
+        builder.attribute('homePort', trip.homePort!);
+      }
+      if (trip.colorValue != null) {
+        builder.attribute('colorValue', '0x${_argbHex(trip.colorValue!)}');
+        builder.attribute('colorHex', '#${_rgbHex(trip.colorValue!)}');
+      }
+    });
+  }
+
+  void _writeHaulExtensionAttrs(XmlBuilder builder, Haul haul) {
+    builder.element('lsea:haul', nest: () {
+      builder.attribute('id', haul.id);
+      builder.attribute('orderIndex', haul.orderIndex.toString());
+      builder.attribute('status', haul.status.name);
+      builder.attribute(
+        'startedAt',
+        haul.startedAt.toUtc().toIso8601String(),
+      );
+      if (haul.endedAt != null) {
+        builder.attribute(
+          'endedAt',
+          haul.endedAt!.toUtc().toIso8601String(),
+        );
+      }
+      builder.attribute(
+        'trawlWidthMeters',
+        haul.trawlWidthMeters.toStringAsFixed(2),
+      );
+      builder.attribute(
+        'distanceMeters',
+        haul.distanceMeters.toStringAsFixed(2),
+      );
+      builder.attribute(
+        'durationSeconds',
+        haul.durationSeconds.toString(),
+      );
+      if (haul.avgSpeedKnots != null) {
+        builder.attribute(
+          'avgSpeedKnots',
+          haul.avgSpeedKnots!.toStringAsFixed(2),
+        );
+      }
+      if (haul.avgHeadingDegrees != null) {
+        builder.attribute(
+          'avgHeadingDegrees',
+          haul.avgHeadingDegrees!.toStringAsFixed(1),
+        );
+      }
+      builder.attribute(
+        'sweptAreaM2',
+        haul.sweptAreaM2.toStringAsFixed(2),
+      );
+      if (haul.colorValue != null) {
+        builder.attribute('colorValue', '0x${_argbHex(haul.colorValue!)}');
+        builder.attribute('colorHex', '#${_rgbHex(haul.colorValue!)}');
+      }
+    });
+  }
+
   // ===========================================================================
   // Pure helpers
   // ===========================================================================
 
-  String _tripDescription(Trip trip, List<Haul> hauls) {
-    final pieces = <String>[];
-    pieces.add('${hauls.length} tarikan');
-    final totalDistance = hauls.fold<double>(
-      0,
-      (sum, h) => sum + h.distanceMeters,
-    );
-    if (totalDistance > 0) {
-      pieces.add('${(totalDistance / 1000).toStringAsFixed(2)} km total');
+  String _titleForFilter(ExportFilter filter) {
+    if (filter.includeTracks && filter.includeMarkers) {
+      return 'Data Langgeng Sea (Lengkap)';
     }
-    if (trip.homePort != null && trip.homePort!.isNotEmpty) {
-      pieces.add('Pelabuhan: ${trip.homePort!}');
+    if (filter.includeTracks) {
+      return 'Jalur Tarikan Langgeng Sea';
+    }
+    if (filter.includeMarkers) {
+      return 'Penanda Langgeng Sea';
+    }
+    return 'Data Langgeng Sea';
+  }
+
+  String _descriptionForSummary(_ExportSummary s) {
+    final pieces = <String>[];
+    if (s.tripCount > 0) pieces.add('${s.tripCount} trip');
+    if (s.haulCount > 0) pieces.add('${s.haulCount} tarikan');
+    if (s.totalDistanceMeters > 0) {
+      pieces.add('${(s.totalDistanceMeters / 1000).toStringAsFixed(2)} km');
+    }
+    if (s.markerCount > 0) pieces.add('${s.markerCount} penanda');
+    if (pieces.isEmpty) return 'Tidak ada data yang cocok';
+    return pieces.join(' · ');
+  }
+
+  String _haulDescription(Haul haul) {
+    final pieces = <String>[
+      'Tarikan #${haul.orderIndex}',
+      'lebar trawl ${haul.trawlWidthMeters.toStringAsFixed(1)} m',
+    ];
+    if (haul.distanceMeters > 0) {
+      pieces.add('${(haul.distanceMeters / 1000).toStringAsFixed(2)} km');
+    }
+    if (haul.durationSeconds > 0) {
+      final m = (haul.durationSeconds / 60).round();
+      pieces.add('$m menit');
+    }
+    if (haul.avgSpeedKnots != null) {
+      pieces.add('${haul.avgSpeedKnots!.toStringAsFixed(1)} knot');
+    }
+    if (haul.avgHeadingDegrees != null) {
+      pieces.add(
+        '${haul.avgHeadingDegrees!.toStringAsFixed(0)}°',
+      );
+    }
+    if (haul.sweptAreaM2 > 0) {
+      pieces.add('${(haul.sweptAreaM2 / 10000).toStringAsFixed(2)} ha');
     }
     return pieces.join(' · ');
   }
@@ -381,13 +602,21 @@ class GpxExporter {
   /// without trailing zeros, so files stay compact.
   String _formatCoord(double value) {
     final s = value.toStringAsFixed(7);
-    // Strip trailing zeros + dangling decimal point.
     var trimmed = s;
     if (trimmed.contains('.')) {
       trimmed = trimmed.replaceFirst(RegExp(r'0+$'), '');
       trimmed = trimmed.replaceFirst(RegExp(r'\.$'), '');
     }
     return trimmed;
+  }
+
+  String _argbHex(int argb) {
+    return argb.toUnsigned(32).toRadixString(16).padLeft(8, '0').toUpperCase();
+  }
+
+  String _rgbHex(int argb) {
+    final rgb = argb.toUnsigned(32) & 0xFFFFFF;
+    return rgb.toRadixString(16).padLeft(6, '0').toUpperCase();
   }
 
   _Bounds? _boundsForPoints(Iterable<TrackPoint> points) {
@@ -533,7 +762,6 @@ class _Bounds {
   final double maxLon;
 }
 
-
 // =============================================================================
 // GpxExporterService — global export wrapper used by ExportScreen
 // =============================================================================
@@ -645,3 +873,27 @@ class ExportResult {
 final gpxExporterProvider = Provider<GpxExporterService>((ref) {
   return GpxExporterService(ref);
 });
+
+class _ExportSummary {
+  const _ExportSummary({
+    required this.tripCount,
+    required this.haulCount,
+    required this.markerCount,
+    required this.totalDistanceMeters,
+    required this.totalDurationSeconds,
+    required this.totalSweptAreaM2,
+  });
+
+  final int tripCount;
+  final int haulCount;
+  final int markerCount;
+  final double totalDistanceMeters;
+  final int totalDurationSeconds;
+  final double totalSweptAreaM2;
+}
+
+class _HaulWithTrip {
+  const _HaulWithTrip({required this.haul, required this.trip});
+  final Haul haul;
+  final Trip trip;
+}

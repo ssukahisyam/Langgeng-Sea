@@ -39,6 +39,11 @@ class ExportSheet extends ConsumerStatefulWidget {
 class _ExportSheetState extends ConsumerState<ExportSheet> {
   ExportFormat _selectedFormat = ExportFormat.lseaJson;
   bool _isExporting = false;
+  // PR #27 R6 — toggle "Sertakan penanda dalam area trip". Default ON
+  // supaya share-per-trip dari TripDetailScreen otomatis bawa marker
+  // (perilaku kemarin), tapi user bisa matikan kalau hanya butuh
+  // jalur saja.
+  bool _includeMarkers = true;
 
   @override
   Widget build(BuildContext context) {
@@ -124,6 +129,15 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
                 ),
               ],
             ),
+            const SizedBox(height: AppSizes.sp4),
+
+            // PR #27 R6 — toggle penanda. Hanya berfungsi di GPX
+            // (LSEA-JSON path lama selalu ikut markers; tetap kita
+            // honor toggle-nya supaya UX konsisten).
+            _IncludeMarkersToggle(
+              value: _includeMarkers,
+              onChanged: (v) => setState(() => _includeMarkers = v),
+            ),
             const SizedBox(height: AppSizes.sp5),
 
             // Share app icons
@@ -179,11 +193,15 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
 
     try {
       final exportService = ref.read(exportServiceProvider);
+      // PR #27 R6 — pakai exportTrip yang sekarang otomatis menarik
+      // user profile dari repository (lihat ExportService.exportTrip).
+      // userName/vesselName diisi `null` supaya fallback ke
+      // UserProfile, jadi file GPX yang di-share dari sini punya
+      // <lsea:exporter> block yang sama dengan path Settings → Ekspor.
       final file = await exportService.exportTrip(
         tripId: widget.trip.id,
         format: _selectedFormat,
-        userName: 'Nelayan', // TODO: get from profile/settings
-        vesselName: 'Kapal', // TODO: get from profile/settings
+        includeMarkers: _includeMarkers,
       );
 
       if (!mounted) return;
@@ -303,6 +321,89 @@ class _ShareAppIcon extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+
+/// Toggle row "Sertakan penanda dalam area trip".
+///
+/// Visual: chip-style row dengan icon, judul, subtitle, dan Switch
+/// di kanan. Mirror visual style dari `_FormatItem` tapi single-row
+/// (bukan card 2-column).
+class _IncludeMarkersToggle extends StatelessWidget {
+  const _IncludeMarkersToggle({
+    required this.value,
+    required this.onChanged,
+  });
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final colors = context.colors;
+    final text = context.text;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => onChanged(!value),
+        borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSizes.sp3,
+            vertical: AppSizes.sp2,
+          ),
+          decoration: BoxDecoration(
+            color: value ? tokens.primarySoft : tokens.surface1,
+            borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+            border: Border.all(
+              color: value ? colors.primary : tokens.border,
+              width: value ? 2 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                PhosphorIconsBold.mapPin,
+                size: 18,
+                color: value ? colors.primary : tokens.textSecondary,
+              ),
+              const SizedBox(width: AppSizes.sp3),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Sertakan Penanda',
+                      style: text.labelMedium?.copyWith(
+                        color: value ? colors.primary : null,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Spot produktif, karang, pelabuhan',
+                      style: text.bodySmall?.copyWith(
+                        color: tokens.textTertiary,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: value,
+                onChanged: onChanged,
+                activeColor: colors.primary,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

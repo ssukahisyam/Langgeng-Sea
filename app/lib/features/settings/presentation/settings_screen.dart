@@ -14,6 +14,7 @@ import '../../../core/widgets/glass_card.dart';
 import '../../onboarding/data/user_profile_repository.dart';
 import '../../onboarding/domain/entities/user_profile.dart';
 import '../application/gpx_sync_service.dart';
+import 'widgets/battery_optimization_tile.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -185,6 +186,19 @@ class SettingsScreen extends ConsumerWidget {
                       indent: 16,
                       endIndent: 16),
                   _SettingsTile(
+                    iconColor: context.colors.primary,
+                    iconBg: tokens.primarySoft,
+                    icon: PhosphorIconsBold.shareFat,
+                    title: 'Ekspor Data',
+                    subtitle: 'Bagikan jalur & penanda dalam format GPX',
+                    onTap: () => context.push(AppRoutes.exportData),
+                  ),
+                  Divider(
+                      color: tokens.border,
+                      height: 1,
+                      indent: 16,
+                      endIndent: 16),
+                  _SettingsTile(
                     iconColor: context.colors.secondary,
                     iconBg: tokens.accentSoft,
                     icon: PhosphorIconsBold.mapPin,
@@ -192,6 +206,16 @@ class SettingsScreen extends ConsumerWidget {
                     subtitle: 'Lihat & atur penanda lokasi di peta',
                     onTap: () => context.push(AppRoutes.markerList),
                   ),
+                  Divider(
+                      color: tokens.border,
+                      height: 1,
+                      indent: 16,
+                      endIndent: 16),
+                  // PR #27 R3: tile permission battery optimization
+                  // supaya nelayan bisa atur ulang akurasi-saat-layar-mati
+                  // tanpa harus mulai tarikan dulu. Tile self-hide
+                  // di iOS / desktop.
+                  const BatteryOptimizationTile(),
                 ],
               ),
             ),
