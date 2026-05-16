@@ -6,8 +6,10 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../../core/observability/logger.dart';
+import '../../../../core/settings/application/app_settings_provider.dart';
 import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../tracking/domain/entities/tracking_mode.dart';
 
 /// Settings tile yang menampilkan & mengatur permission
 /// `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`.
@@ -114,6 +116,15 @@ class _BatteryOptimizationTileState
   Widget build(BuildContext context) {
     if (!Platform.isAndroid) {
       // Self-hide di iOS / desktop — permission ini tidak berlaku.
+      return const SizedBox.shrink();
+    }
+
+    // PR #29: self-hide kalau mode tracking = Normal. Battery
+    // optimization exemption tidak relevan saat foreground service
+    // tidak digunakan, jadi tile cuma menambah noise di Settings.
+    // Kalau user pindah ke Akurasi nanti, tile otomatis muncul.
+    final mode = ref.watch(trackingModeProvider);
+    if (mode == TrackingMode.normal) {
       return const SizedBox.shrink();
     }
 
