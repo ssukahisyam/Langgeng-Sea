@@ -1,4 +1,5 @@
 import '../../../data/database/app_database.dart';
+import '../../../features/tracking/domain/entities/tracking_mode.dart';
 import '../domain/entities/app_settings.dart';
 
 /// Thin adapter: [AppSettingsDao] rows ↔ [AppSettings] entity.
@@ -25,10 +26,16 @@ class AppSettingsRepository {
 
   Future<void> setPolylineWidth(int width) => _dao.setPolylineWidth(width);
 
+  /// Persist tracking mode pilihan user (PR #29). Mapping enum → string
+  /// dilakukan di sini supaya UI tidak perlu tahu detail kolom DB.
+  Future<void> setTrackingMode(TrackingMode mode) =>
+      _dao.setTrackingMode(mode.dbValue);
+
   AppSettings _fromRow(AppSettingsRow r) => AppSettings(
         alarmSoundEnabled: r.alarmSoundEnabled,
         alarmVibrateEnabled: r.alarmVibrateEnabled,
         polylineWidth: r.polylineWidth,
+        trackingMode: TrackingMode.fromDbValue(r.trackingMode),
         updatedAt: r.updatedAt,
       );
 }

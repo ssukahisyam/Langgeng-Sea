@@ -15,6 +15,7 @@ import '../../onboarding/data/user_profile_repository.dart';
 import '../../onboarding/domain/entities/user_profile.dart';
 import '../application/gpx_sync_service.dart';
 import 'widgets/battery_optimization_tile.dart';
+import 'widgets/tracking_mode_card.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -141,6 +142,15 @@ class SettingsScreen extends ConsumerWidget {
                 ],
               ),
             ),
+
+            const SizedBox(height: AppSizes.sp3),
+
+            // PR #29: Mode Tracking toggle (Normal / Akurasi).
+            // Diletakkan di atas card "Lebar Bukaan Trawl" supaya
+            // setting yang berdampak permission/notifikasi paling
+            // visible. BatteryOptimizationTile di card di bawah
+            // self-hide kalau mode = Normal.
+            const TrackingModeCard(),
 
             const SizedBox(height: AppSizes.sp3),
 

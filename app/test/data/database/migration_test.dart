@@ -1,10 +1,11 @@
 // Migration test for AppDatabase.
 //
-// Verifies the v1 → v8 upgrade path adds the tables introduced in later
+// Verifies the v1 → v9 upgrade path adds the tables introduced in later
 // milestones (offline_regions at v2; log_book_entries, catch_items,
 // markers at v3; user_profiles at v4; hauls.color_value at v5;
 // app_settings at v6; trips.color_value at v7;
-// app_settings.polyline_width at v8) without losing any existing data.
+// app_settings.polyline_width at v8; app_settings.tracking_mode at v9)
+// without losing any existing data.
 //
 // drift_dev ships schema-version helpers (`dart run drift_dev schema
 // dump`) but we don't have a dumped `drift_schemas/` directory yet, so
@@ -73,7 +74,7 @@ CREATE TABLE track_points (
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('AppDatabase migration v1 → v8', () {
+  group('AppDatabase migration v1 → v9', () {
     late AppDatabase db;
 
     setUp(() {
@@ -114,15 +115,15 @@ void main() {
       await db.close();
     });
 
-    test('onUpgrade runs and reaches schemaVersion 8', () async {
+    test('onUpgrade runs and reaches schemaVersion 9', () async {
       // Any query forces the migration to run.
       final row = await db
           .customSelect('PRAGMA user_version')
           .getSingle();
       expect(
         row.data.values.first,
-        8,
-        reason: 'migration should land at schemaVersion 8',
+        9,
+        reason: 'migration should land at schemaVersion 9',
       );
     });
 
@@ -311,6 +312,32 @@ void main() {
           .get();
       expect(rows, hasLength(1));
       expect(rows.single.data['polyline_width'], 10);
+    });
+
+    test('app_settings.tracking_mode column exists after upgrade (v9)',
+        () async {
+      final rows = await db
+          .customSelect('PRAGMA table_info(app_settings)')
+          .get();
+      final colNames = rows.map((r) => r.data['name'] as String).toList();
+      expect(
+        colNames,
+        contains('tracking_mode'),
+        reason: 'v9 migration should add app_settings.tracking_mode column',
+      );
+    });
+
+    test("tracking_mode defaults to 'normal' for pre-v9 rows", () async {
+      // PR #29: default ke 'normal' supaya existing user tidak
+      // tiba-tiba dapat dialog izin notifikasi/battery saat tap MULAI
+      // setelah upgrade — sama behavior dengan first install.
+      final rows = await db
+          .customSelect(
+            'SELECT tracking_mode FROM app_settings WHERE id = 1',
+          )
+          .get();
+      expect(rows, hasLength(1));
+      expect(rows.single.data['tracking_mode'], 'normal');
     });
   });
 }

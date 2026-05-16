@@ -73,7 +73,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -134,6 +134,13 @@ class AppDatabase extends _$AppDatabase {
           // polyline thickness on map. Default 10px.
           if (from < 8) {
             await m.addColumn(appSettingsTable, appSettingsTable.polylineWidth);
+          }
+          // v8 → v9 adds app_settings.tracking_mode for the Mode
+          // Tracking toggle (PR #29). Default 'normal' so existing
+          // users — and freshly-migrated DBs — start without any
+          // permission dialog firing on the next "MULAI" tap.
+          if (from < 9) {
+            await m.addColumn(appSettingsTable, appSettingsTable.trackingMode);
           }
         },
       );

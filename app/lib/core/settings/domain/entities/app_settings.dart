@@ -1,13 +1,16 @@
+import '../../../../features/tracking/domain/entities/tracking_mode.dart';
+
 /// Device-local application preferences.
 ///
-/// Presently hosts the M11 navigation alarm toggles (TTS + vibrate)
-/// and map polyline width.
+/// Presently hosts the M11 navigation alarm toggles (TTS + vibrate),
+/// map polyline width, and the PR #29 tracking mode toggle
+/// (Normal / Akurasi).
 /// Lives in [core/settings] — not in a feature module — because other
 /// milestones may deposit cross-cutting preferences here too (theme
 /// override, units, etc.) and keeping them behind one table avoids
 /// sprinkling `SharedPreferences` keys.
 ///
-/// Persisted in the `app_settings` table (schema v6) as a single row
+/// Persisted in the `app_settings` table (schema v9) as a single row
 /// with `id = 1`, so reads never need null-handling. See
 /// [AppSettingsRepository] for the wire-up.
 class AppSettings {
@@ -15,6 +18,7 @@ class AppSettings {
     required this.alarmSoundEnabled,
     required this.alarmVibrateEnabled,
     required this.polylineWidth,
+    required this.trackingMode,
     required this.updatedAt,
   });
 
@@ -32,6 +36,13 @@ class AppSettings {
   /// navigation guides). Range 4–16, default 10.
   final int polylineWidth;
 
+  /// Mode tracking yang dipilih user (PR #29). Default
+  /// [TrackingMode.normal] di first install supaya tidak ada dialog
+  /// izin yang muncul tanpa konteks. User pindah ke
+  /// [TrackingMode.accurate] secara sadar dari Settings saat butuh
+  /// trip panjang dengan layar mati.
+  final TrackingMode trackingMode;
+
   /// Bookkeeping only — bumped on every mutation so future "history
   /// of setting changes" screens have a hook.
   final DateTime updatedAt;
@@ -43,6 +54,7 @@ class AppSettings {
     alarmSoundEnabled: true,
     alarmVibrateEnabled: true,
     polylineWidth: 10,
+    trackingMode: TrackingMode.normal,
     updatedAt: DateTime.fromMillisecondsSinceEpoch(0),
   );
 
@@ -50,12 +62,14 @@ class AppSettings {
     bool? alarmSoundEnabled,
     bool? alarmVibrateEnabled,
     int? polylineWidth,
+    TrackingMode? trackingMode,
     DateTime? updatedAt,
   }) {
     return AppSettings(
       alarmSoundEnabled: alarmSoundEnabled ?? this.alarmSoundEnabled,
       alarmVibrateEnabled: alarmVibrateEnabled ?? this.alarmVibrateEnabled,
       polylineWidth: polylineWidth ?? this.polylineWidth,
+      trackingMode: trackingMode ?? this.trackingMode,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
@@ -66,6 +80,7 @@ class AppSettings {
         other.alarmSoundEnabled == alarmSoundEnabled &&
         other.alarmVibrateEnabled == alarmVibrateEnabled &&
         other.polylineWidth == polylineWidth &&
+        other.trackingMode == trackingMode &&
         other.updatedAt == updatedAt;
   }
 
@@ -74,11 +89,12 @@ class AppSettings {
         alarmSoundEnabled,
         alarmVibrateEnabled,
         polylineWidth,
+        trackingMode,
         updatedAt,
       );
 
   @override
   String toString() =>
       'AppSettings(sound: $alarmSoundEnabled, vibrate: $alarmVibrateEnabled, '
-      'polylineWidth: $polylineWidth)';
+      'polylineWidth: $polylineWidth, trackingMode: ${trackingMode.dbValue})';
 }

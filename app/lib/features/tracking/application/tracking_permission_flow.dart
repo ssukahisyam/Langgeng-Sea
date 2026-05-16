@@ -67,6 +67,17 @@ abstract class PermissionHandler {
   /// Request `POST_NOTIFICATIONS`. Returns the resulting status.
   Future<PermissionStatus> requestNotifications();
 
+  /// Current `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` status. Tracking
+  /// dapat berjalan tanpa permission ini, tetapi Android Doze akan
+  /// men-throttle GPS saat layar mati. Diintroduksi untuk
+  /// `activateAccurateMode` (PR #29).
+  Future<PermissionStatus> checkIgnoreBattery();
+
+  /// Request `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`. Returns the
+  /// resulting status. Best-effort: kalau OEM ROM atau plugin tidak
+  /// mendukung, status akhir bisa `denied`.
+  Future<PermissionStatus> requestIgnoreBattery();
+
   /// Android SDK integer (e.g. 29 for Android 10). Returns a negative
   /// value on non-Android platforms so the permission flow can skip
   /// Android-specific branches safely.
@@ -105,6 +116,14 @@ class RealPermissionHandler implements PermissionHandler {
   @override
   Future<PermissionStatus> requestNotifications() =>
       Permission.notification.request();
+
+  @override
+  Future<PermissionStatus> checkIgnoreBattery() =>
+      Permission.ignoreBatteryOptimizations.status;
+
+  @override
+  Future<PermissionStatus> requestIgnoreBattery() =>
+      Permission.ignoreBatteryOptimizations.request();
 
   @override
   Future<int> androidSdkInt() async {
