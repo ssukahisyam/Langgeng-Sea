@@ -25,6 +25,39 @@ const _kHaulIdKey = 'haulId';
 /// Key used for status updates from the background isolate.
 const _kStatusKey = 'status';
 
+/// Thrown by [FlutterBackgroundTrackingService.start] ketika
+/// `POST_NOTIFICATIONS` (Android 13+) ditolak user atau plugin gagal
+/// memeriksa status permission. Tanpa permission ini, panggilan
+/// `startForeground()` di sisi Android akan dilempar dengan
+/// `CannotPostForegroundServiceNotificationException` ("Bad notification
+/// for startForeground") yang meng-crash aplikasi. Lempar exception
+/// terdefinisi ini supaya `TrackingController` bisa downgrade ke
+/// foreground-only mode + tampilkan banner ke user, daripada crash.
+class NotificationPermissionDeniedException implements Exception {
+  const NotificationPermissionDeniedException();
+
+  @override
+  String toString() =>
+      'NotificationPermissionDeniedException: POST_NOTIFICATIONS belum '
+      'di-grant. Foreground service tidak bisa start.';
+}
+
+/// Thrown ketika `flutter_background_service` gagal memulai service
+/// dari sisi Android (mis. PlatformException, channel disabled,
+/// OEM restriction). Membungkus exception asli sebagai [cause] supaya
+/// caller bisa logging tanpa kehilangan stack trace, sementara tipe
+/// yang stabil ini bisa di-catch secara terstruktur.
+class BackgroundServiceStartException implements Exception {
+  const BackgroundServiceStartException(this.cause);
+
+  final Object cause;
+
+  @override
+  String toString() =>
+      'BackgroundServiceStartException: gagal memulai foreground '
+      'service. Cause: $cause';
+}
+
 /// Concrete [BackgroundTrackingService] backed by `flutter_background_service`.
 ///
 /// Starts an Android foreground service with `foregroundServiceType=location`
@@ -142,7 +175,83 @@ class FlutterBackgroundTrackingService implements BackgroundTrackingService {
       });
     }
 
-    await _service.startService();
+    // POST_NOTIFICATIONS gate (PR #27 R1 follow-up):
+    // Android 13+ (API 33) menjadikan POST_NOTIFICATIONS sebagai
+    // permission runtime. Foreground service yang panggil
+    // `startForeground()` tanpa permission ini akan dilempar
+    // `RemoteServiceException$CannotPostForegroundServiceNotificationException`
+    // — crash yang dilaporkan user di Redmi Note 10 Pro / PixelOS
+    // ("Bad notification for startForeground").
+    //
+    // Strategi:
+    // - Cek + request permission DI SINI (sebelum startService).
+    // - Wrap dengan timeout supaya dialog yang stuck tidak menggantung.
+    // - Kalau hasil akhir bukan granted, BAIL OUT lewat exception —
+    //   caller (TrackingController) akan menangkap dan downgrade ke
+    //   foreground-only GPS lewat `BackgroundTrackingStatus.failed`.
+    //   LEBIH BAIK gagal start dengan banner daripada crash app.
+    if (Platform.isAndroid) {
+      try {
+        var status = await Permission.notification.status;
+        if (!status.isGranted) {
+          status = await Permission.notification.request().timeout(
+                const Duration(seconds: 10),
+                onTimeout: () {
+                  Logger.instance.warn(
+                    'tracking.notification_permission_timeout',
+                    const {'timeoutSeconds': 10},
+                  );
+                  return PermissionStatus.denied;
+                },
+              );
+        }
+        if (!status.isGranted) {
+          Logger.instance.warn(
+            'tracking.notification_permission_denied',
+            {'status': status.name},
+          );
+          _lastStatus = BackgroundTrackingStatus.failed;
+          _statusController.add(BackgroundTrackingStatus.failed);
+          throw const NotificationPermissionDeniedException();
+        }
+      } on NotificationPermissionDeniedException {
+        rethrow;
+      } catch (e, stack) {
+        // Plugin error / detached activity / channel missing — log
+        // tapi JANGAN lanjut startService() karena kemungkinan besar
+        // berakhir crash juga. Caller akan tampilkan banner.
+        Logger.instance.warn(
+          'tracking.notification_permission_check_failed',
+          {'error': e.toString()},
+          e,
+          stack,
+        );
+        _lastStatus = BackgroundTrackingStatus.failed;
+        _statusController.add(BackgroundTrackingStatus.failed);
+        throw const NotificationPermissionDeniedException();
+      }
+    }
+
+    // Defensive try-catch wrapper di sekitar startService():
+    // di samping POST_NOTIFICATIONS yang sudah dijaga di atas, sisi
+    // Android masih bisa lempar PlatformException untuk skenario
+    // lain yang sulit diprediksi (channel di-disable user manual,
+    // OEM ROM yang membatasi FG service, dsb). Lempar sebagai
+    // BackgroundServiceStartException supaya caller tetap bisa
+    // tampilkan banner — bukan crash app.
+    try {
+      await _service.startService();
+    } catch (e, stack) {
+      Logger.instance.error(
+        'tracking.bg_start_service_failed',
+        {'error': e.toString()},
+        e,
+        stack,
+      );
+      _lastStatus = BackgroundTrackingStatus.failed;
+      _statusController.add(BackgroundTrackingStatus.failed);
+      throw BackgroundServiceStartException(e);
+    }
 
     // Send the haul id to the background isolate so it knows which
     // haul to append points to.
