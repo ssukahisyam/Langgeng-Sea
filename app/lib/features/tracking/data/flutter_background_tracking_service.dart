@@ -244,9 +244,9 @@ class FlutterBackgroundTrackingService implements BackgroundTrackingService {
     } catch (e, stack) {
       Logger.instance.error(
         'tracking.bg_start_service_failed',
-        {'error': e.toString()},
         e,
         stack,
+        {'error': e.toString()},
       );
       _lastStatus = BackgroundTrackingStatus.failed;
       _statusController.add(BackgroundTrackingStatus.failed);
@@ -485,6 +485,8 @@ Future<void> onBackgroundStart(ServiceInstance service) async {
       sendStatus(BackgroundTrackingStatus.failed);
       Logger.instance.error(
         'background.start_failed',
+        e,
+        null,
         {'error': e.toString()},
       );
     }
