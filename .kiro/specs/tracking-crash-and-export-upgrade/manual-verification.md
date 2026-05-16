@@ -17,6 +17,31 @@ flutter run --release    # atau install APK release
 
 Device target: Redmi Note 10 Pro · PixelOS · Android 14+.
 
+> **Catatan post-test (2026-05-16)**: testing pertama menemukan crash
+> _kedua_ yang berbeda dengan SIGABRT yang dianalisis di `design.md`:
+>
+> ```
+> CannotPostForegroundServiceNotificationException:
+> Bad notification for startForeground
+> ```
+>
+> Akar masalah: `POST_NOTIFICATIONS` (runtime permission Android 13+)
+> tidak di-request sebelum `startService()`. `ensureTrackingPermissions`
+> sudah dibuat tapi tidak pernah dipanggil di flow `startHaul`.
+> Fix follow-up: cek + request permission di
+> `FlutterBackgroundTrackingService.start()` SEBELUM `startService()`,
+> dengan timeout 10 detik dan exception terdefinisi
+> (`NotificationPermissionDeniedException`) supaya
+> `TrackingController` bisa downgrade ke foreground-only mode.
+
+- [ ] **R1 — Notification permission auto-request (FRESH INSTALL)**
+  Uninstall app, install ulang. Tekan **MULAI** untuk pertama kali.
+  Dialog "Izinkan Langgeng Sea mengirim notifikasi?" muncul.
+  - Tap **Izinkan** → notifikasi foreground service muncul,
+    tracking jalan normal, tidak crash.
+  - Tap **Tolak** → app TIDAK crash. Banner "Background tracking
+    nonaktif" muncul; tracking tetap merekam selama app di depan.
+
 - [ ] **R1 — Battery permission tidak crash**
   Tekan **MULAI** untuk pertama kali setelah install fresh.
   Sebagai notifikasi foreground service muncul dulu.
