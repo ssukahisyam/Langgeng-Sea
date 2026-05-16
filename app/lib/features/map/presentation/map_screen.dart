@@ -40,6 +40,7 @@ import '../../tracking/data/background_tracking_service.dart';
 import '../../tracking/data/haul_repository.dart';
 import '../../tracking/data/trip_repository.dart';
 import '../../tracking/domain/entities/haul.dart';
+import '../../tracking/domain/entities/tracking_mode.dart';
 import '../../tracking/domain/entities/trip.dart';
 import '../../tracking/presentation/widgets/active_haul_polyline.dart';
 import '../../tracking/presentation/widgets/haul_summary_sheet.dart';
@@ -703,6 +704,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final trackingState = ref.watch(trackingControllerProvider);
     final isRecording = trackingState.isRecording;
     final mode = ref.watch(mapModeProvider);
+    final trackingMode = ref.watch(trackingModeProvider);
 
     // Navigation overlay state -- drives the top-of-map panel, the
     // dashed go-to polyline, and the bearing arrow on the boat marker.
@@ -1108,6 +1110,46 @@ class _MapScreenState extends ConsumerState<MapScreen>
                                     : 'Background GPS gagal. Tetap merekam di foreground.',
                                 style: context.text.bodySmall?.copyWith(
                                   color: context.tokens.warning,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  // Mode Normal info banner (PR #29 R2 AC7).
+                  // Muncul saat tracking aktif di mode Normal supaya
+                  // user paham bahwa tracking akan pause kalau app
+                  // dipindah ke background / layar mati. Banner ini
+                  // dan banner backgroundDegraded di atas saling
+                  // exclusive secara natural — di mode Normal,
+                  // backgroundStatus = stopped, jadi
+                  // backgroundDegraded = false.
+                  if (isRecording &&
+                      trackingMode == TrackingMode.normal &&
+                      !trackingState.backgroundDegraded)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSizes.sp2),
+                      child: GlassCard(
+                        level: GlassLevel.level1,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSizes.sp3,
+                          vertical: AppSizes.sp2,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              PhosphorIconsFill.info,
+                              size: 16,
+                              color: context.colors.primary,
+                            ),
+                            const SizedBox(width: AppSizes.sp2),
+                            Expanded(
+                              child: Text(
+                                'Mode Normal — tracking pause saat layar mati',
+                                style: context.text.bodySmall?.copyWith(
+                                  color: context.tokens.textSecondary,
                                   fontSize: 11,
                                 ),
                               ),
