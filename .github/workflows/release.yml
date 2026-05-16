@@ -1,7 +1,10 @@
 name: Release
 
 # Triggered when a version tag (v1.0.0, v1.1.0, …) is pushed.
-# Builds APK (split-per-abi) + AAB and uploads them to a GitHub Release.
+# Builds APK (split-per-abi) + AAB and uploads them DIRECTLY to a
+# GitHub Release. We intentionally do NOT upload to workflow artifacts
+# because artifact storage is quota-bound and we never sideload from
+# artifacts — distribution is via GitHub Releases.
 #
 # IMPORTANT: This workflow does NOT sign the artefacts with the Play Store
 # upload key. The release keystore is held offline per
@@ -40,7 +43,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: '3.24.x'
+          flutter-version: '3.29.x'
           cache: true
 
       - name: Flutter version
@@ -64,20 +67,17 @@ jobs:
       - name: Build AAB
         run: flutter build appbundle --release
 
-      - name: Collect artefacts
+      - name: Stage release assets
+        # Collect APKs + AAB into a single staging directory so the
+        # `softprops/action-gh-release` step has a stable glob to match.
+        # We don't run actions/upload-artifact — files go straight to
+        # the GitHub Release.
         working-directory: ./app
         run: |
-          mkdir -p release-artefacts
-          cp build/app/outputs/flutter-apk/*.apk release-artefacts/
-          cp build/app/outputs/bundle/release/*.aab release-artefacts/
-          ls -lh release-artefacts
-
-      - name: Upload artefacts (for workflow inspection)
-        uses: actions/upload-artifact@v4
-        with:
-          name: langgeng-sea-${{ github.ref_name }}
-          path: app/release-artefacts/*
-          retention-days: 30
+          mkdir -p release-assets
+          cp build/app/outputs/flutter-apk/*.apk release-assets/
+          cp build/app/outputs/bundle/release/*.aab release-assets/
+          ls -lh release-assets
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -96,8 +96,8 @@ jobs:
             > AAB Play-Store-ready dibuild ulang manual di workstation
             > signing lalu diupload via Play Console.
           files: |
-            app/release-artefacts/*.apk
-            app/release-artefacts/*.aab
+            app/release-assets/*.apk
+            app/release-assets/*.aab
           draft: false
           prerelease: false
           generate_release_notes: true

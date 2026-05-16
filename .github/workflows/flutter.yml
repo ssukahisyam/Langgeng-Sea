@@ -14,8 +14,14 @@ concurrency:
 jobs:
   # ---------------------------------------------------------------------------
   # Static analysis + unit/integration tests.
-  # Reports red X on failure but does NOT gate the APK build below — that way
-  # you always get an installable artifact for manual smoke testing.
+  # Reports red X on failure but does NOT gate APK builds — APK production
+  # is moved to:
+  #   - .github/workflows/build-release-manual.yml (manual dev builds, via
+  #     workflow_dispatch, uploads to GitHub Releases as a pre-release).
+  #   - .github/workflows/release.yml (tag v*.*.*, uploads to a real
+  #     GitHub Release).
+  # We intentionally no longer upload APKs as workflow artifacts because
+  # artifact storage is quota-bound and we never sideload from artifacts.
   # ---------------------------------------------------------------------------
   analyze-and-test:
     name: Analyze & Test
@@ -60,7 +66,7 @@ jobs:
         run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Verify formatting
-        # Formatting drift should never block the APK build.
+        # Formatting drift should never block the pipeline.
         continue-on-error: true
         run: |
           files=$(find lib test -name '*.dart' \
@@ -79,124 +85,3 @@ jobs:
       - name: Run unit + integration tests
         continue-on-error: true
         run: flutter test --reporter expanded
-
-  # ---------------------------------------------------------------------------
-  # Build a debug APK. Runs INDEPENDENTLY of analyze-and-test (no `needs:`)
-  # so CI hiccups in the test job don't prevent producing an installable APK.
-  # The APK is uploaded as a workflow artifact (14-day retention).
-  #
-  # Debug APK = fast to build, easy to debug, but SLOW AT RUNTIME (JIT,
-  # no tree shaking, full debug symbols, assertions enabled). Use this
-  # only for development smoke tests. For real testing see the
-  # build-release-apk job below.
-  # ---------------------------------------------------------------------------
-  build-debug-apk:
-    name: Build Debug APK
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./app
-
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Setup Flutter
-        # See note in analyze-and-test about the 3.29.x pin.
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: '3.29.x'
-          cache: true
-
-      - name: Show Flutter version
-        run: flutter --version
-
-      - name: Get dependencies
-        run: flutter pub get
-
-      - name: Generate code (drift, riverpod, freezed)
-        run: dart run build_runner build --delete-conflicting-outputs
-
-      - name: Build debug APK
-        run: flutter build apk --debug
-
-      - name: Upload debug APK
-        # Skip upload when storage quota is full — re-enable after cleanup
-        continue-on-error: true
-        uses: actions/upload-artifact@v4
-        with:
-          name: langgeng-sea-debug-apk
-          path: app/build/app/outputs/flutter-apk/app-debug.apk
-          retention-days: 1
-          if-no-files-found: error
-
-  # ---------------------------------------------------------------------------
-  # Build a RELEASE APK — this is the one to test on real devices.
-  #
-  # Release = AOT compile (no JIT), tree-shaking, R8 minify + shrink, no
-  # debug symbols, assertions stripped. Typical 5-10x faster at runtime
-  # than debug, 30-50% smaller APK.
-  #
-  # Signing: uses the release config from app/android/app/build.gradle.kts
-  # IF android/key.properties exists, otherwise falls back to debug signing
-  # so CI can produce installable APKs without needing repo secrets.
-  # The resulting APK is installable for sideload testing but NOT
-  # accepted by Play Store (see RELEASE_CHECKLIST.md section 4 for the
-  # proper signed-AAB flow).
-  # ---------------------------------------------------------------------------
-  build-release-apk:
-    name: Build Release APK
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./app
-
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: '3.29.x'
-          cache: true
-
-      - name: Show Flutter version
-        run: flutter --version
-
-      - name: Get dependencies
-        run: flutter pub get
-
-      - name: Generate code (drift, riverpod, freezed)
-        run: dart run build_runner build --delete-conflicting-outputs
-
-      - name: Build release APK (split per ABI)
-        # --split-per-abi produces 3 smaller APKs (arm64, armv7, x86_64)
-        # instead of one fat APK. Each is ~15-25 MB smaller. For most
-        # real HP Android dari 2018+ (arm64-v8a), install file
-        # "app-arm64-v8a-release.apk".
-        run: flutter build apk --release --split-per-abi
-
-      - name: Upload release APKs
-        # Skip upload when storage quota is full — re-enable after cleanup
-        continue-on-error: true
-        uses: actions/upload-artifact@v4
-        with:
-          name: langgeng-sea-release-apk
-          path: app/build/app/outputs/flutter-apk/app-*-release.apk
-          retention-days: 1
-          if-no-files-found: error

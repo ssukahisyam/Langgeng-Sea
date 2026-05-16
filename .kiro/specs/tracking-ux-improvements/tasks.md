@@ -100,7 +100,7 @@ Implementasi di-layer dari bawah ke atas: foundation utilities (pure functions &
     - Expose top-level `onBackgroundStart(ServiceInstance service)` signature
     - _Requirements: 1.1, 1.7, 1.8_
 
-  - [-] 4.3 Implement `FlutterBackgroundTrackingService` menggunakan `flutter_background_service`
+  - [x] 4.3 Implement `FlutterBackgroundTrackingService` menggunakan `flutter_background_service`
     - File baru: `app/lib/features/tracking/data/flutter_background_tracking_service.dart`
     - Delegasikan ke `FlutterBackgroundService`; konfigurasi `AndroidConfiguration` dengan `onStart: onBackgroundStart`, `foregroundServiceNotificationId`, `initialNotificationTitle`
     - Top-level `onBackgroundStart` entrypoint menginstansiasi `GeolocatorGpsService`, `AppDatabase` isolate-lokal, `TrackPointRepository`; subscribe `_gps.watchPosition(distanceFilterMeters: 2)` dan persist Track_Point dengan filter `accuracyMeters == null || accuracyMeters <= 50.0`
