@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../../../features/logbook/domain/entities/catch_item.dart';
 import '../../../features/logbook/domain/entities/log_book_entry.dart';
+import '../../../features/marker/domain/entities/marker.dart';
 import '../../../features/tracking/domain/entities/haul.dart';
 import '../../../features/tracking/domain/entities/track_point.dart';
 import '../../../features/tracking/domain/entities/trip.dart';
@@ -27,6 +28,7 @@ class LseaJsonExporter {
     required Map<String, LogBookEntry> logBookByHaul,
     required String userName,
     required String vesselName,
+    List<AppMarker> markers = const [],
   }) {
     final data = <String, dynamic>{
       'format': 'langgeng-sea-v1',
@@ -36,10 +38,22 @@ class LseaJsonExporter {
         'vessel': vesselName,
       },
       'trip': _tripToJson(trip, hauls, pointsByHaul, logBookByHaul),
-      'markers': <dynamic>[],
+      'markers': markers.map(_markerToJson).toList(),
     };
 
     return const JsonEncoder.withIndent('  ').convert(data);
+  }
+
+  Map<String, dynamic> _markerToJson(AppMarker marker) {
+    return {
+      'id': marker.id,
+      'name': marker.name,
+      'category': marker.category.storageKey,
+      'lat': marker.latitude,
+      'lon': marker.longitude,
+      'notes': marker.notes,
+      'createdAt': marker.createdAt.toUtc().toIso8601String(),
+    };
   }
 
   Map<String, dynamic> _tripToJson(
