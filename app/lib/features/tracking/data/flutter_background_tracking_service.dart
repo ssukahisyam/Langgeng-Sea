@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'dart:ui';
 
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../../core/observability/logger.dart';
 import '../../../data/database/app_database.dart';
@@ -88,6 +91,36 @@ class FlutterBackgroundTrackingService implements BackgroundTrackingService {
     _lastStatus = BackgroundTrackingStatus.starting;
     _statusController.add(BackgroundTrackingStatus.starting);
 
+    // Request battery-optimisation exemption on Android. Without this
+    // Doze mode throttles the background isolate to a fix every
+    // ~15 minutes regardless of the foreground service notification.
+    // The dialog only shows once — subsequent calls are no-ops if the
+    // user already granted it.
+    if (Platform.isAndroid) {
+      try {
+        final status = await Permission.ignoreBatteryOptimizations.status;
+        if (!status.isGranted) {
+          await Permission.ignoreBatteryOptimizations.request();
+        }
+      } catch (e) {
+        Logger.instance.warn('tracking.battery_opt_request_failed', {
+          'error': e.toString(),
+        });
+      }
+    }
+
+    // Acquire CPU wakelock so Android Doze mode doesn't throttle the
+    // background isolate's GPS stream when the screen turns off.
+    // Without this, position events stop firing within ~30s of lock
+    // and the user sees a straight line between lock and unlock.
+    try {
+      await WakelockPlus.enable();
+    } catch (e) {
+      Logger.instance.warn('tracking.wakelock_enable_failed', {
+        'error': e.toString(),
+      });
+    }
+
     await _service.startService();
 
     // Send the haul id to the background isolate so it knows which
@@ -100,6 +133,15 @@ class FlutterBackgroundTrackingService implements BackgroundTrackingService {
     _service.invoke('stop');
     _lastStatus = BackgroundTrackingStatus.stopped;
     _statusController.add(BackgroundTrackingStatus.stopped);
+
+    // Release wakelock so the device can sleep normally again.
+    try {
+      await WakelockPlus.disable();
+    } catch (e) {
+      Logger.instance.warn('tracking.wakelock_disable_failed', {
+        'error': e.toString(),
+      });
+    }
   }
 
   @override
@@ -151,11 +193,34 @@ Future<void> onBackgroundStart(ServiceInstance service) async {
       sendStatus(BackgroundTrackingStatus.running);
 
       // Subscribe to GPS position stream.
+      //
+      // Background-friendly settings:
+      //   - `distanceFilter: 0` so EVERY fix is emitted (we filter
+      //     duplicates ourselves via accuracy gate). Setting >0 makes
+      //     Android suppress slow-walking emissions during Doze.
+      //   - `intervalDuration: 2s` keeps the GPS receiver active at a
+      //     steady cadence even when the screen is off, which is the
+      //     core fix for the "straight-line between lock & unlock" bug.
+      //   - `forceLocationManager: false` uses Fused Location which is
+      //     more battery-efficient AND more accurate at sea than the
+      //     raw LocationManager fallback.
+      //   - `foregroundNotificationConfig` is intentionally omitted —
+      //     flutter_background_service already supplies the foreground
+      //     notification; adding another would duplicate it.
+      final settings = Platform.isAndroid
+          ? AndroidSettings(
+              accuracy: LocationAccuracy.high,
+              distanceFilter: 0,
+              intervalDuration: const Duration(seconds: 2),
+              forceLocationManager: false,
+              useMSLAltitude: true,
+            )
+          : const LocationSettings(
+              accuracy: LocationAccuracy.high,
+              distanceFilter: 0,
+            );
       gpsSub = Geolocator.getPositionStream(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          distanceFilter: 2,
-        ),
+        locationSettings: settings,
       ).listen(
         (position) async {
           // Accuracy gate: drop low-quality fixes from persistence.

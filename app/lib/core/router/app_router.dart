@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/compass/presentation/compass_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
 import '../../features/export_import/presentation/import_screen.dart';
 import '../../features/history/presentation/haul_detail_screen.dart';
@@ -48,6 +49,7 @@ abstract class AppRoutes {
   // Coming in later milestones
   static const String markerList = '/markers';
   static const String importData = '/import';
+  static const String compass = '/compass';
   static const String profile = '/settings/profile';
   static const String logBookHaul = '/log-book/haul/:id';
   static const String logBookTrip = '/log-book/trip/:id';
@@ -105,34 +107,55 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       // Shell-bound tab routes. Bottom nav stays visible.
-      ShellRoute(
-        navigatorKey: _shellNavigatorKey,
-        builder: (context, state, child) => AppShell(child: child),
-        routes: [
-          GoRoute(
-            path: AppRoutes.map,
-            pageBuilder: (context, state) {
-              final focusMarkerId = state.uri.queryParameters['focusMarkerId'];
-              final focusTripId = state.uri.queryParameters['focusTripId'];
-              final focusHaulId = state.uri.queryParameters['focusHaulId'];
-              return _noTransition(MapScreen(
-                focusMarkerId: focusMarkerId,
-                focusTripId: focusTripId,
-                focusHaulId: focusHaulId,
-              ));
-            },
+      // Using StatefulShellRoute.indexedStack so every tab is kept
+      // alive in memory — switching tabs does NOT dispose / recreate
+      // the MapScreen widget, preserving camera position, zoom,
+      // rotation, and preventing the recovery popup from re-firing.
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            AppShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(
+            navigatorKey: _shellNavigatorKey,
+            routes: [
+              GoRoute(
+                path: AppRoutes.map,
+                pageBuilder: (context, state) {
+                  final focusMarkerId = state.uri.queryParameters['focusMarkerId'];
+                  final focusTripId = state.uri.queryParameters['focusTripId'];
+                  final focusHaulId = state.uri.queryParameters['focusHaulId'];
+                  return _noTransition(MapScreen(
+                    focusMarkerId: focusMarkerId,
+                    focusTripId: focusTripId,
+                    focusHaulId: focusHaulId,
+                  ));
+                },
+              ),
+            ],
           ),
-          GoRoute(
-            path: AppRoutes.history,
-            pageBuilder: (_, __) => _noTransition(const HistoryScreen()),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.history,
+                pageBuilder: (_, __) => _noTransition(const HistoryScreen()),
+              ),
+            ],
           ),
-          GoRoute(
-            path: AppRoutes.dashboard,
-            pageBuilder: (_, __) => _noTransition(const DashboardScreen()),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.dashboard,
+                pageBuilder: (_, __) => _noTransition(const DashboardScreen()),
+              ),
+            ],
           ),
-          GoRoute(
-            path: AppRoutes.settings,
-            pageBuilder: (_, __) => _noTransition(const SettingsScreen()),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.settings,
+                pageBuilder: (_, __) => _noTransition(const SettingsScreen()),
+              ),
+            ],
           ),
         ],
       ),
@@ -189,6 +212,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.importData,
         parentNavigatorKey: _rootNavigatorKey,
         pageBuilder: (_, __) => _slideUp(const ImportScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.compass,
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (_, __) => _slideUp(const CompassScreen()),
       ),
       GoRoute(
         path: AppRoutes.onboarding,

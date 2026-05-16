@@ -27,6 +27,8 @@ class MultiHaulMap extends StatefulWidget {
     this.height = 180,
     this.interactive = false,
     this.onExpandTap,
+    this.selectedHaulId,
+    this.onHaulTap,
   });
 
   final List<Haul> hauls;
@@ -34,6 +36,8 @@ class MultiHaulMap extends StatefulWidget {
   final double height;
   final bool interactive;
   final VoidCallback? onExpandTap;
+  final String? selectedHaulId;
+  final ValueChanged<String>? onHaulTap;
 
   @override
   State<MultiHaulMap> createState() => _MultiHaulMapState();
@@ -83,25 +87,37 @@ class _MultiHaulMapState extends State<MultiHaulMap> {
         colorValue: haul.colorValue,
         orderIndex: haul.orderIndex,
       );
+
+      final isSelected = widget.selectedHaulId == null || widget.selectedHaulId == haul.id;
+      final opacity = isSelected ? 1.0 : 0.3;
+      final mainStroke = isSelected ? 4.0 : 2.0;
+      final shadowStroke = isSelected ? 8.0 : 0.0;
+
+      if (shadowStroke > 0) {
+        polylines.add(
+          Polyline(
+            points: latLngs,
+            strokeWidth: shadowStroke,
+            color: color.withValues(alpha: 0.22 * opacity),
+          ),
+        );
+      }
+      
       polylines.add(
         Polyline(
           points: latLngs,
-          strokeWidth: 8,
-          color: color.withValues(alpha: 0.22),
+          strokeWidth: mainStroke,
+          color: color.withValues(alpha: opacity),
+          borderStrokeWidth: isSelected ? 1.2 : 0.0,
+          borderColor: Colors.white.withValues(alpha: 0.6 * opacity),
         ),
       );
-      polylines.add(
-        Polyline(
-          points: latLngs,
-          strokeWidth: 4,
-          color: color,
-          borderStrokeWidth: 1.2,
-          borderColor: Colors.white.withValues(alpha: 0.6),
-        ),
-      );
-      markers
-        ..add(_endpointMarker(latLngs.first, tokens.success))
-        ..add(_endpointMarker(latLngs.last, tokens.danger));
+
+      if (isSelected) {
+        markers
+          ..add(_endpointMarker(latLngs.first, tokens.success))
+          ..add(_endpointMarker(latLngs.last, tokens.danger));
+      }
     }
 
     final hasData = polylines.isNotEmpty;
@@ -125,6 +141,7 @@ class _MultiHaulMapState extends State<MultiHaulMap> {
                         : InteractiveFlag.none,
                   ),
                   onMapReady: _fit,
+                  onTap: widget.onHaulTap != null ? _handleMapTap : null,
                 ),
                 children: [
                   TileLayer(
@@ -150,6 +167,35 @@ class _MultiHaulMapState extends State<MultiHaulMap> {
         ),
       ),
     );
+  }
+
+  void _handleMapTap(TapPosition tapPos, LatLng latLng) {
+    if (widget.onHaulTap == null || widget.hauls.isEmpty) return;
+
+    String? closestHaul;
+    double minPixelDist = double.infinity;
+
+    for (final haul in widget.hauls) {
+      final points = widget.pointsByHaulId[haul.id] ?? const [];
+      if (points.length < 2) continue;
+
+      for (final p in points) {
+        final screenPoint = _controller.camera.latLngToScreenPoint(p.latLng);
+        final dx = screenPoint.x - tapPos.relative!.dx;
+        final dy = screenPoint.y - tapPos.relative!.dy;
+        final distSq = dx * dx + dy * dy;
+
+        if (distSq < minPixelDist) {
+          minPixelDist = distSq;
+          closestHaul = haul.id;
+        }
+      }
+    }
+
+    // 40 pixels squared = 1600. So we accept taps within ~40 pixels.
+    if (closestHaul != null && minPixelDist < 1600) {
+      widget.onHaulTap!(closestHaul);
+    }
   }
 
   LatLng _defaultCenter() {

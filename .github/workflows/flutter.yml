@@ -128,11 +128,13 @@ jobs:
         run: flutter build apk --debug
 
       - name: Upload debug APK
+        # Skip upload when storage quota is full — re-enable after cleanup
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: langgeng-sea-debug-apk
           path: app/build/app/outputs/flutter-apk/app-debug.apk
-          retention-days: 14
+          retention-days: 1
           if-no-files-found: error
 
   # ---------------------------------------------------------------------------
@@ -190,9 +192,11 @@ jobs:
         run: flutter build apk --release --split-per-abi
 
       - name: Upload release APKs
+        # Skip upload when storage quota is full — re-enable after cleanup
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: langgeng-sea-release-apk
           path: app/build/app/outputs/flutter-apk/app-*-release.apk
-          retention-days: 14
+          retention-days: 1
           if-no-files-found: error

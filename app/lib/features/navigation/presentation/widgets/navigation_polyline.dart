@@ -1,4 +1,5 @@
 
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -68,7 +69,11 @@ class NavigationPolyline {
       final path = target.pathPoints;
       if (path.length < 2) return const [];
       return [
-        _FollowTrackStroke(points: path, strokeWidth: navWidth),
+        _FollowTrackStroke(
+          points: path,
+          strokeWidth: navWidth,
+          percentTraveled: state.progress.percentAlongPath,
+        ),
         _FollowTrackEndpoints(points: path),
       ];
     }
@@ -117,32 +122,97 @@ class _FollowTrackStroke extends StatelessWidget {
   const _FollowTrackStroke({
     required this.points,
     required this.strokeWidth,
+    required this.percentTraveled,
   });
 
   final List<LatLng> points;
   final double strokeWidth;
+  final double percentTraveled;
+
+  /// Splits the polyline at the given percentage and returns
+  /// [traveled, remaining] point lists.
+  (List<LatLng>, List<LatLng>) _splitAtPercent() {
+    if (percentTraveled <= 0) return (const [], points);
+    if (percentTraveled >= 1) return (points, const []);
+
+    // Calculate total length and find the split point.
+    final distances = <double>[];
+    double totalDist = 0;
+    for (int i = 1; i < points.length; i++) {
+      final d = _haversine(points[i - 1], points[i]);
+      distances.add(d);
+      totalDist += d;
+    }
+    if (totalDist == 0) return (points, const []);
+
+    final targetDist = totalDist * percentTraveled;
+    double accumulated = 0;
+
+    for (int i = 0; i < distances.length; i++) {
+      final segDist = distances[i];
+      if (accumulated + segDist >= targetDist) {
+        // Interpolate within this segment.
+        final frac = (targetDist - accumulated) / segDist;
+        final splitPoint = LatLng(
+          points[i].latitude + (points[i + 1].latitude - points[i].latitude) * frac,
+          points[i].longitude + (points[i + 1].longitude - points[i].longitude) * frac,
+        );
+        final traveled = [...points.sublist(0, i + 1), splitPoint];
+        final remaining = [splitPoint, ...points.sublist(i + 1)];
+        return (traveled, remaining);
+      }
+      accumulated += segDist;
+    }
+    return (points, const []);
+  }
+
+  static double _haversine(LatLng a, LatLng b) {
+    const R = 6371000.0; // Earth radius in meters
+    final dLat = (b.latitude - a.latitude) * math.pi / 180;
+    final dLon = (b.longitude - a.longitude) * math.pi / 180;
+    final lat1 = a.latitude * math.pi / 180;
+    final lat2 = b.latitude * math.pi / 180;
+    final h = math.pow(math.sin(dLat / 2), 2) +
+        math.cos(lat1) * math.cos(lat2) * math.pow(math.sin(dLon / 2), 2);
+    return 2 * R * math.asin(math.sqrt(h.clamp(0.0, 1.0)));
+  }
 
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    final color = tokens.warning;
+    final activeColor = tokens.warning;
+    // Traveled portion is greyed out.
+    const traveledColor = Color(0xFF9CA3AF); // grey-400
+
+    final (traveled, remaining) = _splitAtPercent();
+
     return PolylineLayer<Object>(
       polylines: [
-        // Soft outer glow — same visual trick as ActiveHaulPolyline,
-        // reused here so the reference track is legible against busy
-        // sea chart tiles.
-        Polyline(
-          points: points,
-          strokeWidth: strokeWidth + 4,
-          color: color.withValues(alpha: 0.22),
-        ),
-        Polyline(
-          points: points,
-          strokeWidth: strokeWidth,
-          color: color,
-          borderStrokeWidth: 1.5,
-          borderColor: Colors.white.withValues(alpha: 0.9),
-        ),
+        // Soft outer glow for the whole path
+        if (remaining.length >= 2)
+          Polyline(
+            points: remaining,
+            strokeWidth: strokeWidth + 4,
+            color: activeColor.withValues(alpha: 0.22),
+          ),
+        // Traveled (grey, faded)
+        if (traveled.length >= 2)
+          Polyline(
+            points: traveled,
+            strokeWidth: strokeWidth,
+            color: traveledColor.withValues(alpha: 0.6),
+            borderStrokeWidth: 1.0,
+            borderColor: Colors.white.withValues(alpha: 0.4),
+          ),
+        // Remaining (bright warning color)
+        if (remaining.length >= 2)
+          Polyline(
+            points: remaining,
+            strokeWidth: strokeWidth,
+            color: activeColor,
+            borderStrokeWidth: 1.5,
+            borderColor: Colors.white.withValues(alpha: 0.9),
+          ),
       ],
     );
   }
