@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/compass/presentation/compass_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
+import '../../features/export_import/presentation/export_screen.dart';
 import '../../features/export_import/presentation/import_screen.dart';
 import '../../features/history/presentation/haul_detail_screen.dart';
 import '../../features/history/presentation/history_screen.dart';
@@ -48,6 +49,7 @@ abstract class AppRoutes {
 
   // Coming in later milestones
   static const String markerList = '/markers';
+  static const String exportData = '/export';
   static const String importData = '/import';
   static const String compass = '/compass';
   static const String profile = '/settings/profile';
@@ -217,6 +219,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.compass,
         parentNavigatorKey: _rootNavigatorKey,
         pageBuilder: (_, __) => _slideUp(const CompassScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.exportData,
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (_, __) => _slideUp(const ExportScreen()),
       ),
       GoRoute(
         path: AppRoutes.onboarding,

@@ -186,6 +186,19 @@ class SettingsScreen extends ConsumerWidget {
                       indent: 16,
                       endIndent: 16),
                   _SettingsTile(
+                    iconColor: context.colors.primary,
+                    iconBg: tokens.primarySoft,
+                    icon: PhosphorIconsBold.shareFat,
+                    title: 'Ekspor Data',
+                    subtitle: 'Bagikan jalur & penanda dalam format GPX',
+                    onTap: () => context.push(AppRoutes.exportData),
+                  ),
+                  Divider(
+                      color: tokens.border,
+                      height: 1,
+                      indent: 16,
+                      endIndent: 16),
+                  _SettingsTile(
                     iconColor: context.colors.secondary,
                     iconBg: tokens.accentSoft,
                     icon: PhosphorIconsBold.mapPin,
