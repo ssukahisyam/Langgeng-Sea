@@ -238,6 +238,21 @@ class AppSettingsTable extends Table {
   IntColumn get polylineWidth =>
       integer().withDefault(const Constant(10))();
 
+  /// Mode tracking yang dipilih user (PR #29).
+  ///
+  /// Disimpan sebagai TEXT supaya stable across refactor enum di Dart.
+  /// Nilai valid: `'normal'` (default — foreground GPS saja, no
+  /// permission tambahan) atau `'accurate'` (foreground service +
+  /// notifikasi + battery optimization). Mapping di domain layer
+  /// lewat [TrackingMode.fromDbValue] yang fallback ke `normal`
+  /// untuk nilai tidak dikenal.
+  ///
+  /// Schema v9 menambah kolom ini dengan default `'normal'` supaya
+  /// existing user yang upgrade dari v8 dapat behavior sama dengan
+  /// first install (tidak tiba-tiba dapat dialog izin).
+  TextColumn get trackingMode =>
+      text().withDefault(const Constant('normal'))();
+
   DateTimeColumn get updatedAt => dateTime()();
 
   @override

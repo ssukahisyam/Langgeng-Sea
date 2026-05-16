@@ -82,6 +82,22 @@ class AppSettingsDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  /// Set the tracking mode (PR #29). Caller passes the canonical
+  /// string from `TrackingMode.dbValue` ('normal' | 'accurate').
+  /// Persisted as TEXT supaya stable across refactor enum di Dart;
+  /// domain layer (`TrackingMode.fromDbValue`) handle parsing balik
+  /// dengan fallback ke 'normal' untuk nilai tidak dikenal.
+  Future<void> setTrackingMode(String value) async {
+    await ensureSeeded();
+    await (update(appSettingsTable)..where((t) => t.id.equals(kSettingsRowId)))
+        .write(
+      AppSettingsTableCompanion(
+        trackingMode: Value(value),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
   /// Idempotent: inserts the sentinel row if missing. The schema
   /// migration already seeds it on upgrade paths, but fresh unit tests
   /// sometimes open an AppDatabase against an in-memory executor that
