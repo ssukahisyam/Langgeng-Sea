@@ -208,10 +208,32 @@ class TrackingController extends Notifier<TrackingState> {
 
   /// Resume writing points to an already-recording haul. Rebuilds
   /// aggregates from existing DB points so metrics stay correct.
-  Future<void> resumeHaul(Haul haul) async {
-    if (state.isRecording) return;
+  ///
+  /// Returns `null` jika resume berhasil (haul masih recording), atau
+  /// [HaulCompletion] jika parent trip sudah dihapus dari DB sehingga
+  /// haul-nya orphan dan tidak bisa di-resume secara meaningful — dalam
+  /// kasus itu kita finalize haul tersebut dengan data yang ada
+  /// (PR #27 R2: "Trip lookup di resumeHaul HARUS tahan kalau trip
+  /// parent sudah dihapus").
+  Future<HaulCompletion?> resumeHaul(Haul haul) async {
+    if (state.isRecording) return null;
 
     final trip = await _trips.getById(haul.tripId);
+
+    // Edge case (PR #27 R2): parent trip sudah hilang dari DB.
+    // Sebelumnya kode lanjut ke `state.activeTrip = trip` (null) dan
+    // beberapa caller di-`!`-bang downstream → crash. Sekarang kita
+    // finalize orphan haul-nya supaya tidak ada baris stale dengan
+    // status `recording` yang akan trigger crash recovery dialog di
+    // setiap restart aplikasi.
+    if (trip == null) {
+      Logger.instance.warn(
+        'tracking.resume_orphan_haul_finalizing',
+        {'haulId': haul.id, 'tripId': haul.tripId},
+      );
+      return finalizeRecoveredHaul(haul);
+    }
+
     final existing = await _points.getByHaul(haul.id);
 
     _resetAggregates();
@@ -243,11 +265,19 @@ class TrackingController extends Notifier<TrackingState> {
     // Without this, resuming a haul only uses the foreground GPS stream
     // which is suspended by Android Doze when the screen turns off —
     // resulting in the straight-line bug between lock and unlock.
+    //
+    // PR #27 R2: skipBatteryPermission=true di sini supaya dialog OS
+    // tidak muncul ulang setelah crash recovery — user sudah pernah
+    // merespons di sesi sebelumnya, dan permission_handler track
+    // jawabannya. Selain mencegah dialog yang annoying, ini juga
+    // menutup vektor crash kedua: dialog di tengah resume → race
+    // dengan Android 14+ foreground service rule.
     try {
       await _bgService.start(
         haulId: haul.id,
         notificationTitle: 'Langgeng Sea — Merekam',
         notificationBody: '${haul.displayName()} — dilanjutkan',
+        skipBatteryPermission: true,
       );
       _subscribeBgStatus();
     } catch (e) {
@@ -259,6 +289,8 @@ class TrackingController extends Notifier<TrackingState> {
         backgroundStatus: BackgroundTrackingStatus.failed,
       );
     }
+
+    return null;
   }
 
   /// Abandon an orphan recording haul (user picked "Akhiri sekarang" in

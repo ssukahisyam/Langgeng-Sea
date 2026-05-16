@@ -75,11 +75,18 @@ abstract class BackgroundTrackingService {
   /// [BackgroundTrackingStatus.running] bila Android service berhasil
   /// aktif.
   ///
-  /// _Requirements: 1.1_
+  /// Bila [skipBatteryPermission] `true`, implementasi konkret HARUS
+  /// melewati permintaan `Permission.ignoreBatteryOptimizations`. Ini
+  /// dipakai pada path crash-recovery (`TrackingController.resumeHaul`)
+  /// supaya dialog OS tidak muncul ulang setelah user pernah merespons
+  /// di sesi sebelumnya. Lihat PR #27 — Requirement R1, R2.
+  ///
+  /// _Requirements: 1.1, R1, R2_
   Future<void> start({
     required String haulId,
     required String notificationTitle,
     required String notificationBody,
+    bool skipBatteryPermission,
   });
 
   /// Menghentikan Android foreground service dan menghapus persistent

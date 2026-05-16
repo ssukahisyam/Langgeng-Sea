@@ -556,7 +556,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
     if (!mounted) return;
     final controller = ref.read(trackingControllerProvider.notifier);
     if (resume == true) {
-      await controller.resumeHaul(orphan);
+      // Resume returns a HaulCompletion only when the parent trip
+      // was deleted from the DB and the haul had to be finalized
+      // instead of resumed (PR #27 R2). In that orphan case we show
+      // the summary sheet so the user understands why tracking
+      // didn't actually start.
+      final orphanCompletion = await controller.resumeHaul(orphan);
+      if (!mounted || orphanCompletion == null) return;
+      await HaulSummarySheet.show(context, orphanCompletion);
     } else {
       final completion = await controller.finalizeRecoveredHaul(orphan);
       if (!mounted || completion == null) return;

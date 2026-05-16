@@ -90,6 +90,7 @@ class FlutterBackgroundTrackingService implements BackgroundTrackingService {
     required String haulId,
     required String notificationTitle,
     required String notificationBody,
+    bool skipBatteryPermission = false,
   }) async {
     // Defensive: if the caller forgot to invoke initialise() during
     // bootstrap, do it now. initialise() is idempotent.
@@ -98,28 +99,41 @@ class FlutterBackgroundTrackingService implements BackgroundTrackingService {
     _lastStatus = BackgroundTrackingStatus.starting;
     _statusController.add(BackgroundTrackingStatus.starting);
 
-    // Request battery-optimisation exemption on Android. Without this
-    // Doze mode throttles the background isolate to a fix every
-    // ~15 minutes regardless of the foreground service notification.
-    // The dialog only shows once — subsequent calls are no-ops if the
-    // user already granted it.
-    if (Platform.isAndroid) {
-      try {
-        final status = await Permission.ignoreBatteryOptimizations.status;
-        if (!status.isGranted) {
-          await Permission.ignoreBatteryOptimizations.request();
-        }
-      } catch (e) {
-        Logger.instance.warn('tracking.battery_opt_request_failed', {
-          'error': e.toString(),
-        });
+    // Idempotent guard (PR #27 R2): kalau service sebelumnya masih
+    // running (mis. sisa dari sesi yang crash) — stop dulu, beri
+    // jeda singkat supaya Android sempat menerima `stopForeground`,
+    // baru start ulang. Tanpa ini, `startService()` kedua kali
+    // bisa menabrak `IllegalStateException` di Android 14+.
+    try {
+      final alreadyRunning = await _service.isRunning();
+      if (alreadyRunning) {
+        Logger.instance.info(
+          'tracking.bg_service_already_running_stopping',
+          {'haulId': haulId},
+        );
+        _service.invoke('stop');
+        await Future<void>.delayed(const Duration(milliseconds: 500));
       }
+    } catch (e) {
+      // `isRunning()` belum tentu reliable di semua versi plugin /
+      // OEM ROM. Kalau cek itu sendiri throw, kita tetap lanjut —
+      // worst case `startService()` di bawah throw yang kita catch
+      // ke `BackgroundTrackingStatus.failed` di caller.
+      Logger.instance.warn(
+        'tracking.bg_isrunning_check_failed',
+        {'error': e.toString()},
+      );
     }
 
     // Acquire CPU wakelock so Android Doze mode doesn't throttle the
     // background isolate's GPS stream when the screen turns off.
     // Without this, position events stop firing within ~30s of lock
     // and the user sees a straight line between lock and unlock.
+    //
+    // Catatan PR #27 R1: battery-optimisation permission SENGAJA
+    // tidak di-request di sini lagi — dipindah ke fire-and-forget
+    // SETELAH `startService()` agar tidak race dengan rule
+    // "foreground service notification ≤ 5 detik" di Android 14+.
     try {
       await WakelockPlus.enable();
     } catch (e) {
@@ -133,6 +147,71 @@ class FlutterBackgroundTrackingService implements BackgroundTrackingService {
     // Send the haul id to the background isolate so it knows which
     // haul to append points to.
     _service.invoke('start', {_kHaulIdKey: haulId});
+
+    // Battery-optimisation exemption (PR #27 R1):
+    // PENTING — request ini SENGAJA dipindah ke fire-and-forget
+    // SETELAH `startService()` sukses. Sebelumnya call ini ada di
+    // hot-path tracking dan menyebabkan crash di Android 14+:
+    // dialog OS membuka activity result yang race dengan rule
+    // "foreground service notification harus muncul ≤ 5 detik" →
+    // SIGABRT. Dengan pattern di bawah, service sudah hidup duluan
+    // (notifikasi tampil), sehingga apa pun yang user pilih di
+    // dialog tidak menggagalkan tracking.
+    //
+    // Path crash-recovery (`resumeHaul`) men-set
+    // [skipBatteryPermission] = true supaya user tidak ditanya
+    // ulang di sesi pertama setelah crash.
+    if (!skipBatteryPermission && Platform.isAndroid) {
+      unawaited(
+        Future<void>.delayed(
+          const Duration(seconds: 2),
+          _maybeRequestBatteryOpt,
+        ),
+      );
+    }
+  }
+
+  /// Best-effort request untuk
+  /// `Permission.ignoreBatteryOptimizations`.
+  ///
+  /// Fungsi ini WAJIB tahan banting:
+  /// - Idempotent: kalau status sudah `granted`, return early.
+  /// - Tidak boleh propagate exception ke caller — semua error
+  ///   (PlatformException, MissingPluginException, timeout,
+  ///   activity-detached) di-log lalu di-swallow.
+  /// - Pakai timeout 10 detik supaya kalau dialog stuck atau ROM
+  ///   tertentu tidak pernah return, fire-and-forget tidak
+  ///   menggantung selamanya.
+  Future<void> _maybeRequestBatteryOpt() async {
+    try {
+      final status = await Permission.ignoreBatteryOptimizations.status;
+      if (status.isGranted) {
+        return;
+      }
+      final result = await Permission.ignoreBatteryOptimizations
+          .request()
+          .timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          Logger.instance.warn(
+            'tracking.battery_opt_request_timeout',
+            const {'timeoutSeconds': 10},
+          );
+          return PermissionStatus.denied;
+        },
+      );
+      Logger.instance.info(
+        'tracking.battery_opt_request_result',
+        {'status': result.name},
+      );
+    } catch (e, stack) {
+      Logger.instance.warn(
+        'tracking.battery_opt_request_failed',
+        {'error': e.toString()},
+        e,
+        stack,
+      );
+    }
   }
 
   @override
