@@ -1,9 +1,20 @@
 import 'package:xml/xml.dart';
 
-import '../../../features/marker/domain/entities/marker.dart';
-import '../../../features/tracking/domain/entities/haul.dart';
-import '../../../features/tracking/domain/entities/track_point.dart';
-import '../../../features/tracking/domain/entities/trip.dart';
+import 'dart:io';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:xml/xml.dart';
+
+import '../../../core/observability/logger.dart';
+import '../../../data/database/app_database.dart';
+import '../../marker/data/marker_repository.dart';
+import '../../marker/domain/entities/marker.dart';
+import '../../tracking/data/haul_repository.dart';
+import '../../tracking/data/mappers.dart';
+import '../../tracking/domain/entities/haul.dart';
+import '../../tracking/domain/entities/track_point.dart';
+import '../../tracking/domain/entities/trip.dart';
 
 /// Generates GPX 1.1 XML from haul/trip track data.
 ///
@@ -412,6 +423,94 @@ class GpxExporter {
       maxLon: maxLon!,
     );
   }
+
+  // ===========================================================================
+  // exportAll(...) — global export with optional category filtering
+  // ===========================================================================
+  //
+  // Used by the global ExportScreen (Settings → Ekspor Data GPX) which lets
+  // the user pick "Semua / Jalur / Penanda" via checkboxes. This is a
+  // separate entry point from `exportTrip(...)` (per-trip share) — both
+  // produce GPX 1.1 with the same root, metadata, and lsea: extensions.
+  //
+  // Writes to a temp file and returns the [File] for the share sheet.
+
+  Future<File> exportAll({
+    required bool includeTracks,
+    required bool includeMarkers,
+    List<Haul> hauls = const [],
+    Map<String, List<TrackPoint>> pointsByHaul = const {},
+    List<AppMarker> markers = const [],
+  }) async {
+    // Filter haul list down to only what the user asked for.
+    final List<Haul> effectiveHauls = includeTracks ? hauls : const [];
+    final List<AppMarker> effectiveMarkers =
+        includeMarkers ? markers : const [];
+
+    final allPoints = <TrackPoint>[
+      for (final h in effectiveHauls)
+        ...(pointsByHaul[h.id] ?? const <TrackPoint>[]),
+    ];
+    final markerLatLngs = effectiveMarkers
+        .map((m) => _LatLng(m.latitude, m.longitude))
+        .toList(growable: false);
+
+    final builder = XmlBuilder();
+    builder.processing('xml', 'version="1.0" encoding="UTF-8"');
+    builder.element('gpx', nest: () {
+      _writeRootAttributes(builder);
+      _writeMetadata(
+        builder,
+        title: _exportAllTitle(includeTracks, includeMarkers),
+        description: _exportAllDescription(
+          effectiveHauls.length,
+          allPoints.length,
+          effectiveMarkers.length,
+        ),
+        bounds: _boundsCombined(
+          allPoints.map((p) => _LatLng(p.latitude, p.longitude)),
+          markerLatLngs,
+        ),
+      );
+
+      for (final marker in effectiveMarkers) {
+        _writeWaypoint(builder, marker);
+      }
+
+      for (final haul in effectiveHauls) {
+        final points = pointsByHaul[haul.id] ?? const <TrackPoint>[];
+        // Skip empty hauls in the global export — unlike per-trip
+        // export where empty <trk> stubs are useful for showing what
+        // hauls existed, the global export targets "everything I want
+        // to share" so empty stubs are noise.
+        if (points.isEmpty) continue;
+        _writeTrack(builder, haul, points);
+      }
+    });
+
+    final content =
+        builder.buildDocument().toXmlString(pretty: true, indent: '  ');
+
+    final dir = await getTemporaryDirectory();
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final file = File('${dir.path}/langgeng_sea_$timestamp.gpx');
+    await file.writeAsString(content);
+    return file;
+  }
+
+  String _exportAllTitle(bool includeTracks, bool includeMarkers) {
+    if (includeTracks && includeMarkers) return 'Data Langgeng Sea (Lengkap)';
+    if (includeTracks) return 'Jalur Tarikan Langgeng Sea';
+    if (includeMarkers) return 'Penanda Langgeng Sea';
+    return 'Langgeng Sea';
+  }
+
+  String _exportAllDescription(int haulCount, int pointCount, int markerCount) {
+    final parts = <String>[];
+    if (haulCount > 0) parts.add('$haulCount tarikan ($pointCount titik)');
+    if (markerCount > 0) parts.add('$markerCount penanda');
+    return parts.isEmpty ? 'Tidak ada data' : parts.join(' · ');
+  }
 }
 
 class _LatLng {
@@ -433,3 +532,116 @@ class _Bounds {
   final double maxLat;
   final double maxLon;
 }
+
+
+// =============================================================================
+// GpxExporterService — global export wrapper used by ExportScreen
+// =============================================================================
+//
+// This is the higher-level entry point used by the Settings → Ekspor Data GPX
+// screen. It fetches all completed hauls (plus the currently-recording one,
+// so users can export mid-trip) + every track point + every marker, hands
+// them to [GpxExporter.exportAll] with the user-selected filter flags, and
+// returns an [ExportResult] so the UI can show a "berhasil ekspor: 3 jalur,
+// 5 penanda" summary without re-counting.
+//
+// Per-trip sharing (the "Bagikan Sekarang" sheet on a single trip) still
+// goes through [ExportService.exportTrip]; this class is global only.
+
+class GpxExporterService {
+  GpxExporterService(this._ref);
+
+  final Ref _ref;
+  final GpxExporter _exporter = GpxExporter();
+
+  Future<ExportResult> exportAll({
+    required bool includeTracks,
+    required bool includeMarkers,
+  }) async {
+    List<Haul> hauls = [];
+    Map<String, List<TrackPoint>> pointsByHaul = {};
+    List<AppMarker> markers = [];
+
+    if (includeTracks) {
+      // Pulling track points via the DAO directly (rather than through
+      // TrackPointRepository) keeps this method self-contained — we
+      // don't want to drag the repository's broader API surface into
+      // an export-only path.
+      final haulRepo = _ref.read(haulRepositoryProvider);
+      final db = _ref.read(appDatabaseProvider);
+
+      hauls = await haulRepo.listAllCompleted();
+      // Append the currently-recording haul if any, so users can export
+      // mid-trip without first having to tap "Angkat Trawl".
+      final recording = await haulRepo.getRecording();
+      if (recording != null && !hauls.any((h) => h.id == recording.id)) {
+        hauls = [...hauls, recording];
+      }
+
+      for (final haul in hauls) {
+        final rows = await db.trackPointDao.findByHaulId(haul.id);
+        pointsByHaul[haul.id] = rows.map(TrackPointMapper.fromRow).toList();
+      }
+
+      Logger.instance.info('export.tracks_collected', {
+        'haulCount': hauls.length,
+        'totalPoints':
+            pointsByHaul.values.fold<int>(0, (a, b) => a + b.length),
+      });
+    }
+
+    if (includeMarkers) {
+      markers = await _ref.read(markerRepositoryProvider).getAll();
+      Logger.instance.info('export.markers_collected', {
+        'count': markers.length,
+      });
+    }
+
+    final file = await _exporter.exportAll(
+      includeTracks: includeTracks,
+      includeMarkers: includeMarkers,
+      hauls: hauls,
+      pointsByHaul: pointsByHaul,
+      markers: markers,
+    );
+
+    final totalPoints =
+        pointsByHaul.values.fold<int>(0, (a, b) => a + b.length);
+
+    return ExportResult(
+      file: file,
+      // Only count hauls that actually contributed points — empty hauls
+      // are filtered out of the GPX output, so the user-visible counter
+      // should reflect what was packed, not what was queried.
+      haulCount: hauls.where((h) {
+        final pts = pointsByHaul[h.id];
+        return pts != null && pts.isNotEmpty;
+      }).length,
+      trackPointCount: totalPoints,
+      markerCount: markers.length,
+    );
+  }
+}
+
+/// Summary returned to the UI after exporting so the user can see how many
+/// items were actually written to the GPX file.
+class ExportResult {
+  const ExportResult({
+    required this.file,
+    required this.haulCount,
+    required this.trackPointCount,
+    required this.markerCount,
+  });
+
+  final File file;
+  final int haulCount;
+  final int trackPointCount;
+  final int markerCount;
+
+  bool get isEmpty =>
+      haulCount == 0 && trackPointCount == 0 && markerCount == 0;
+}
+
+final gpxExporterProvider = Provider<GpxExporterService>((ref) {
+  return GpxExporterService(ref);
+});

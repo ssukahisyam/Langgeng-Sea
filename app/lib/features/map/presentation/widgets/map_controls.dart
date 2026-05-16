@@ -12,55 +12,28 @@ class MapControls extends StatelessWidget {
   const MapControls({
     super.key,
     required this.onCenterOnMe,
-    this.onCompassReset,
+    this.onCompassCalibration,
     this.showCompass = false,
     this.centerEnabled = true,
-    this.mapController,
   });
 
   final VoidCallback onCenterOnMe;
-  final VoidCallback? onCompassReset;
+  final VoidCallback? onCompassCalibration;
   final bool showCompass;
   final bool centerEnabled;
-  final MapController? mapController;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (showCompass && onCompassReset != null) ...[
-          if (mapController != null)
-            StreamBuilder<MapEvent>(
-              stream: mapController!.mapEventStream,
-              builder: (context, snapshot) {
-                final rotation = mapController!.camera.rotation;
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _ControlButton(
-                      icon: PhosphorIconsBold.compass,
-                      tooltip: 'Kiblat ulang',
-                      onTap: onCompassReset!,
-                      rotation: -rotation * (3.141592653589793 / 180.0),
-                    ),
-                    const SizedBox(height: AppSizes.sp2),
-                  ],
-                );
-              },
-            )
-          else
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _ControlButton(
-                  icon: PhosphorIconsBold.compass,
-                  tooltip: 'Kiblat ulang',
-                  onTap: onCompassReset!,
-                ),
-                const SizedBox(height: AppSizes.sp2),
-              ],
-            ),
+        if (showCompass && onCompassCalibration != null) ...[
+          _ControlButton(
+            icon: PhosphorIconsBold.compass,
+            tooltip: 'Kalibrasi kompas',
+            onTap: onCompassCalibration!,
+          ),
+          const SizedBox(height: AppSizes.sp2),
         ],
         _ControlButton(
           icon: PhosphorIconsBold.navigationArrow,

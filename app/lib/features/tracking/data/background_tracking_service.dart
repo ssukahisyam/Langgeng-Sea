@@ -55,6 +55,17 @@ enum BackgroundTrackingStatus {
 ///
 /// _Requirements: 1.1, 1.7, 1.8_
 abstract class BackgroundTrackingService {
+  /// Konfigurasi awal service plugin (mendaftarkan notification channel,
+  /// menyetel `AndroidConfiguration.onStart`, men-subscribe channel
+  /// status). HARUS dipanggil tepat satu kali sebelum [start] / [stop].
+  ///
+  /// Idempotent — pemanggilan ulang aman tapi tidak punya efek tambahan.
+  /// Dijalankan dari foreground isolate selama bootstrap aplikasi
+  /// (`main.dart`).
+  ///
+  /// _Requirements: 1.1, 1.10_
+  Future<void> initialise();
+
   /// Memulai Android foreground service dan menampilkan persistent
   /// notification dengan [notificationTitle] dan [notificationBody].
   /// [haulId] dipakai sebagai konteks persistence di isolate background.

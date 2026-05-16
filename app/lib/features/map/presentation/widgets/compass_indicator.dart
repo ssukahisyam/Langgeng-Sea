@@ -24,7 +24,7 @@ class CompassIndicator extends StatelessWidget {
       stream: mapController.mapEventStream,
       builder: (context, _) {
         final rotation = mapController.camera.rotation;
-        final radians = -rotation * (math.pi / 180.0);
+        final radians = rotation * (math.pi / 180.0);
 
         return GestureDetector(
           onTap: () => mapController.rotate(0.0),

@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'dart:ui';
 
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../../core/observability/logger.dart';
 import '../../../data/database/app_database.dart';
@@ -14,7 +17,6 @@ import 'mappers.dart';
 /// Notification channel used for the persistent foreground-service
 /// notification on Android.
 const _kNotificationChannelId = 'langgeng_tracking';
-const _kNotificationChannelName = 'Tracking GPS';
 const _kForegroundNotificationId = 888;
 
 /// Key used to pass / receive the active haul id across isolate boundary.
@@ -39,9 +41,13 @@ class FlutterBackgroundTrackingService implements BackgroundTrackingService {
       StreamController<BackgroundTrackingStatus>.broadcast();
 
   BackgroundTrackingStatus _lastStatus = BackgroundTrackingStatus.stopped;
+  bool _initialised = false;
 
   /// Must be called once during app initialisation (before any start/stop).
+  @override
   Future<void> initialise() async {
+    if (_initialised) return;
+    _initialised = true;
     // Set up the notification channel for the foreground service.
     final androidConfig = AndroidConfiguration(
       onStart: onBackgroundStart,
@@ -85,8 +91,42 @@ class FlutterBackgroundTrackingService implements BackgroundTrackingService {
     required String notificationTitle,
     required String notificationBody,
   }) async {
+    // Defensive: if the caller forgot to invoke initialise() during
+    // bootstrap, do it now. initialise() is idempotent.
+    await initialise();
+
     _lastStatus = BackgroundTrackingStatus.starting;
     _statusController.add(BackgroundTrackingStatus.starting);
+
+    // Request battery-optimisation exemption on Android. Without this
+    // Doze mode throttles the background isolate to a fix every
+    // ~15 minutes regardless of the foreground service notification.
+    // The dialog only shows once — subsequent calls are no-ops if the
+    // user already granted it.
+    if (Platform.isAndroid) {
+      try {
+        final status = await Permission.ignoreBatteryOptimizations.status;
+        if (!status.isGranted) {
+          await Permission.ignoreBatteryOptimizations.request();
+        }
+      } catch (e) {
+        Logger.instance.warn('tracking.battery_opt_request_failed', {
+          'error': e.toString(),
+        });
+      }
+    }
+
+    // Acquire CPU wakelock so Android Doze mode doesn't throttle the
+    // background isolate's GPS stream when the screen turns off.
+    // Without this, position events stop firing within ~30s of lock
+    // and the user sees a straight line between lock and unlock.
+    try {
+      await WakelockPlus.enable();
+    } catch (e) {
+      Logger.instance.warn('tracking.wakelock_enable_failed', {
+        'error': e.toString(),
+      });
+    }
 
     await _service.startService();
 
@@ -100,6 +140,15 @@ class FlutterBackgroundTrackingService implements BackgroundTrackingService {
     _service.invoke('stop');
     _lastStatus = BackgroundTrackingStatus.stopped;
     _statusController.add(BackgroundTrackingStatus.stopped);
+
+    // Release wakelock so the device can sleep normally again.
+    try {
+      await WakelockPlus.disable();
+    } catch (e) {
+      Logger.instance.warn('tracking.wakelock_disable_failed', {
+        'error': e.toString(),
+      });
+    }
   }
 
   @override
@@ -110,6 +159,12 @@ class FlutterBackgroundTrackingService implements BackgroundTrackingService {
 }
 
 /// Provider for the concrete background tracking service.
+///
+/// Cached as a singleton in the Riverpod container so that the
+/// instance created during bootstrap (`initialise()` in main.dart)
+/// is the same one reached by [TrackingController.startHaul]. A new
+/// `FlutterBackgroundService` per call would silently duplicate the
+/// status stream and leak listeners.
 final backgroundTrackingServiceProvider =
     Provider<BackgroundTrackingService>((ref) {
   return FlutterBackgroundTrackingService();
@@ -139,6 +194,13 @@ Future<void> onBackgroundStart(ServiceInstance service) async {
 
   sendStatus(BackgroundTrackingStatus.starting);
 
+  // Ensure the service runs as Android foreground service so Doze /
+  // background restrictions don't kill us when the screen is off.
+  // (Has no effect on iOS.)
+  if (service is AndroidServiceInstance) {
+    await service.setAsForegroundService();
+  }
+
   service.on('start').listen((event) async {
     final haulId = event?[_kHaulIdKey] as String?;
     if (haulId == null) return;
@@ -151,11 +213,34 @@ Future<void> onBackgroundStart(ServiceInstance service) async {
       sendStatus(BackgroundTrackingStatus.running);
 
       // Subscribe to GPS position stream.
+      //
+      // Background-friendly settings:
+      //   - `distanceFilter: 0` so EVERY fix is emitted (we filter
+      //     duplicates ourselves via accuracy gate). Setting >0 makes
+      //     Android suppress slow-walking emissions during Doze.
+      //   - `intervalDuration: 2s` keeps the GPS receiver active at a
+      //     steady cadence even when the screen is off, which is the
+      //     core fix for the "straight-line between lock & unlock" bug.
+      //   - `forceLocationManager: false` uses Fused Location which is
+      //     more battery-efficient AND more accurate at sea than the
+      //     raw LocationManager fallback.
+      //   - `foregroundNotificationConfig` is intentionally omitted —
+      //     flutter_background_service already supplies the foreground
+      //     notification; adding another would duplicate it.
+      final settings = Platform.isAndroid
+          ? AndroidSettings(
+              accuracy: LocationAccuracy.high,
+              distanceFilter: 0,
+              intervalDuration: const Duration(seconds: 2),
+              forceLocationManager: false,
+              useMSLAltitude: true,
+            )
+          : const LocationSettings(
+              accuracy: LocationAccuracy.high,
+              distanceFilter: 0,
+            );
       gpsSub = Geolocator.getPositionStream(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          distanceFilter: 2,
-        ),
+        locationSettings: settings,
       ).listen(
         (position) async {
           // Accuracy gate: drop low-quality fixes from persistence.
@@ -192,9 +277,12 @@ Future<void> onBackgroundStart(ServiceInstance service) async {
 
           // Update notification text with point count for user feedback.
           if (service is AndroidServiceInstance) {
+            final shortHaul = haulId.length > 8
+                ? '${haulId.substring(0, 8)}…'
+                : haulId;
             service.setForegroundNotificationInfo(
               title: 'Langgeng Sea — Merekam',
-              content: 'GPS aktif untuk ${haulId.substring(0, 8)}…',
+              content: 'GPS aktif untuk $shortHaul',
             );
           }
         },

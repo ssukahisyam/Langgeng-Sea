@@ -25,6 +25,7 @@ class BoatMarker extends StatefulWidget {
     this.size = 36,
     this.bearingToTarget,
     this.navArrived = false,
+    this.compassHeading,
   });
 
   final GpsReading? reading;
@@ -34,6 +35,15 @@ class BoatMarker extends StatefulWidget {
   /// Compass bearing (0..360) to the active navigation target.
   /// Null when navigation is idle -- no arrow rendered then.
   final double? bearingToTarget;
+
+  /// Hardware compass (magnetometer) heading in degrees (0–360).
+  /// Used when GPS speed < 1.5 m/s to give accurate rotation even
+  /// when stationary. Null when device has no magnetometer.
+  final double? compassHeading;
+
+  /// Speed threshold below which we prefer the hardware compass
+  /// over GPS heading. GPS heading is wildly inaccurate at low speed.
+  static const double compassSpeedThreshold = 1.5;
 
   /// When true, the bearing arrow is rendered in success colour as
   /// the "you have arrived" indicator instead of the usual primary.
@@ -71,9 +81,28 @@ class _BoatMarkerState extends State<BoatMarker>
         ? tokens.danger.withValues(alpha: 0.4)
         : tokens.glowPrimary;
 
-    final heading = widget.reading?.headingDegrees;
-    final rotate = widget.reading?.hasReliableHeading ?? false;
-    final rotationRadians = rotate ? (heading! * math.pi / 180.0) : 0.0;
+    // Choose heading source based on speed:
+    // At low speed (< 1.5 m/s) GPS heading is inaccurate — use
+    // hardware compass (magnetometer) instead for responsive rotation.
+    final speed = widget.reading?.speedMps ?? 0;
+    final gpsHeading = widget.reading?.headingDegrees;
+    final hasGpsHeading = widget.reading?.hasReliableHeading ?? false;
+
+    double? effectiveHeading;
+    if (speed >= BoatMarker.compassSpeedThreshold && hasGpsHeading) {
+      // Moving fast enough — GPS heading is reliable.
+      effectiveHeading = gpsHeading;
+    } else if (widget.compassHeading != null) {
+      // Stationary or slow — magnetometer heading.
+      effectiveHeading = widget.compassHeading;
+    } else if (hasGpsHeading) {
+      // No compass available — fallback to GPS heading anyway.
+      effectiveHeading = gpsHeading;
+    }
+
+    final rotationRadians = effectiveHeading != null
+        ? (effectiveHeading * math.pi / 180.0)
+        : 0.0;
 
     final haloColor =
         widget.isTracking ? tokens.danger : context.colors.primary;

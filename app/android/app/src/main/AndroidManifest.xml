@@ -25,6 +25,24 @@
     <!-- Prevent device from sleeping during tracking -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
 
+    <!--
+      CRITICAL for background GPS: lets the user grant the app exemption
+      from Doze / battery optimisation so foreground service GPS keeps
+      emitting fixes when the screen is off. Without this Android will
+      throttle the background isolate to one fix every ~15 minutes
+      regardless of foreground service status. We REQUEST this at
+      runtime via permission_handler before starting tracking.
+    -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+
+    <!--
+      Some OEM skins (Xiaomi MIUI, Huawei EMUI, OPPO ColorOS, Vivo
+      FuntouchOS) require these to keep the foreground service alive
+      after screen-off. Harmless on stock Android.
+    -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+    <uses-permission android:name="android.permission.DISABLE_KEYGUARD"/>
+
     <application
         android:label="@string/app_name"
         android:name="${applicationName}"

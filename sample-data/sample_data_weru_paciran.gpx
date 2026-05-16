@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Langgeng Sea Sample"
+     xmlns="http://www.topografix.com/GPX/1/1"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+
+  <!-- ================================================================ -->
+  <!-- 5 PENANDA (waypoints) di sekitar Desa Weru, Paciran, Lamongan     -->
+  <!-- ================================================================ -->
+
+  <wpt lat="-6.8700" lon="112.3500">
+    <name>Pelabuhan Weru</name>
+    <desc>Titik berangkat melaut dari Desa Weru</desc>
+  </wpt>
+
+  <wpt lat="-6.8350" lon="112.3850">
+    <name>Karang Tengah</name>
+    <desc>Spot mancing kakap merah, kedalaman ~25m</desc>
+  </wpt>
+
+  <wpt lat="-6.8100" lon="112.4200">
+    <name>Rumpon Utara</name>
+    <desc>Rumpon ikan tongkol, ramai pagi hari</desc>
+  </wpt>
+
+  <wpt lat="-6.8450" lon="112.3200">
+    <name>Pangkalan Es</name>
+    <desc>Lokasi ambil es batu sebelum melaut</desc>
+  </wpt>
+
+  <wpt lat="-6.8550" lon="112.4500">
+    <name>Spot Cumi-cumi</name>
+    <desc>Hot spot cumi malam hari, dekat lampu nelayan</desc>
+  </wpt>
+
+  <!-- ================================================================ -->
+  <!-- 5 JALUR TRACKING (tracks) — simulasi tarikan trawl 5 trip berbeda -->
+  <!-- ================================================================ -->
+
+  <!-- Track 1: Tarikan Utara - dari Pelabuhan ke Rumpon Utara -->
+  <trk>
+    <name>Tarikan #1 - Jalur Utara</name>
+    <trkseg>
+      <trkpt lat="-6.8700" lon="112.3500"><time>2026-05-10T05:00:00Z</time><speed>2.5</speed></trkpt>
+      <trkpt lat="-6.8650" lon="112.3550"><time>2026-05-10T05:05:00Z</time><speed>2.6</speed></trkpt>
+      <trkpt lat="-6.8580" lon="112.3620"><time>2026-05-10T05:10:00Z</time><speed>2.7</speed></trkpt>
+      <trkpt lat="-6.8500" lon="112.3700"><time>2026-05-10T05:15:00Z</time><speed>2.8</speed></trkpt>
+      <trkpt lat="-6.8420" lon="112.3800"><time>2026-05-10T05:20:00Z</time><speed>2.5</speed></trkpt>
+      <trkpt lat="-6.8350" lon="112.3900"><time>2026-05-10T05:25:00Z</time><speed>2.4</speed></trkpt>
+      <trkpt lat="-6.8280" lon="112.4000"><time>2026-05-10T05:30:00Z</time><speed>2.6</speed></trkpt>
+      <trkpt lat="-6.8200" lon="112.4100"><time>2026-05-10T05:35:00Z</time><speed>2.5</speed></trkpt>
+      <trkpt lat="-6.8150" lon="112.4180"><time>2026-05-10T05:40:00Z</time><speed>2.4</speed></trkpt>
+      <trkpt lat="-6.8100" lon="112.4200"><time>2026-05-10T05:45:00Z</time><speed>2.0</speed></trkpt>
+    </trkseg>
+  </trk>
+
+  <!-- Track 2: Tarikan Timur - menyusuri pantai ke timur -->
+  <trk>
+    <name>Tarikan #2 - Jalur Timur</name>
+    <trkseg>
+      <trkpt lat="-6.8700" lon="112.3500"><time>2026-05-11T05:30:00Z</time><speed>2.4</speed></trkpt>
+      <trkpt lat="-6.8680" lon="112.3650"><time>2026-05-11T05:35:00Z</time><speed>2.6</speed></trkpt>
+      <trkpt lat="-6.8650" lon="112.3800"><time>2026-05-11T05:40:00Z</time><speed>2.7</speed></trkpt>
+      <trkpt lat="-6.8620" lon="112.3950"><time>2026-05-11T05:45:00Z</time><speed>2.8</speed></trkpt>
+      <trkpt lat="-6.8580" lon="112.4100"><time>2026-05-11T05:50:00Z</time><speed>2.7</speed></trkpt>
+      <trkpt lat="-6.8550" lon="112.4250"><time>2026-05-11T05:55:00Z</time><speed>2.6</speed></trkpt>
+      <trkpt lat="-6.8520" lon="112.4400"><time>2026-05-11T06:00:00Z</time><speed>2.5</speed></trkpt>
+      <trkpt lat="-6.8550" lon="112.4500"><time>2026-05-11T06:05:00Z</time><speed>2.0</speed></trkpt>
+    </trkseg>
+  </trk>
+
+  <!-- Track 3: Tarikan Lingkar - pola melingkar di area karang -->
+  <trk>
+    <name>Tarikan #3 - Lingkar Karang</name>
+    <trkseg>
+      <trkpt lat="-6.8350" lon="112.3850"><time>2026-05-12T06:00:00Z</time><speed>2.0</speed></trkpt>
+      <trkpt lat="-6.8300" lon="112.3900"><time>2026-05-12T06:05:00Z</time><speed>2.2</speed></trkpt>
+      <trkpt lat="-6.8280" lon="112.3970"><time>2026-05-12T06:10:00Z</time><speed>2.3</speed></trkpt>
+      <trkpt lat="-6.8300" lon="112.4030"><time>2026-05-12T06:15:00Z</time><speed>2.2</speed></trkpt>
+      <trkpt lat="-6.8350" lon="112.4060"><time>2026-05-12T06:20:00Z</time><speed>2.1</speed></trkpt>
+      <trkpt lat="-6.8400" lon="112.4030"><time>2026-05-12T06:25:00Z</time><speed>2.3</speed></trkpt>
+      <trkpt lat="-6.8420" lon="112.3970"><time>2026-05-12T06:30:00Z</time><speed>2.4</speed></trkpt>
+      <trkpt lat="-6.8400" lon="112.3900"><time>2026-05-12T06:35:00Z</time><speed>2.2</speed></trkpt>
+      <trkpt lat="-6.8350" lon="112.3850"><time>2026-05-12T06:40:00Z</time><speed>1.8</speed></trkpt>
+    </trkseg>
+  </trk>
+
+  <!-- Track 4: Tarikan Barat - ke arah barat dari pelabuhan -->
+  <trk>
+    <name>Tarikan #4 - Jalur Barat</name>
+    <trkseg>
+      <trkpt lat="-6.8700" lon="112.3500"><time>2026-05-13T05:15:00Z</time><speed>2.5</speed></trkpt>
+      <trkpt lat="-6.8680" lon="112.3400"><time>2026-05-13T05:20:00Z</time><speed>2.6</speed></trkpt>
+      <trkpt lat="-6.8650" lon="112.3300"><time>2026-05-13T05:25:00Z</time><speed>2.7</speed></trkpt>
+      <trkpt lat="-6.8600" lon="112.3200"><time>2026-05-13T05:30:00Z</time><speed>2.8</speed></trkpt>
+      <trkpt lat="-6.8550" lon="112.3100"><time>2026-05-13T05:35:00Z</time><speed>2.7</speed></trkpt>
+      <trkpt lat="-6.8500" lon="112.3000"><time>2026-05-13T05:40:00Z</time><speed>2.6</speed></trkpt>
+      <trkpt lat="-6.8480" lon="112.2900"><time>2026-05-13T05:45:00Z</time><speed>2.5</speed></trkpt>
+      <trkpt lat="-6.8470" lon="112.2800"><time>2026-05-13T05:50:00Z</time><speed>2.0</speed></trkpt>
+    </trkseg>
+  </trk>
+
+  <!-- Track 5: Tarikan Zigzag - pola zigzag area karang tengah -->
+  <trk>
+    <name>Tarikan #5 - Zigzag Karang</name>
+    <trkseg>
+      <trkpt lat="-6.8700" lon="112.3500"><time>2026-05-14T05:00:00Z</time><speed>2.5</speed></trkpt>
+      <trkpt lat="-6.8600" lon="112.3600"><time>2026-05-14T05:08:00Z</time><speed>2.7</speed></trkpt>
+      <trkpt lat="-6.8650" lon="112.3700"><time>2026-05-14T05:15:00Z</time><speed>2.4</speed></trkpt>
+      <trkpt lat="-6.8550" lon="112.3800"><time>2026-05-14T05:23:00Z</time><speed>2.6</speed></trkpt>
+      <trkpt lat="-6.8600" lon="112.3900"><time>2026-05-14T05:30:00Z</time><speed>2.5</speed></trkpt>
+      <trkpt lat="-6.8500" lon="112.4000"><time>2026-05-14T05:38:00Z</time><speed>2.7</speed></trkpt>
+      <trkpt lat="-6.8550" lon="112.4100"><time>2026-05-14T05:45:00Z</time><speed>2.6</speed></trkpt>
+      <trkpt lat="-6.8450" lon="112.4200"><time>2026-05-14T05:53:00Z</time><speed>2.5</speed></trkpt>
+      <trkpt lat="-6.8500" lon="112.4300"><time>2026-05-14T06:00:00Z</time><speed>2.4</speed></trkpt>
+      <trkpt lat="-6.8400" lon="112.4400"><time>2026-05-14T06:08:00Z</time><speed>2.0</speed></trkpt>
+    </trkseg>
+  </trk>
+
+</gpx>

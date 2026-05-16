@@ -133,10 +133,9 @@ final allHistoryRenderProvider =
         points: [for (final p in b.points) p.latLng],
         storedName: b.haul.name,
         startedAt: b.haul.startedAt,
-        // Mengurangi tolerance agar lebih akurat (sama seperti tripRenderProvider)
-        // 5 m tolerance is the sweet spot: the polyline stays visually
-        // accurate while cutting point count.
-        toleranceMeters: 5.0,
+        // 1 m tolerance preserves short-distance detail (e.g. 21 m test
+        // tracks that previously got flattened to a straight line).
+        toleranceMeters: 1.0,
       ),
   ];
 
@@ -176,12 +175,11 @@ final tripRenderProvider = FutureProvider.autoDispose
   for (final h in hauls) {
     final points = await pointsRepo.getByHaul(h.id);
     if (points.length < 2) continue;
-    // Keep a lower tolerance here (5 m) — the user asked to highlight
-    // this specific trip, so preserve more detail than the global
-    // overlay.
+    // Keep a very low tolerance (1 m) so even short tracks show their
+    // curves faithfully.
     final simplified = PolylineSimplifier.simplify(
       [for (final p in points) p.latLng],
-      toleranceMeters: 5.0,
+      toleranceMeters: 1.0,
     );
     if (simplified.length < 2) continue;
     allBoundsSource.addAll(simplified);
@@ -229,7 +227,7 @@ final haulRenderProvider = FutureProvider.autoDispose
   }
   final simplified = PolylineSimplifier.simplify(
     [for (final p in points) p.latLng],
-    toleranceMeters: 3.0,
+    toleranceMeters: 0.5,
   );
   if (simplified.length < 2) {
     return const HistoryOverlayRender(

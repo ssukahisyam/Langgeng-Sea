@@ -13,6 +13,7 @@ import '../../../core/widgets/ambient_background.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../onboarding/data/user_profile_repository.dart';
 import '../../onboarding/domain/entities/user_profile.dart';
+import '../application/gpx_sync_service.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -190,6 +191,75 @@ class SettingsScreen extends ConsumerWidget {
                     title: 'Kelola Penanda',
                     subtitle: 'Lihat & atur penanda lokasi di peta',
                     onTap: () => context.push(AppRoutes.markerList),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: AppSizes.sp4),
+            Text(
+              'Manajemen Data',
+              style: text.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: context.colors.onSurface,
+              ),
+            ),
+            const SizedBox(height: AppSizes.sp2),
+            GlassCard(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  _SettingsTile(
+                    iconColor: context.colors.primary,
+                    iconBg: tokens.primarySoft,
+                    icon: PhosphorIconsBold.export,
+                    title: 'Ekspor Data (GPX)',
+                    subtitle: 'Cadangkan rute dan penanda ke file GPX',
+                    onTap: () async {
+                      try {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Mengekspor data...')),
+                        );
+                        await ref.read(gpxSyncServiceProvider).exportToGpx();
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Gagal mengekspor data.')),
+                          );
+                        }
+                      }
+                    },
+                  ),
+                  Divider(
+                      color: tokens.border,
+                      height: 1,
+                      indent: 16,
+                      endIndent: 16),
+                  _SettingsTile(
+                    iconColor: context.colors.secondary,
+                    iconBg: tokens.accentSoft,
+                    icon: PhosphorIconsBold.download,
+                    title: 'Impor Data (GPX)',
+                    subtitle: 'Pulihkan rute dan penanda dari file GPX',
+                    onTap: () async {
+                      try {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Mengimpor data...')),
+                        );
+                        final count = await ref.read(gpxSyncServiceProvider).importFromGpx();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Berhasil mengimpor data ($count item).')),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Gagal mengimpor data.')),
+                          );
+                        }
+                      }
+                    },
                   ),
                 ],
               ),

@@ -36,10 +36,17 @@ final mapModeProvider = Provider<MapMode>((ref) {
   final tracking = ref.watch(trackingControllerProvider).isRecording;
   final navigating =
       ref.watch(navigationControllerProvider) is NavigationActive;
-  final historyOverlayActive = ref.watch(allHistoryVisibleProvider);
+  // NOTE: `allHistoryVisibleProvider` is intentionally NOT used to derive
+  // the mode any more. The "Tampilkan Jejak" footprints toggle on the
+  // right column is a passive layer toggle — it must NOT replace the
+  // action panel at the bottom (otherwise the Mulai/Berhenti tracking
+  // button disappears, breaking the user's primary workflow). Reading
+  // it here is preserved only to keep the provider warm; a future
+  // pinned-overlay flow may re-introduce a `viewingHistory` mode.
+  ref.watch(allHistoryVisibleProvider);
   return deriveMapMode(
     tracking: tracking,
     navigating: navigating,
-    historyOverlayActive: historyOverlayActive,
+    historyOverlayActive: false,
   );
 });
