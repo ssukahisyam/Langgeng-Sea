@@ -7,6 +7,8 @@ import 'package:latlong2/latlong.dart';
 import '../../../core/observability/logger.dart';
 import '../../../core/services/gps_reading.dart';
 import '../../../core/services/gps_service.dart';
+import '../../../core/settings/application/app_settings_provider.dart';
+import '../../../core/settings/data/app_settings_repository.dart';
 import '../../../core/utils/geo_calculator.dart';
 import '../data/background_tracking_service.dart';
 import '../data/flutter_background_tracking_service.dart';
@@ -15,6 +17,7 @@ import '../data/track_point_repository.dart';
 import '../data/trip_repository.dart';
 import '../domain/entities/haul.dart';
 import '../domain/entities/haul_metrics.dart';
+import '../domain/entities/tracking_mode.dart';
 import 'tracking_state.dart';
 
 /// Orchestrates the Mulai Tebar → Angkat Trawl lifecycle.
@@ -58,6 +61,13 @@ class TrackingController extends Notifier<TrackingState> {
   GpsService get _gps => ref.read(gpsServiceProvider);
   BackgroundTrackingService get _bgService =>
       ref.read(backgroundTrackingServiceProvider);
+  AppSettingsRepository get _settingsRepo =>
+      ref.read(appSettingsRepositoryProvider);
+
+  /// Read mode tracking saat ini (PR #29). Membaca via stream
+  /// `appSettingsProvider` lewat `trackingModeProvider` supaya update
+  /// dari Settings langsung kelihatan tanpa restart controller.
+  TrackingMode get _currentMode => ref.read(trackingModeProvider);
 
   // =======================================================================
   // Lifecycle
@@ -101,7 +111,23 @@ class TrackingController extends Notifier<TrackingState> {
       },
     );
 
-    // Start background service for persistent tracking.
+    // PR #29: read mode tracking saat startHaul. Mode Normal SKIP
+    // foreground service supaya tidak ada dialog notif/battery.
+    // _gpsSub di atas tetap aktif selama app foreground — itu yang
+    // pasok metrics & polyline.
+    final mode = _currentMode;
+    if (mode == TrackingMode.normal) {
+      Logger.instance.info(
+        'tracking.start_normal_mode',
+        {'haulId': haul.id},
+      );
+      state = state.copyWith(
+        backgroundStatus: BackgroundTrackingStatus.stopped,
+      );
+      return haul;
+    }
+
+    // Mode Akurasi: jalankan foreground service (path PR #28).
     try {
       await _bgService.start(
         haulId: haul.id,
@@ -286,10 +312,27 @@ class TrackingController extends Notifier<TrackingState> {
 
     _gpsSub = _gps.watchPosition().listen(_onReading, onError: (_) {});
 
-    // Start background service for persistent tracking (Requirement 1.1).
-    // Without this, resuming a haul only uses the foreground GPS stream
-    // which is suspended by Android Doze when the screen turns off —
-    // resulting in the straight-line bug between lock and unlock.
+    // PR #29: resume mode-aware. Mode Normal SKIP foreground service
+    // — _gpsSub di atas pasok metrics selama app foreground. Untuk
+    // user yang pakai mode Normal, behavior resume sama dengan
+    // tap MULAI biasa (tidak ada dialog izin).
+    final mode = _currentMode;
+    if (mode == TrackingMode.normal) {
+      Logger.instance.info(
+        'tracking.resume_normal_mode',
+        {'haulId': haul.id},
+      );
+      state = state.copyWith(
+        backgroundStatus: BackgroundTrackingStatus.stopped,
+      );
+      return null;
+    }
+
+    // Mode Akurasi: start background service for persistent tracking
+    // (Requirement 1.1). Without this, resuming a haul only uses the
+    // foreground GPS stream which is suspended by Android Doze when
+    // the screen turns off — resulting in the straight-line bug
+    // between lock and unlock.
     //
     // PR #27 R2: skipBatteryPermission=true di sini supaya dialog OS
     // tidak muncul ulang setelah crash recovery — user sudah pernah
@@ -497,6 +540,16 @@ class TrackingController extends Notifier<TrackingState> {
 
   /// Exponential backoff retry: 1s, 2s, 4s — then give up (Requirement 1.7).
   void _attemptRetry() {
+    // PR #29: skip retry kalau mode Normal — tidak ada bg service
+    // untuk di-restart. `backgroundStatus` saat mode Normal sengaja
+    // di-set ke `stopped`, dan watcher di `_subscribeBgStatus` baru
+    // dipasang setelah `_bgService.start()` sukses, jadi guard ini
+    // sebenarnya defensive — tapi tetap penting kalau di masa depan
+    // ada path lain yang bisa memicu retry tanpa lewat startHaul.
+    if (_currentMode == TrackingMode.normal) {
+      return;
+    }
+
     if (_retryCount >= _maxRetries) {
       state = state.copyWith(
         backgroundStatus: BackgroundTrackingStatus.failed,
@@ -539,6 +592,84 @@ class TrackingController extends Notifier<TrackingState> {
         // Will be picked up by the next watchStatus emission.
       }
     });
+  }
+
+  // =======================================================================
+  // Mode toggle hooks (PR #29 R5)
+  // =======================================================================
+
+  /// Stop foreground service tanpa stop haul. Dipanggil oleh
+  /// `TrackingModeCard` saat user pindah Akurasi → Normal di tengah
+  /// recording. Idempotent: kalau service sudah stopped (mis. mode
+  /// memang sudah Normal) atau plugin lempar exception, log warning
+  /// lalu lanjut.
+  ///
+  /// `_gpsSub` foreground TIDAK di-cancel di sini — itu yang akan
+  /// menjaga tracking tetap merekam selama app foreground setelah
+  /// downgrade.
+  Future<void> downgradeBackgroundService() async {
+    if (state.haul == null) return;
+    try {
+      await _bgService.stop();
+    } catch (e) {
+      Logger.instance.warn(
+        'tracking.downgrade_bg_failed',
+        {'error': e.toString()},
+      );
+    }
+    await _bgStatusSub?.cancel();
+    _bgStatusSub = null;
+    state = state.copyWith(
+      backgroundStatus: BackgroundTrackingStatus.stopped,
+    );
+  }
+
+  /// Start foreground service untuk haul yang sedang recording.
+  /// Dipanggil oleh `TrackingModeCard` saat user pindah Normal →
+  /// Akurasi di tengah recording (setelah activation flow sukses).
+  ///
+  /// Lempar exception kalau service gagal start, supaya caller di
+  /// Settings bisa rollback mode atau tampilkan banner. Caller
+  /// harus catch [NotificationPermissionDeniedException] dan
+  /// [BackgroundServiceStartException] untuk pesan error spesifik.
+  Future<void> upgradeBackgroundService() async {
+    final haul = state.haul;
+    if (haul == null) return;
+    try {
+      await _bgService.start(
+        haulId: haul.id,
+        notificationTitle: 'Langgeng Sea — Merekam',
+        notificationBody: '${haul.displayName()} — mode Akurasi',
+      );
+      _subscribeBgStatus();
+    } on NotificationPermissionDeniedException catch (e) {
+      Logger.instance.warn(
+        'tracking.upgrade_bg_blocked_notif',
+        {'error': e.toString()},
+      );
+      state = state.copyWith(
+        backgroundStatus: BackgroundTrackingStatus.failed,
+      );
+      rethrow;
+    } on BackgroundServiceStartException catch (e) {
+      Logger.instance.warn(
+        'tracking.upgrade_bg_failed',
+        {'error': e.toString()},
+      );
+      state = state.copyWith(
+        backgroundStatus: BackgroundTrackingStatus.failed,
+      );
+      rethrow;
+    } catch (e) {
+      Logger.instance.warn(
+        'tracking.upgrade_bg_failed',
+        {'error': e.toString()},
+      );
+      state = state.copyWith(
+        backgroundStatus: BackgroundTrackingStatus.failed,
+      );
+      rethrow;
+    }
   }
 }
 
