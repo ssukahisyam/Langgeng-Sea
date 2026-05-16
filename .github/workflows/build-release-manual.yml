@@ -10,7 +10,7 @@ on:
       branch:
         description: 'Branch to build'
         required: true
-        default: 'feat/compass-heading-up-pr23'
+        default: 'main'
 
 permissions:
   contents: write
@@ -56,12 +56,14 @@ jobs:
 
       - name: Get short SHA
         id: sha
-        run: echo "short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+        run: |
+          echo "short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "stamp=$(date -u +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release with APK
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: dev-${{ steps.sha.outputs.short }}
+          tag_name: dev-${{ steps.sha.outputs.short }}-${{ steps.sha.outputs.stamp }}
           name: "Dev Build (${{ github.event.inputs.branch }}) - ${{ steps.sha.outputs.short }}"
           body: |
             **Development build** dari branch `${{ github.event.inputs.branch }}`

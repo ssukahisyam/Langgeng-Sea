@@ -5,6 +5,8 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../features/logbook/data/log_book_repository.dart';
 import '../../../features/logbook/domain/entities/log_book_entry.dart';
+import '../../../features/marker/data/marker_repository.dart';
+import '../../../features/marker/domain/entities/marker.dart';
 import '../../../features/tracking/data/haul_repository.dart';
 import '../../../features/tracking/data/track_point_repository.dart';
 import '../../../features/tracking/data/trip_repository.dart';
@@ -28,12 +30,14 @@ class ExportService {
     required this.haulRepository,
     required this.trackPointRepository,
     required this.logBookRepository,
+    required this.markerRepository,
   });
 
   final TripRepository tripRepository;
   final HaulRepository haulRepository;
   final TrackPointRepository trackPointRepository;
   final LogBookRepository logBookRepository;
+  final MarkerRepository markerRepository;
 
   final _gpxExporter = GpxExporter();
   final _lseaExporter = LseaJsonExporter();
@@ -63,13 +67,25 @@ class ExportService {
       }
     }
 
+    // Markers are global (not scoped to a trip) so we attach all of
+    // them. They appear as <wpt> waypoints in the GPX output and as
+    // a top-level "markers" array in the .lsea.json output. This is
+    // the receiver's most-requested feature: spot lokasi yang sudah
+    // ditandai pengirim.
+    final List<AppMarker> markers = await markerRepository.getAll();
+
     // 2. Generate content
     final String content;
     final String extension;
 
     switch (format) {
       case ExportFormat.gpx:
-        content = _gpxExporter.exportTrip(trip, hauls, pointsByHaul);
+        content = _gpxExporter.exportTrip(
+          trip,
+          hauls,
+          pointsByHaul,
+          markers: markers,
+        );
         extension = 'gpx';
       case ExportFormat.lseaJson:
         content = _lseaExporter.exportTrip(
@@ -77,6 +93,7 @@ class ExportService {
           hauls: hauls,
           pointsByHaul: pointsByHaul,
           logBookByHaul: logBookByHaul,
+          markers: markers,
           userName: userName,
           vesselName: vesselName,
         );
@@ -109,5 +126,6 @@ final exportServiceProvider = Provider<ExportService>((ref) {
     haulRepository: ref.watch(haulRepositoryProvider),
     trackPointRepository: ref.watch(trackPointRepositoryProvider),
     logBookRepository: ref.watch(logBookRepositoryProvider),
+    markerRepository: ref.watch(markerRepositoryProvider),
   );
 });

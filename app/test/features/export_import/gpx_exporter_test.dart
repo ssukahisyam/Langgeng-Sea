@@ -1,8 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:langgeng_sea/features/export_import/data/gpx_exporter.dart';
+import 'package:langgeng_sea/features/marker/domain/entities/marker.dart';
 import 'package:langgeng_sea/features/tracking/domain/entities/haul.dart';
 import 'package:langgeng_sea/features/tracking/domain/entities/track_point.dart';
 import 'package:langgeng_sea/features/tracking/domain/entities/trip.dart';
+import 'package:xml/xml.dart';
 
 void main() {
   late GpxExporter exporter;
@@ -11,221 +13,255 @@ void main() {
     exporter = GpxExporter();
   });
 
-  group('GpxExporter.exportHaul', () {
-    test('generates valid GPX 1.1 structure', () {
-      final haul = Haul(
-        id: 'haul-1',
-        tripId: 'trip-1',
-        orderIndex: 1,
-        name: 'Haul Pagi',
-        startedAt: DateTime(2024, 6, 15, 6, 0),
-        status: HaulStatus.completed,
-        trawlWidthMeters: 20.0,
-        endedAt: DateTime(2024, 6, 15, 8, 0),
-        distanceMeters: 5000,
-        durationSeconds: 7200,
+  Trip _trip({String? name}) => Trip(
+        id: 'trip-1',
+        startedAt: DateTime.utc(2024, 6, 15, 5),
+        status: TripStatus.completed,
+        name: name,
+        endedAt: DateTime.utc(2024, 6, 15, 12),
       );
 
-      final points = [
-        TrackPoint(
-          haulId: 'haul-1',
-          latitude: -6.8891,
-          longitude: 110.4196,
-          timestamp: DateTime.utc(2024, 6, 15, 6, 0),
-          speedMps: 2.5,
-        ),
-        TrackPoint(
-          haulId: 'haul-1',
-          latitude: -6.8901,
-          longitude: 110.4210,
-          timestamp: DateTime.utc(2024, 6, 15, 6, 5),
-          speedMps: 2.8,
-        ),
-      ];
+  Haul _haul({
+    String id = 'haul-1',
+    String? name,
+    int orderIndex = 1,
+    HaulStatus status = HaulStatus.completed,
+    double distanceMeters = 0,
+    int durationSeconds = 0,
+    double sweptAreaM2 = 0,
+  }) =>
+      Haul(
+        id: id,
+        tripId: 'trip-1',
+        orderIndex: orderIndex,
+        name: name,
+        startedAt: DateTime.utc(2024, 6, 15, 6),
+        endedAt: DateTime.utc(2024, 6, 15, 8),
+        status: status,
+        trawlWidthMeters: 20.0,
+        distanceMeters: distanceMeters,
+        durationSeconds: durationSeconds,
+        sweptAreaM2: sweptAreaM2,
+      );
 
-      final gpx = exporter.exportHaul(haul, points);
+  TrackPoint _pt({
+    double lat = -6.8891,
+    double lon = 110.4196,
+    DateTime? ts,
+    double? speed,
+  }) =>
+      TrackPoint(
+        haulId: 'haul-1',
+        latitude: lat,
+        longitude: lon,
+        timestamp: ts ?? DateTime.utc(2024, 6, 15, 6),
+        speedMps: speed,
+      );
 
-      // Verify XML header
-      expect(gpx, contains('<?xml version="1.0" encoding="UTF-8"?>'));
-      // Verify GPX root with version and creator
-      expect(gpx, contains('version="1.1"'));
-      expect(gpx, contains('creator="Langgeng Sea"'));
-      // Verify track structure
-      expect(gpx, contains('<trk>'));
-      expect(gpx, contains('<name>Haul Pagi</name>'));
-      expect(gpx, contains('<trkseg>'));
-      expect(gpx, contains('</trkseg>'));
-      expect(gpx, contains('</trk>'));
-      expect(gpx, contains('</gpx>'));
+  group('GpxExporter.exportHaul', () {
+    test('produces valid GPX 1.1 with required namespaces and metadata', () {
+      final haul = _haul(name: 'Spot Pagi');
+      final gpx = exporter.exportHaul(haul, [_pt(speed: 2.5)]);
+
+      // Document must be parseable XML.
+      final doc = XmlDocument.parse(gpx);
+      final root = doc.rootElement;
+
+      expect(root.name.local, 'gpx');
+      expect(root.getAttribute('version'), '1.1');
+      expect(root.getAttribute('creator'), 'Langgeng Sea');
+      expect(
+        root.getAttribute('xmlns'),
+        'http://www.topografix.com/GPX/1/1',
+      );
+      expect(
+        root.getAttribute('xmlns:lsea'),
+        startsWith('https://langgengsea.id/gpx/extensions'),
+      );
+
+      // Always present even when output is otherwise minimal.
+      expect(root.findElements('metadata').single, isNotNull);
+      expect(root.findAllElements('trk'), isNotEmpty);
+      expect(root.findAllElements('trkpt'), hasLength(1));
     });
 
-    test('includes correct lat/lon values', () {
-      final haul = Haul(
-        id: 'haul-1',
-        tripId: 'trip-1',
-        orderIndex: 1,
-        startedAt: DateTime(2024, 6, 15, 6, 0),
-        status: HaulStatus.completed,
-        trawlWidthMeters: 20.0,
-      );
-
-      final points = [
-        TrackPoint(
-          haulId: 'haul-1',
-          latitude: -6.8891,
-          longitude: 110.4196,
-          timestamp: DateTime.utc(2024, 6, 15, 6, 0),
-        ),
-      ];
-
-      final gpx = exporter.exportHaul(haul, points);
+    test('encodes coordinates and timestamps from the track point', () {
+      final haul = _haul(name: 'Spot Pagi');
+      final gpx = exporter.exportHaul(haul, [_pt(speed: 3.14)]);
 
       expect(gpx, contains('lat="-6.8891"'));
       expect(gpx, contains('lon="110.4196"'));
-    });
-
-    test('includes time and speed elements', () {
-      final haul = Haul(
-        id: 'haul-1',
-        tripId: 'trip-1',
-        orderIndex: 1,
-        startedAt: DateTime(2024, 6, 15, 6, 0),
-        status: HaulStatus.completed,
-        trawlWidthMeters: 20.0,
-      );
-
-      final points = [
-        TrackPoint(
-          haulId: 'haul-1',
-          latitude: -6.8891,
-          longitude: 110.4196,
-          timestamp: DateTime.utc(2024, 6, 15, 6, 0),
-          speedMps: 3.14,
-        ),
-      ];
-
-      final gpx = exporter.exportHaul(haul, points);
-
       expect(gpx, contains('<time>2024-06-15T06:00:00.000Z</time>'));
       expect(gpx, contains('<speed>3.14</speed>'));
     });
 
-    test('omits speed element when null', () {
-      final haul = Haul(
-        id: 'haul-1',
-        tripId: 'trip-1',
-        orderIndex: 1,
-        startedAt: DateTime(2024, 6, 15, 6, 0),
-        status: HaulStatus.completed,
-        trawlWidthMeters: 20.0,
-      );
-
-      final points = [
-        TrackPoint(
-          haulId: 'haul-1',
-          latitude: -6.8891,
-          longitude: 110.4196,
-          timestamp: DateTime.utc(2024, 6, 15, 6, 0),
-        ),
-      ];
-
-      final gpx = exporter.exportHaul(haul, points);
-
+    test('omits speed element when point has no speed', () {
+      final gpx = exporter.exportHaul(_haul(name: 'X'), [_pt()]);
       expect(gpx, isNot(contains('<speed>')));
     });
 
-    test('uses displayName fallback when name is null', () {
-      final haul = Haul(
-        id: 'haul-1',
-        tripId: 'trip-1',
-        orderIndex: 3,
-        startedAt: DateTime(2024, 6, 15, 6, 0),
-        status: HaulStatus.completed,
-        trawlWidthMeters: 20.0,
-      );
-
-      final gpx = exporter.exportHaul(haul, []);
-
-      expect(gpx, contains('<name>Haul #3</name>'));
+    test('falls back to displayName when haul has no user-given name', () {
+      final gpx = exporter.exportHaul(_haul(orderIndex: 3), const []);
+      expect(gpx, contains('<name>Tarikan #3</name>'));
     });
 
     test('escapes XML special characters in track name', () {
-      final haul = Haul(
-        id: 'haul-1',
-        tripId: 'trip-1',
-        orderIndex: 1,
-        name: 'Haul <utara> & "selatan"',
-        startedAt: DateTime(2024, 6, 15, 6, 0),
-        status: HaulStatus.completed,
-        trawlWidthMeters: 20.0,
-      );
-
-      final gpx = exporter.exportHaul(haul, []);
-
-      expect(
-        gpx,
-        contains(
-          '<name>Haul &lt;utara&gt; &amp; &quot;selatan&quot;</name>',
-        ),
-      );
+      final haul = _haul(name: 'Spot <utara> & "selatan"');
+      final gpx = exporter.exportHaul(haul, const []);
+      // The xml package escapes properly; just round-trip parse + read.
+      final doc = XmlDocument.parse(gpx);
+      final trkName = doc
+          .findAllElements('trk')
+          .single
+          .findElements('name')
+          .single
+          .innerText;
+      expect(trkName, 'Spot <utara> & "selatan"');
     });
   });
 
   group('GpxExporter.exportTrip', () {
-    test('generates multiple tracks for multiple hauls', () {
-      final trip = Trip(
-        id: 'trip-1',
-        startedAt: DateTime(2024, 6, 15),
-        status: TripStatus.completed,
-        name: 'Trip Siang',
-      );
-
+    test('emits one <trk> per haul, even when haul has no points', () {
+      final trip = _trip(name: 'Trip Siang');
       final hauls = [
-        Haul(
-          id: 'h1',
-          tripId: 'trip-1',
-          orderIndex: 1,
-          name: 'Haul 1',
-          startedAt: DateTime(2024, 6, 15, 6, 0),
-          status: HaulStatus.completed,
-          trawlWidthMeters: 20.0,
-        ),
-        Haul(
-          id: 'h2',
-          tripId: 'trip-1',
-          orderIndex: 2,
-          name: 'Haul 2',
-          startedAt: DateTime(2024, 6, 15, 10, 0),
-          status: HaulStatus.completed,
-          trawlWidthMeters: 20.0,
-        ),
+        _haul(id: 'h1', name: 'Haul 1', orderIndex: 1),
+        _haul(id: 'h2', name: 'Haul 2', orderIndex: 2),
       ];
-
-      final pointsByHaul = <String, List<TrackPoint>>{
-        'h1': [
-          TrackPoint(
-            haulId: 'h1',
-            latitude: -6.88,
-            longitude: 110.41,
-            timestamp: DateTime.utc(2024, 6, 15, 6, 0),
-          ),
-        ],
-        'h2': [
-          TrackPoint(
-            haulId: 'h2',
-            latitude: -6.89,
-            longitude: 110.42,
-            timestamp: DateTime.utc(2024, 6, 15, 10, 0),
-          ),
-        ],
+      final pts = {
+        'h1': [_pt(lat: -6.88, lon: 110.41)],
+        'h2': const <TrackPoint>[],
       };
 
-      final gpx = exporter.exportTrip(trip, hauls, pointsByHaul);
+      final gpx = exporter.exportTrip(trip, hauls, pts);
+      final doc = XmlDocument.parse(gpx);
 
-      // Should contain two trk elements
-      expect('<trk>'.allMatches(gpx).length, equals(2));
-      expect(gpx, contains('<name>Haul 1</name>'));
-      expect(gpx, contains('<name>Haul 2</name>'));
+      final tracks = doc.findAllElements('trk').toList();
+      expect(tracks, hasLength(2));
+      // Empty haul still has a trkseg (possibly self-closing) so the
+      // schema stays valid.
+      final track2 = tracks[1];
+      expect(track2.findElements('trkseg'), hasLength(1));
+      expect(track2.findElements('name').single.innerText, 'Haul 2');
+    });
+
+    test('produces a complete GPX even when trip has zero hauls', () {
+      // This is the exact scenario reported by the user: previous
+      // implementation produced just "<gpx ... />" (self-closing root).
+      // The new exporter must still emit metadata so the file makes
+      // sense to humans.
+      final trip = _trip(name: 'Trip Kosong');
+      final gpx = exporter.exportTrip(trip, const [], const {});
+
+      final doc = XmlDocument.parse(gpx);
+      final root = doc.rootElement;
+      expect(root.findElements('metadata'), hasLength(1));
+      final metadata = root.findElements('metadata').single;
+      expect(metadata.findElements('name').single.innerText, 'Trip Kosong');
+      expect(metadata.findElements('time'), hasLength(1));
+
+      // No tracks because there are no hauls — but root is NOT
+      // self-closing (it has child elements).
+      expect(root.findAllElements('trk'), isEmpty);
+      expect(gpx, isNot(matches(RegExp(r'<gpx[^>]*/>'))));
+      expect(gpx, contains('</gpx>'));
+    });
+
+    test('writes markers as <wpt> waypoints with category metadata', () {
+      final trip = _trip(name: 'Trip Tengah');
+      final marker = AppMarker(
+        id: 'm-1',
+        name: 'Karang Hiu',
+        category: MarkerCategory.hazard,
+        latitude: -6.9,
+        longitude: 110.5,
+        notes: 'Hindari saat air pasang',
+        createdAt: DateTime.utc(2024, 6, 1),
+      );
+
+      final gpx = exporter.exportTrip(
+        trip,
+        const [],
+        const {},
+        markers: [marker],
+      );
+      final doc = XmlDocument.parse(gpx);
+      final wpt = doc.findAllElements('wpt').single;
+
+      expect(wpt.getAttribute('lat'), '-6.9');
+      expect(wpt.getAttribute('lon'), '110.5');
+      expect(wpt.findElements('name').single.innerText, 'Karang Hiu');
+      expect(
+        wpt.findElements('desc').single.innerText,
+        'Hindari saat air pasang',
+      );
+      // lsea extension preserves category for round-tripping.
+      final ext = wpt.findElements('extensions').single;
+      final lseaMarker = ext.findElements('lsea:marker').single;
+      expect(lseaMarker.getAttribute('category'), 'hazard');
+    });
+
+    test('embeds trip-level stats in metadata extensions', () {
+      final trip = _trip(name: 'Trip Stats');
+      final hauls = [
+        _haul(
+          id: 'h1',
+          name: 'A',
+          distanceMeters: 1000,
+          durationSeconds: 3600,
+          sweptAreaM2: 20000,
+        ),
+        _haul(
+          id: 'h2',
+          name: 'B',
+          orderIndex: 2,
+          distanceMeters: 500,
+          durationSeconds: 1800,
+          sweptAreaM2: 10000,
+        ),
+      ];
+      final gpx = exporter.exportTrip(
+        trip,
+        hauls,
+        const {'h1': [], 'h2': []},
+      );
+      final doc = XmlDocument.parse(gpx);
+      final tripExt = doc
+          .findAllElements('metadata')
+          .single
+          .findElements('extensions')
+          .single
+          .findElements('lsea:trip')
+          .single;
+
+      expect(tripExt.getAttribute('id'), 'trip-1');
+      expect(
+        tripExt.findElements('lsea:totalDistanceMeters').single.innerText,
+        '1500.00',
+      );
+      expect(
+        tripExt.findElements('lsea:totalDurationSeconds').single.innerText,
+        '5400',
+      );
+      expect(tripExt.findElements('lsea:haulCount').single.innerText, '2');
+    });
+
+    test('computes <bounds> from track points and waypoints', () {
+      final trip = _trip(name: 'Bounds');
+      final hauls = [_haul(id: 'h1')];
+      final pts = {
+        'h1': [
+          _pt(lat: -7.0, lon: 110.0),
+          _pt(lat: -6.5, lon: 111.0),
+        ],
+      };
+      final gpx = exporter.exportTrip(trip, hauls, pts);
+      final doc = XmlDocument.parse(gpx);
+      final bounds =
+          doc.findAllElements('metadata').single.findElements('bounds').single;
+      expect(bounds.getAttribute('minlat'), '-7');
+      expect(bounds.getAttribute('maxlat'), '-6.5');
+      expect(bounds.getAttribute('minlon'), '110');
+      expect(bounds.getAttribute('maxlon'), '111');
     });
   });
 }
