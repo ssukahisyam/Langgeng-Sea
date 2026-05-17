@@ -1,3 +1,4 @@
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -194,8 +195,13 @@ class _NavBar extends StatelessWidget {
   }
 }
 
-/// AnimatedSwitcher with a directional horizontal slide. Cheap enough
-/// to keep 120 Hz on mid-range Android.
+/// Tab transition pakai [PageTransitionSwitcher] + [SharedAxisTransition].
+///
+/// Sebelumnya pakai `AnimatedSwitcher` + `SlideTransition` custom yang
+/// menampilkan area hitam saat outgoing-incoming gap tidak tertutup
+/// (background Scaffold transparan). Sekarang `SharedAxisTransition`
+/// menyediakan `fillColor` solid yang menutup gap, plus animation
+/// horizontal yang smooth dan resmi dari Flutter Material team.
 class _TabTransition extends StatelessWidget {
   const _TabTransition({
     required this.direction,
@@ -218,29 +224,17 @@ class _TabTransition extends StatelessWidget {
       );
     }
 
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 240),
-      reverseDuration: const Duration(milliseconds: 180),
-      switchInCurve: Curves.easeOutCubic,
-      switchOutCurve: Curves.easeInCubic,
-      layoutBuilder: (entering, previous) => Stack(
-        alignment: Alignment.center,
-        children: [
-          ...previous,
-          if (entering != null) entering,
-        ],
-      ),
-      transitionBuilder: (child, animation) {
-        // On incoming tab animation.value goes 0 → 1; on outgoing it
-        // goes 1 → 0 (AnimatedSwitcher uses reverseAnimation for the
-        // previous child automatically). So the sign of direction is
-        // correct for both legs.
-        final tween = Tween<Offset>(
-          begin: Offset(direction.toDouble(), 0),
-          end: Offset.zero,
-        );
-        return SlideTransition(
-          position: tween.animate(animation),
+    final scaffoldBg = Theme.of(context).scaffoldBackgroundColor;
+
+    return PageTransitionSwitcher(
+      duration: const Duration(milliseconds: 220),
+      reverse: direction < 0,
+      transitionBuilder: (child, primaryAnimation, secondaryAnimation) {
+        return SharedAxisTransition(
+          animation: primaryAnimation,
+          secondaryAnimation: secondaryAnimation,
+          transitionType: SharedAxisTransitionType.horizontal,
+          fillColor: scaffoldBg,
           child: child,
         );
       },
