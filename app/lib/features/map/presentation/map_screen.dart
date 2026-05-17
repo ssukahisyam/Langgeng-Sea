@@ -66,6 +66,7 @@ import 'widgets/history_polyline_layer.dart';
 import 'widgets/location_permission_sheet.dart';
 import 'widgets/map_attribution.dart';
 import 'widgets/map_controls.dart';
+import 'widgets/pick_location_overlay.dart';
 import 'widgets/track_popup.dart';
 
 /// Home tab — map + live GPS position + haul recording controls.
@@ -408,6 +409,39 @@ class _MapScreenState extends ConsumerState<MapScreen>
     ref.read(markersOverlayEnabledProvider.notifier).state = true;
   }
 
+  /// PR #32: handler saat user konfirmasi koordinat di
+  /// [PickLocationOverlay]. Reset mode lalu buka [AddMarkerDialog]
+  /// dengan koordinat dari camera center.
+  Future<void> _onPickMarkerConfirm(LatLng coord) async {
+    // Reset mode dulu supaya UI bersih sebelum dialog muncul
+    // (overlay menghilang, peta full).
+    ref.read(markerPickActiveProvider.notifier).state = false;
+    if (!mounted) return;
+    final draft = await showDialog<AppMarker>(
+      context: context,
+      builder: (_) => AddMarkerDialog(
+        latitude: coord.latitude,
+        longitude: coord.longitude,
+      ),
+    );
+    if (draft == null || !mounted) return;
+    await ref.read(markerRepositoryProvider).create(
+          name: draft.name,
+          category: draft.category,
+          latitude: draft.latitude,
+          longitude: draft.longitude,
+          notes: draft.notes,
+        );
+    if (!mounted) return;
+    ref.read(markersOverlayEnabledProvider.notifier).state = true;
+  }
+
+  /// PR #32: handler saat user tap [Batal] di [PickLocationOverlay].
+  /// Reset mode tanpa side effect.
+  void _onPickMarkerCancel() {
+    ref.read(markerPickActiveProvider.notifier).state = false;
+  }
+
   // ---------------------------------------------------------------------
   // Navigation handlers
   // ---------------------------------------------------------------------
@@ -669,6 +703,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
       MapMode.viewingHistory => HistoryOverlayControls(
           key: const ValueKey(MapMode.viewingHistory),
           cameraController: _cameraController,
+        ),
+      MapMode.pickMarkerLocation => PickLocationOverlay(
+          key: const ValueKey(MapMode.pickMarkerLocation),
+          mapController: _mapController,
+          onConfirm: _onPickMarkerConfirm,
+          onCancel: _onPickMarkerCancel,
         ),
       MapMode.navigating => const SizedBox.shrink(
           key: ValueKey('nav-fallback'),
