@@ -66,6 +66,7 @@ import 'widgets/history_polyline_layer.dart';
 import 'widgets/location_permission_sheet.dart';
 import 'widgets/map_attribution.dart';
 import 'widgets/map_controls.dart';
+import 'widgets/marker_pick_tooltip.dart';
 import 'widgets/pick_location_overlay.dart';
 import 'widgets/track_popup.dart';
 
@@ -102,6 +103,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
   /// MarkerPickTooltip untuk menentukan posisi target tooltip
   /// saat first-time hint ditampilkan.
   final GlobalKey _addMarkerKey = GlobalKey(debugLabel: 'addMarkerFab');
+
+  /// PR #32: active tooltip overlay entry. Disimpan di state supaya
+  /// auto-dismiss timer dan tap-outside dismiss bisa remove instance
+  /// yang sama. Null saat tooltip tidak aktif.
+  OverlayEntry? _markerPickTooltipEntry;
+  Timer? _markerPickTooltipTimer;
 
   /// Active popup for tapped polyline track. Null when no popup is shown.
   HaulTrackRender? _activePopupTrack;
@@ -186,6 +193,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
         await _showRecoveryDialog(orphan);
       }
 
+      // PR #32: first-time tooltip untuk fitur long-press Add Marker.
+      // Schedule setelah recovery flow supaya tidak overlap dengan
+      // dialog lain. Tooltip self-hide kalau widget unmount sebelum
+      // post-frame callback selesai.
+      if (mounted) {
+        await _maybeShowMarkerPickTooltip();
+      }
+
     });
   }
 
@@ -193,6 +208,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _serviceStatusSub?.cancel();
+    _markerPickTooltipTimer?.cancel();
+    _markerPickTooltipEntry?.remove();
+    _markerPickTooltipEntry = null;
     _mapController.dispose();
     super.dispose();
   }
@@ -471,7 +489,57 @@ class _MapScreenState extends ConsumerState<MapScreen>
     }
     await _haptic();
     if (!context.mounted) return;
+    // Dismiss tooltip kalau masih aktif — user sudah tahu fiturnya.
+    _dismissMarkerPickTooltip();
     ref.read(markerPickActiveProvider.notifier).state = true;
+  }
+
+  /// PR #32: tampilkan first-time tooltip kalau belum pernah
+  /// di-dismiss user. Idempotent — kalau sudah pernah dipanggil di
+  /// session ini dan tooltip masih aktif, jangan duplicate.
+  Future<void> _maybeShowMarkerPickTooltip() async {
+    if (_markerPickTooltipEntry != null) return;
+    final shown = await MarkerPickTooltip.hasBeenShown();
+    if (shown || !mounted) return;
+
+    // Jangan tampil kalau ada permission sheet, recovery dialog, atau
+    // mode tracking sedang aktif — overlay layering bisa rebut fokus.
+    final permState = ref.read(locationPermissionProvider);
+    if (permState != LocationPermissionState.ready) return;
+    final isRecording = ref.read(trackingControllerProvider).isRecording;
+    if (isRecording) return;
+
+    final entry = MarkerPickTooltip.buildOverlay(
+      context: context,
+      targetKey: _addMarkerKey,
+      onDismiss: _dismissMarkerPickTooltip,
+    );
+    _markerPickTooltipEntry = entry;
+    final overlay = Overlay.maybeOf(context);
+    if (overlay == null) {
+      _markerPickTooltipEntry = null;
+      return;
+    }
+    overlay.insert(entry);
+    // Auto-dismiss setelah 5 detik supaya tidak permanent kalau user
+    // tidak interact (R4 AC2).
+    _markerPickTooltipTimer = Timer(
+      const Duration(seconds: 5),
+      _dismissMarkerPickTooltip,
+    );
+  }
+
+  /// Dismiss + persist seen flag. Idempotent.
+  void _dismissMarkerPickTooltip() {
+    _markerPickTooltipTimer?.cancel();
+    _markerPickTooltipTimer = null;
+    final entry = _markerPickTooltipEntry;
+    if (entry != null) {
+      entry.remove();
+      _markerPickTooltipEntry = null;
+      // Fire-and-forget — kegagalan persist bukan blocker UX.
+      unawaited(MarkerPickTooltip.markShown());
+    }
   }
 
   // ---------------------------------------------------------------------
