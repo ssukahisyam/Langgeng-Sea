@@ -147,8 +147,21 @@ class TrackingController extends Notifier<TrackingState> {
         'tracking.bg_start_blocked_notification_denied',
         {'reason': e.toString()},
       );
-      state = state.copyWith(
-        backgroundStatus: BackgroundTrackingStatus.failed,
+      await _autoFallbackToNormal(
+        reason: 'notification_permission_denied',
+      );
+    } on NotificationChannelDisabledException catch (e) {
+      // PR #31: channel-level disabled meskipun app-level granted.
+      // Fallback ke mode Normal otomatis sama seperti
+      // notification denied — user akan lihat banner + bisa coba
+      // pindah ke Akurasi lagi setelah enable channel manual di
+      // system settings.
+      Logger.instance.warn(
+        'tracking.bg_start_blocked_channel_disabled',
+        {'reason': e.toString()},
+      );
+      await _autoFallbackToNormal(
+        reason: 'notification_channel_disabled',
       );
     } on BackgroundServiceStartException catch (e) {
       // Plugin / OEM lempar PlatformException saat startService().
@@ -157,9 +170,7 @@ class TrackingController extends Notifier<TrackingState> {
         'tracking.bg_start_failed',
         {'error': e.toString()},
       );
-      state = state.copyWith(
-        backgroundStatus: BackgroundTrackingStatus.failed,
-      );
+      await _autoFallbackToNormal(reason: 'service_start_failed');
     } catch (e) {
       // Background service failed to start — continue with foreground
       // GPS only (AC 1a graceful degradation).
@@ -167,9 +178,7 @@ class TrackingController extends Notifier<TrackingState> {
         'tracking.bg_start_failed',
         {'error': e.toString()},
       );
-      state = state.copyWith(
-        backgroundStatus: BackgroundTrackingStatus.failed,
-      );
+      await _autoFallbackToNormal(reason: 'unknown');
     }
 
     return haul;
@@ -598,6 +607,49 @@ class TrackingController extends Notifier<TrackingState> {
   // Mode toggle hooks (PR #29 R5)
   // =======================================================================
 
+  /// PR #31: auto-fallback ke mode Normal saat foreground service
+  /// gagal start padahal user sudah pilih Akurasi.
+  ///
+  /// Dipanggil dari [startHaul] saat ada exception
+  /// (`NotificationPermissionDeniedException`,
+  /// `NotificationChannelDisabledException`,
+  /// `BackgroundServiceStartException`, atau exception lain).
+  ///
+  /// Action:
+  /// 1. Set `backgroundStatus = failed` supaya banner muncul di
+  ///    MapScreen ("Background GPS gagal. Tetap merekam di foreground.").
+  /// 2. Persist `trackingMode = normal` ke DB supaya saat user tap
+  ///    MULAI berikutnya tidak mencoba start foreground service lagi
+  ///    dan tidak crash. UI Settings card juga akan refresh ke
+  ///    Normal lewat `appSettingsProvider` stream.
+  /// 3. Log alasan ke Logger.warn dengan reason code supaya tim bisa
+  ///    diagnosis kalau crash report masuk.
+  ///
+  /// Tracking sendiri TIDAK di-cancel — `_gpsSub` foreground tetap
+  /// jalan, jadi haul yang sedang recording terus merekam selama
+  /// app di depan.
+  Future<void> _autoFallbackToNormal({required String reason}) async {
+    state = state.copyWith(
+      backgroundStatus: BackgroundTrackingStatus.failed,
+    );
+    try {
+      await _settingsRepo.setTrackingMode(TrackingMode.normal);
+      Logger.instance.warn(
+        'tracking.auto_fallback_to_normal',
+        {'reason': reason},
+      );
+    } catch (e, stack) {
+      // Tidak boleh propagate — fallback adalah recovery path,
+      // gagal save mode tidak boleh memicu exception baru.
+      Logger.instance.warn(
+        'tracking.auto_fallback_save_failed',
+        {'reason': reason, 'error': e.toString()},
+        e,
+        stack,
+      );
+    }
+  }
+
   /// Stop foreground service tanpa stop haul. Dipanggil oleh
   /// `TrackingModeCard` saat user pindah Akurasi → Normal di tengah
   /// recording. Idempotent: kalau service sudah stopped (mis. mode
@@ -645,6 +697,18 @@ class TrackingController extends Notifier<TrackingState> {
     } on NotificationPermissionDeniedException catch (e) {
       Logger.instance.warn(
         'tracking.upgrade_bg_blocked_notif',
+        {'error': e.toString()},
+      );
+      state = state.copyWith(
+        backgroundStatus: BackgroundTrackingStatus.failed,
+      );
+      rethrow;
+    } on NotificationChannelDisabledException catch (e) {
+      // PR #31: channel-level disabled. Caller (TrackingModeCard)
+      // catch ini dan rollback mode ke Normal + tampilkan tutorial
+      // sheet yang mengarahkan user ke channel detail screen.
+      Logger.instance.warn(
+        'tracking.upgrade_bg_blocked_channel_disabled',
         {'error': e.toString()},
       );
       state = state.copyWith(
