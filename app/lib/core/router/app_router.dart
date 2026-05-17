@@ -6,6 +6,7 @@ import '../../features/compass/presentation/compass_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
 import '../../features/export_import/presentation/export_screen.dart';
 import '../../features/export_import/presentation/import_screen.dart';
+import '../../features/export_import/presentation/imported_datasets_screen.dart';
 import '../../features/history/presentation/haul_detail_screen.dart';
 import '../../features/history/presentation/history_screen.dart';
 import '../../features/history/presentation/trip_detail_screen.dart';
@@ -51,6 +52,7 @@ abstract class AppRoutes {
   static const String markerList = '/markers';
   static const String exportData = '/export';
   static const String importData = '/import';
+  static const String importedDatasets = '/imported-datasets';
   static const String compass = '/compass';
   static const String profile = '/settings/profile';
   static const String logBookHaul = '/log-book/haul/:id';
@@ -214,6 +216,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.importData,
         parentNavigatorKey: _rootNavigatorKey,
         pageBuilder: (_, __) => _slideUp(const ImportScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.importedDatasets,
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (_, __) => _slideUp(const ImportedDatasetsScreen()),
       ),
       GoRoute(
         path: AppRoutes.compass,

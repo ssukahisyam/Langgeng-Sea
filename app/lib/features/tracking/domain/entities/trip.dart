@@ -14,6 +14,7 @@ class Trip {
     this.homePort,
     this.notes,
     this.colorValue,
+    this.datasetId,
   });
 
   final String id;
@@ -31,7 +32,16 @@ class Trip {
   /// be recoloured independently. Persisted in schema v7.
   final int? colorValue;
 
+  /// FK ke `imported_datasets.id` (PR #33). `null` = trip dibuat user
+  /// sendiri di device ini. Non-null = trip hasil import GPX.
+  /// UI di Riwayat menampilkan badge "Impor", tombol Edit di-disable,
+  /// tombol Hapus tetap aktif (dengan auto-cleanup empty dataset).
+  final String? datasetId;
+
   bool get isActive => status == TripStatus.active;
+
+  /// True kalau trip berasal dari import GPX (bukan user sendiri).
+  bool get isImported => datasetId != null;
 
   Trip copyWith({
     String? name,
@@ -40,6 +50,7 @@ class Trip {
     String? homePort,
     String? notes,
     int? colorValue,
+    String? datasetId,
 
     /// When true, explicitly reset [colorValue] to null (fall back to
     /// the palette auto-assignment). Takes precedence over
@@ -55,6 +66,7 @@ class Trip {
         homePort: homePort ?? this.homePort,
         notes: notes ?? this.notes,
         colorValue: clearColor ? null : (colorValue ?? this.colorValue),
+        datasetId: datasetId ?? this.datasetId,
       );
 
   @override
@@ -69,7 +81,8 @@ class Trip {
           status == other.status &&
           homePort == other.homePort &&
           notes == other.notes &&
-          colorValue == other.colorValue;
+          colorValue == other.colorValue &&
+          datasetId == other.datasetId;
 
   @override
   int get hashCode => Object.hash(
@@ -81,5 +94,6 @@ class Trip {
         homePort,
         notes,
         colorValue,
+        datasetId,
       );
 }

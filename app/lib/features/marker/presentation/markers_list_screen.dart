@@ -8,6 +8,7 @@ import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ambient_background.dart';
 import '../../../core/widgets/glass_card.dart';
+import '../../export_import/data/imported_dataset_repository.dart';
 import '../../map/application/map_mode_provider.dart';
 import '../data/marker_repository.dart';
 import '../domain/entities/marker.dart';
@@ -216,10 +217,38 @@ class _MarkerTile extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  marker.name,
-                  style: Theme.of(context).textTheme.titleSmall,
-                  overflow: TextOverflow.ellipsis,
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        marker.name,
+                        style: Theme.of(context).textTheme.titleSmall,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (marker.isImported) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: tokens.accentSoft,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'Impor',
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: context.colors.secondary,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -300,6 +329,18 @@ class _MarkerTile extends ConsumerWidget {
   ) async {
     switch (action) {
       case _MarkerAction.editCategory:
+        // PR #33: marker imported tidak boleh di-rename / di-edit kategori.
+        if (marker.isImported) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Penanda dari data impor tidak bisa diedit. Hapus dataset utuh dari Kelola Data Impor.',
+              ),
+              duration: Duration(seconds: 3),
+            ),
+          );
+          break;
+        }
         final newCategory = await EditMarkerCategorySheet.show(
           context,
           currentCategory: marker.category,
@@ -329,7 +370,14 @@ class _MarkerTile extends ConsumerWidget {
           ),
         );
         if (confirmed == true) {
+          // PR #33: simpan datasetId sebelum delete untuk auto-cleanup.
+          final datasetId = marker.datasetId;
           await ref.read(markerRepositoryProvider).delete(marker.id);
+          if (datasetId != null) {
+            await ref
+                .read(importedDatasetRepositoryProvider)
+                .autoCleanupIfEmpty(datasetId);
+          }
         }
     }
   }

@@ -29,6 +29,7 @@ class Haul {
     this.sweptAreaM2 = 0,
     this.notes,
     this.colorValue,
+    this.datasetId,
   });
 
   final String id;
@@ -61,12 +62,20 @@ class Haul {
   /// order-index palette).
   final int? colorValue;
 
+  /// FK ke `imported_datasets.id` (PR #33). `null` = haul direkam user
+  /// di device ini. Non-null = haul hasil import GPX. Denorm dari
+  /// trip.datasetId — selalu di-set bersamaan saat import.
+  final String? datasetId;
+
   Duration get duration => Duration(seconds: durationSeconds);
 
   /// Display name: user-given or "Tarikan #N" fallback.
   String displayName() => name ?? 'Tarikan #$orderIndex';
 
   bool get isRecording => status == HaulStatus.recording;
+
+  /// True kalau haul berasal dari import GPX (bukan user sendiri).
+  bool get isImported => datasetId != null;
 
   Haul copyWith({
     String? name,
@@ -79,6 +88,7 @@ class Haul {
     double? sweptAreaM2,
     String? notes,
     int? colorValue,
+    String? datasetId,
 
     /// When true, explicitly reset [colorValue] to null (fall back to
     /// the palette auto-assignment). Takes precedence over
@@ -101,6 +111,7 @@ class Haul {
       sweptAreaM2: sweptAreaM2 ?? this.sweptAreaM2,
       notes: notes ?? this.notes,
       colorValue: clearColor ? null : (colorValue ?? this.colorValue),
+      datasetId: datasetId ?? this.datasetId,
     );
   }
 }

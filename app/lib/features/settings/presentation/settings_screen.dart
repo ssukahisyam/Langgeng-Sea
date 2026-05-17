@@ -11,6 +11,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/theme_controller.dart';
 import '../../../core/widgets/ambient_background.dart';
 import '../../../core/widgets/glass_card.dart';
+import '../../export_import/data/imported_dataset_repository.dart';
 import '../../onboarding/data/user_profile_repository.dart';
 import '../../onboarding/domain/entities/user_profile.dart';
 import '../application/gpx_sync_service.dart';
@@ -295,6 +296,15 @@ class SettingsScreen extends ConsumerWidget {
                       }
                     },
                   ),
+                  Divider(
+                      color: tokens.border,
+                      height: 1,
+                      indent: 16,
+                      endIndent: 16),
+                  // PR #33: tile Kelola Data Impor — counter dataset
+                  // diambil dari importedDatasetsProvider stream supaya
+                  // langsung sync setelah user import file baru.
+                  _ImportedDatasetsTile(),
                 ],
               ),
             ),
@@ -536,6 +546,30 @@ class _PolylineWidthCard extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// PR #33: tile "Kelola Data Impor" yang menampilkan counter dataset
+/// + navigasi ke `ImportedDatasetsScreen`. Counter di-update reaktif
+/// lewat `importedDatasetsProvider` stream — hilang otomatis kalau
+/// user hapus dataset terakhir, muncul lagi setelah import baru.
+class _ImportedDatasetsTile extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tokens = context.tokens;
+    final asyncDatasets = ref.watch(importedDatasetsProvider);
+    final count = asyncDatasets.asData?.value.length ?? 0;
+    final subtitle = count == 0
+        ? 'Belum ada data impor'
+        : '$count dataset diimpor';
+    return _SettingsTile(
+      iconColor: context.colors.primary,
+      iconBg: tokens.primarySoft,
+      icon: PhosphorIconsBold.filesFolderOpen,
+      title: 'Kelola Data Impor',
+      subtitle: subtitle,
+      onTap: () => context.push(AppRoutes.importedDatasets),
     );
   }
 }

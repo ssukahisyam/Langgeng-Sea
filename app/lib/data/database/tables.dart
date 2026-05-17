@@ -21,6 +21,16 @@ class Trips extends Table {
   /// [Hauls.colorValue]. Added in schema v7.
   IntColumn get colorValue => integer().nullable()();
 
+  /// Optional FK ke `imported_datasets.id` (PR #33 / schema v10).
+  /// `null` = trip dibuat oleh user di device ini. Non-null = trip
+  /// hasil import dari file GPX, edit di-block di UI tapi delete
+  /// tetap diizinkan dengan auto-cleanup empty dataset.
+  ///
+  /// Tidak pakai `references()` di sini karena Drift addColumn pada
+  /// migration tidak mendukung FK constraint langsung; FK enforcement
+  /// di-handle di repository layer + auto-cleanup helper.
+  TextColumn get datasetId => text().nullable()();
+
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
@@ -68,6 +78,13 @@ class Hauls extends Table {
   IntColumn get colorValue => integer().nullable()();
 
   TextColumn get notes => text().nullable()();
+
+  /// Optional FK ke `imported_datasets.id` (PR #33 / schema v10).
+  /// Denormalized dari trip — sebenarnya bisa diturunkan dari
+  /// `trip_id`, tapi simpan langsung untuk MapScreen filter query
+  /// langsung tanpa join. Selalu match dengan `tripId`'s
+  /// `dataset_id` (di-set bersamaan saat import).
+  TextColumn get datasetId => text().nullable()();
 
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
@@ -184,6 +201,14 @@ class Markers extends Table {
   RealColumn get latitude => real()();
   RealColumn get longitude => real()();
   TextColumn get notes => text().nullable()();
+
+  /// Optional FK ke `imported_datasets.id` (PR #33 / schema v10).
+  /// `null` = marker dibuat oleh user sendiri di device ini.
+  /// Non-null = marker hasil import dari file GPX, edit di-block
+  /// di UI tapi delete tetap diizinkan (auto-cleanup empty dataset
+  /// saat child terakhir dihapus).
+  TextColumn get datasetId => text().nullable()();
+
   DateTimeColumn get createdAt => dateTime()();
 
   @override
@@ -263,4 +288,42 @@ class AppSettingsTable extends Table {
   // `app_settings` regardless of the Dart class name.
   @override
   String? get tableName => 'app_settings';
+}
+
+/// Dataset hasil import GPX (PR #33 / schema v10).
+///
+/// Setiap file GPX yang user impor menjadi satu row di tabel ini.
+/// Children — marker, trip, haul, trackpoint — di-link via kolom
+/// `dataset_id` di tabel masing-masing. Saat user delete dataset
+/// row, repository helper akan cascade delete semua children
+/// (FK constraint tidak di-enforce di Drift addColumn migration —
+/// kita pakai eksplisit cleanup di repository).
+///
+/// Counter `marker_count` / `trip_count` / `haul_count` di-denormalized
+/// supaya Dataset Manager bisa render list cepat tanpa query
+/// terpisah. Di-update lewat `recountChildren()` di repo saat user
+/// delete child individual.
+@DataClassName('ImportedDatasetRow')
+class ImportedDatasetsTable extends Table {
+  TextColumn get id => text()();
+  TextColumn get fileName => text()();
+  TextColumn get exporterName => text().nullable()();
+  TextColumn get vesselName => text().nullable()();
+  DateTimeColumn get exportedAt => dateTime().nullable()();
+  DateTimeColumn get importedAt => dateTime()();
+
+  /// Toggle visibility — kalau false, semua child dari dataset ini
+  /// di-hide dari MapScreen, MarkersList, dan optionally Dashboard
+  /// stats (kalau toggle "Sertakan data impor" di Dashboard off).
+  BoolColumn get visible => boolean().withDefault(const Constant(true))();
+
+  IntColumn get markerCount => integer().withDefault(const Constant(0))();
+  IntColumn get tripCount => integer().withDefault(const Constant(0))();
+  IntColumn get haulCount => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+
+  @override
+  String? get tableName => 'imported_datasets';
 }

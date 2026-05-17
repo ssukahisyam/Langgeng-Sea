@@ -1,11 +1,12 @@
 // Migration test for AppDatabase.
 //
-// Verifies the v1 → v9 upgrade path adds the tables introduced in later
+// Verifies the v1 → v10 upgrade path adds the tables introduced in later
 // milestones (offline_regions at v2; log_book_entries, catch_items,
 // markers at v3; user_profiles at v4; hauls.color_value at v5;
 // app_settings at v6; trips.color_value at v7;
-// app_settings.polyline_width at v8; app_settings.tracking_mode at v9)
-// without losing any existing data.
+// app_settings.polyline_width at v8; app_settings.tracking_mode at v9;
+// imported_datasets + dataset_id columns at v10) without losing any
+// existing data.
 //
 // drift_dev ships schema-version helpers (`dart run drift_dev schema
 // dump`) but we don't have a dumped `drift_schemas/` directory yet, so
@@ -74,7 +75,7 @@ CREATE TABLE track_points (
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('AppDatabase migration v1 → v9', () {
+  group('AppDatabase migration v1 → v10', () {
     late AppDatabase db;
 
     setUp(() {
@@ -115,15 +116,15 @@ void main() {
       await db.close();
     });
 
-    test('onUpgrade runs and reaches schemaVersion 9', () async {
+    test('onUpgrade runs and reaches schemaVersion 10', () async {
       // Any query forces the migration to run.
       final row = await db
           .customSelect('PRAGMA user_version')
           .getSingle();
       expect(
         row.data.values.first,
-        9,
-        reason: 'migration should land at schemaVersion 9',
+        10,
+        reason: 'migration should land at schemaVersion 10',
       );
     });
 
@@ -338,6 +339,99 @@ void main() {
           .get();
       expect(rows, hasLength(1));
       expect(rows.single.data['tracking_mode'], 'normal');
+    });
+
+    test('imported_datasets table exists after upgrade (v10)', () async {
+      await _expectTableExists(db, 'imported_datasets');
+    });
+
+    test('markers.dataset_id column exists after upgrade (v10)', () async {
+      final rows = await db
+          .customSelect('PRAGMA table_info(markers)')
+          .get();
+      final colNames = rows.map((r) => r.data['name'] as String).toList();
+      expect(
+        colNames,
+        contains('dataset_id'),
+        reason: 'v10 migration should add markers.dataset_id column',
+      );
+    });
+
+    test('trips.dataset_id column exists after upgrade (v10)', () async {
+      final rows = await db
+          .customSelect('PRAGMA table_info(trips)')
+          .get();
+      final colNames = rows.map((r) => r.data['name'] as String).toList();
+      expect(
+        colNames,
+        contains('dataset_id'),
+        reason: 'v10 migration should add trips.dataset_id column',
+      );
+    });
+
+    test('hauls.dataset_id column exists after upgrade (v10)', () async {
+      final rows = await db
+          .customSelect('PRAGMA table_info(hauls)')
+          .get();
+      final colNames = rows.map((r) => r.data['name'] as String).toList();
+      expect(
+        colNames,
+        contains('dataset_id'),
+        reason: 'v10 migration should add hauls.dataset_id column',
+      );
+    });
+
+    test('legacy markers/trips/hauls.dataset_id default to NULL', () async {
+      // PR #33: existing rows yang dibuat user di device ini sebelum
+      // upgrade harus dapat dataset_id = NULL (= "data milik user
+      // sendiri"), bukan random / corrupt value.
+      final markerRows = await db
+          .customSelect("SELECT dataset_id FROM markers")
+          .get();
+      // Trip-1 + Haul-1 di-seed di setUp.
+      final tripRows = await db
+          .customSelect("SELECT dataset_id FROM trips WHERE id = 'trip-1'")
+          .get();
+      final haulRows = await db
+          .customSelect("SELECT dataset_id FROM hauls WHERE id = 'haul-1'")
+          .get();
+      // Markers table di-seed di test 'new tables are writable' yang
+      // jalan terpisah; di sini cukup verify trip & haul.
+      for (final row in markerRows) {
+        expect(row.data['dataset_id'], isNull);
+      }
+      expect(tripRows, hasLength(1));
+      expect(tripRows.single.data['dataset_id'], isNull);
+      expect(haulRows, hasLength(1));
+      expect(haulRows.single.data['dataset_id'], isNull);
+    });
+
+    test('imported_datasets table is writable after migration', () async {
+      // Round-trip: insert dataset row, verify counter defaults,
+      // verify visible default true.
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await db.customStatement(
+        'INSERT INTO imported_datasets '
+        '(id, file_name, imported_at) '
+        "VALUES ('ds-1', 'test.gpx', ?)",
+        [now],
+      );
+      final rows = await db
+          .customSelect(
+            "SELECT id, file_name, visible, marker_count, trip_count, "
+            "haul_count, exporter_name, vessel_name "
+            "FROM imported_datasets WHERE id = 'ds-1'",
+          )
+          .get();
+      expect(rows, hasLength(1));
+      final r = rows.single.data;
+      expect(r['file_name'], 'test.gpx');
+      expect(r['visible'], 1, reason: 'default visible = true');
+      expect(r['marker_count'], 0);
+      expect(r['trip_count'], 0);
+      expect(r['haul_count'], 0);
+      expect(r['exporter_name'], isNull);
+      expect(r['vessel_name'], isNull);
     });
   });
 }

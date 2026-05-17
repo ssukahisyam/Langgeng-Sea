@@ -69,6 +69,7 @@ import 'widgets/map_controls.dart';
 import 'widgets/marker_pick_tooltip.dart';
 import 'widgets/pick_location_overlay.dart';
 import 'widgets/track_popup.dart';
+import '../../export_import/data/imported_dataset_repository.dart';
 
 /// Home tab — map + live GPS position + haul recording controls.
 class MapScreen extends ConsumerStatefulWidget {
@@ -473,6 +474,18 @@ class _MapScreenState extends ConsumerState<MapScreen>
   /// Reset mode tanpa side effect.
   void _onPickMarkerCancel() {
     ref.read(markerPickActiveProvider.notifier).state = false;
+  }
+
+  /// PR #33: tampilkan modal sheet daftar dataset import dengan
+  /// checkbox per file untuk toggle visibility cepat dari MapScreen.
+  Future<void> _showDatasetFilterSheet(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      useRootNavigator: false,
+      builder: (_) => const _DatasetFilterSheet(),
+    );
   }
 
   /// PR #32: handler long-press tombol Add Marker. Masuk mode
@@ -889,8 +902,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
     // User-placed markers overlay (persistent toggle, see
     // markersOverlayEnabledProvider).
+    // PR #33: pakai visibleMarkersProvider supaya imported markers
+    // di-filter berdasarkan dataset visibility otomatis.
     final markersOn = ref.watch(markersOverlayEnabledProvider);
-    final markersAsync = markersOn ? ref.watch(allMarkersProvider) : null;
+    final markersAsync = markersOn ? ref.watch(visibleMarkersProvider) : null;
 
     // Camera controller lifecycle — use ref.listen so activate/deactivate
     // fire ONLY on state transitions, not every rebuild. This prevents
@@ -1213,6 +1228,25 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       notifier.state = !notifier.state;
                     },
                   ),
+                  // PR #33: tombol filter dataset import. Self-hide
+                  // kalau belum ada dataset diimpor (clean UI).
+                  Consumer(builder: (context, ref, _) {
+                    final datasets =
+                        ref.watch(importedDatasetsProvider).asData?.value;
+                    if (datasets == null || datasets.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+                    final visibleCount =
+                        datasets.where((d) => d.visible).length;
+                    return Padding(
+                      padding: const EdgeInsets.only(top: AppSizes.sp2),
+                      child: _DatasetFilterToggle(
+                        visibleCount: visibleCount,
+                        totalCount: datasets.length,
+                        onTap: () => _showDatasetFilterSheet(context),
+                      ),
+                    );
+                  }),
                   const SizedBox(height: AppSizes.sp2),
                   _AllHistoryToggle(
                     on: allHistoryOn,
@@ -1895,3 +1929,257 @@ class _MiniTrackingButton extends StatelessWidget {
     );
   }
 }
+
+// ===========================================================================
+// PR #33: Dataset filter toggle + sheet
+// ===========================================================================
+
+/// Toggle button kecil yang menampilkan jumlah dataset visible vs total.
+/// Tap → buka [_DatasetFilterSheet] modal.
+class _DatasetFilterToggle extends StatelessWidget {
+  const _DatasetFilterToggle({
+    required this.visibleCount,
+    required this.totalCount,
+    required this.onTap,
+  });
+
+  final int visibleCount;
+  final int totalCount;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final colors = context.colors;
+    final isAllVisible = visibleCount == totalCount && totalCount > 0;
+    final isNoneVisible = visibleCount == 0;
+    final iconColor = isNoneVisible
+        ? tokens.textTertiary
+        : (isAllVisible ? colors.primary : tokens.textSecondary);
+    return Semantics(
+      label: 'Filter data impor — $visibleCount dari $totalCount terlihat',
+      button: true,
+      child: GlassCard(
+        level: GlassLevel.level2,
+        borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+        padding: EdgeInsets.zero,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+          child: Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Icon(
+                  isNoneVisible
+                      ? PhosphorIconsRegular.filesFolder
+                      : PhosphorIconsFill.filesFolder,
+                  color: iconColor,
+                  size: 20,
+                ),
+                if (totalCount > 0)
+                  Positioned(
+                    right: 2,
+                    top: 2,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colors.primary,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '$visibleCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Modal bottom sheet daftar dataset import dengan checkbox per file
+/// untuk toggle visibility tanpa harus buka Settings → Kelola Data Impor.
+class _DatasetFilterSheet extends ConsumerWidget {
+  const _DatasetFilterSheet();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tokens = context.tokens;
+    final text = context.text;
+    final asyncDatasets = ref.watch(importedDatasetsProvider);
+    return Padding(
+      padding: EdgeInsets.only(
+        left: AppSizes.sp4,
+        right: AppSizes.sp4,
+        bottom: MediaQuery.of(context).viewInsets.bottom +
+            MediaQuery.of(context).padding.bottom +
+            AppSizes.sp4,
+        top: AppSizes.sp4,
+      ),
+      child: GlassCard(
+        level: GlassLevel.level3,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(AppSizes.radius2xl),
+          bottom: Radius.circular(AppSizes.radius2xl),
+        ),
+        padding: const EdgeInsets.fromLTRB(
+          AppSizes.sp4,
+          AppSizes.sp3,
+          AppSizes.sp4,
+          AppSizes.sp4,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: tokens.borderStrong,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSizes.sp3),
+            Text('Filter Data Impor', style: text.titleMedium),
+            const SizedBox(height: AppSizes.sp1),
+            Text(
+              'Centang file yang ingin ditampilkan di peta. '
+              'Centang ulang untuk sembunyikan tanpa hapus.',
+              style: text.bodySmall?.copyWith(color: tokens.textSecondary),
+            ),
+            const SizedBox(height: AppSizes.sp3),
+            asyncDatasets.when(
+              data: (datasets) {
+                if (datasets.isEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSizes.sp4,
+                    ),
+                    child: Text(
+                      'Belum ada data impor.',
+                      textAlign: TextAlign.center,
+                      style: text.bodyMedium?.copyWith(
+                        color: tokens.textSecondary,
+                      ),
+                    ),
+                  );
+                }
+                return ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.5,
+                  ),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: datasets.length,
+                    separatorBuilder: (_, __) =>
+                        Divider(color: tokens.border, height: 1),
+                    itemBuilder: (context, i) {
+                      final ds = datasets[i];
+                      return CheckboxListTile(
+                        controlAffinity: ListTileControlAffinity.leading,
+                        value: ds.visible,
+                        onChanged: (value) {
+                          if (value == null) return;
+                          ref
+                              .read(importedDatasetRepositoryProvider)
+                              .setVisible(ds.id, value);
+                        },
+                        title: Text(
+                          ds.fileName,
+                          style: text.bodyMedium,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text(
+                          '${ds.markerCount} penanda · '
+                          '${ds.tripCount} trip · '
+                          '${ds.haulCount} tarikan',
+                          style: text.bodySmall?.copyWith(
+                            color: tokens.textTertiary,
+                            fontSize: 11,
+                          ),
+                        ),
+                        dense: true,
+                      );
+                    },
+                  ),
+                );
+              },
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: AppSizes.sp4),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (e, _) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: AppSizes.sp4),
+                child: Text(
+                  'Gagal memuat: $e',
+                  textAlign: TextAlign.center,
+                  style: text.bodyMedium?.copyWith(color: tokens.danger),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSizes.sp3),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () {
+                      // Sembunyikan semua dataset
+                      final repo =
+                          ref.read(importedDatasetRepositoryProvider);
+                      final datasets = ref
+                              .read(importedDatasetsProvider)
+                              .asData
+                              ?.value ??
+                          const [];
+                      for (final d in datasets) {
+                        repo.setVisible(d.id, false);
+                      }
+                    },
+                    child: const Text('Sembunyikan Semua'),
+                  ),
+                ),
+                const SizedBox(width: AppSizes.sp2),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () {
+                      final repo =
+                          ref.read(importedDatasetRepositoryProvider);
+                      final datasets = ref
+                              .read(importedDatasetsProvider)
+                              .asData
+                              ?.value ??
+                          const [];
+                      for (final d in datasets) {
+                        repo.setVisible(d.id, true);
+                      }
+                    },
+                    child: const Text('Tampilkan Semua'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+

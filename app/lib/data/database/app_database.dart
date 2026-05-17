@@ -9,6 +9,7 @@ import 'package:sqlite3_flutter_libs/sqlite3_flutter_libs.dart';
 
 import 'daos/app_settings_dao.dart';
 import 'daos/haul_dao.dart';
+import 'daos/imported_dataset_dao.dart';
 import 'daos/log_book_dao.dart';
 import 'daos/marker_dao.dart';
 import 'daos/offline_region_dao.dart';
@@ -19,6 +20,7 @@ import 'tables.dart';
 
 export 'daos/app_settings_dao.dart';
 export 'daos/haul_dao.dart';
+export 'daos/imported_dataset_dao.dart';
 export 'daos/log_book_dao.dart';
 export 'daos/marker_dao.dart';
 export 'daos/offline_region_dao.dart';
@@ -54,6 +56,7 @@ part 'app_database.g.dart';
     Markers,
     UserProfiles,
     AppSettingsTable,
+    ImportedDatasetsTable,
   ],
   daos: [
     TripDao,
@@ -64,6 +67,7 @@ part 'app_database.g.dart';
     MarkerDao,
     UserProfileDao,
     AppSettingsDao,
+    ImportedDatasetDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -73,7 +77,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -141,6 +145,20 @@ class AppDatabase extends _$AppDatabase {
           // permission dialog firing on the next "MULAI" tap.
           if (from < 9) {
             await m.addColumn(appSettingsTable, appSettingsTable.trackingMode);
+          }
+          // v9 → v10 menambah dataset support (PR #33):
+          // - Tabel `imported_datasets` untuk track satu file GPX
+          //   sebagai satu dataset dengan metadata exporter +
+          //   counter denormalized.
+          // - Kolom `dataset_id TEXT NULL` di markers, trips, hauls
+          //   sebagai FK soft (constraint enforce di repo, bukan SQL,
+          //   karena Drift addColumn tidak support FK clause langsung).
+          // Existing rows dapat NULL = "data milik user sendiri".
+          if (from < 10) {
+            await m.createTable(importedDatasetsTable);
+            await m.addColumn(markers, markers.datasetId);
+            await m.addColumn(trips, trips.datasetId);
+            await m.addColumn(hauls, hauls.datasetId);
           }
         },
       );

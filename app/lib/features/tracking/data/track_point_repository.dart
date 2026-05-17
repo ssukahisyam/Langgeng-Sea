@@ -36,6 +36,35 @@ class TrackPointRepository {
     return _dao.insertPoint(TrackPointMapper.toInsertCompanion(point));
   }
 
+  /// Persist a single track point yang berasal dari import GPX
+  /// (PR #33). Berbeda dengan [appendReading] live tracking:
+  /// - Skip accuracy gate (data dari file luar, gate sudah dilakukan
+  ///   sumbernya).
+  /// - Field `accuracyMeters` di-default null karena `<trkpt>` GPX
+  ///   tidak punya akurasi standard.
+  /// - `speedMps` dan `headingDegrees` opsional — file dari aplikasi
+  ///   lain biasanya cuma punya lat/lon/time/elevation.
+  Future<int> appendImportedPoint({
+    required String haulId,
+    required double latitude,
+    required double longitude,
+    required DateTime timestamp,
+    double? speedMps,
+    double? headingDegrees,
+    double? altitudeMeters,
+  }) {
+    final point = TrackPoint(
+      haulId: haulId,
+      latitude: latitude,
+      longitude: longitude,
+      timestamp: timestamp,
+      speedMps: speedMps,
+      headingDegrees: headingDegrees,
+      altitudeMeters: altitudeMeters,
+    );
+    return _dao.insertPoint(TrackPointMapper.toInsertCompanion(point));
+  }
+
   Future<List<TrackPoint>> getByHaul(String haulId) async {
     final rows = await _dao.findByHaulId(haulId);
     return rows.map(TrackPointMapper.fromRow).toList();

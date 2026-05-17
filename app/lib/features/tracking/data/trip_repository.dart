@@ -55,6 +55,33 @@ class TripRepository {
     return trip;
   }
 
+  /// Buat trip yang berasosiasi dengan dataset import (PR #33).
+  /// Berbeda dari `createTrip` user-flow:
+  /// - Status langsung `completed` (file impor = snapshot historis)
+  /// - `dataset_id` di-isi
+  /// - `endedAt` wajib di-set (di-derive dari trkpt timestamps)
+  Future<Trip> createForDataset({
+    required String datasetId,
+    required String? name,
+    required DateTime startedAt,
+    required DateTime endedAt,
+    int? colorValue,
+    String? homePort,
+  }) async {
+    final trip = Trip(
+      id: _uuid.v4(),
+      name: name,
+      startedAt: startedAt,
+      endedAt: endedAt,
+      status: TripStatus.completed,
+      homePort: homePort,
+      colorValue: colorValue,
+      datasetId: datasetId,
+    );
+    await _dao.insertTrip(TripMapper.toInsertCompanion(trip));
+    return trip;
+  }
+
   Future<void> endTrip(String tripId, {DateTime? endedAt}) async {
     final existing = await getById(tripId);
     if (existing == null) return;
@@ -68,6 +95,13 @@ class TripRepository {
   Future<void> rename(String tripId, String? name) async {
     final existing = await getById(tripId);
     if (existing == null) return;
+    // PR #33: edit guard — trip imported tidak boleh di-rename.
+    if (existing.datasetId != null) {
+      throw StateError(
+        'Trip dari data impor tidak bisa diedit. '
+        'Hapus dataset utuh dari Kelola Data Impor.',
+      );
+    }
     await _dao.updateTrip(
       tripId,
       TripMapper.toUpdateCompanion(existing.copyWith(name: name)),
@@ -82,6 +116,11 @@ class TripRepository {
   Future<void> setColor(String tripId, int? colorValue) async {
     final existing = await getById(tripId);
     if (existing == null) return;
+    if (existing.datasetId != null) {
+      throw StateError(
+        'Warna trip dari data impor tidak bisa diubah.',
+      );
+    }
     final updated = colorValue == null
         ? existing.copyWith(clearColor: true)
         : existing.copyWith(colorValue: colorValue);

@@ -27,6 +27,7 @@ class TripMapper {
         homePort: r.homePort,
         notes: r.notes,
         colorValue: r.colorValue,
+        datasetId: r.datasetId,
       );
 
   static TripsCompanion toInsertCompanion(Trip t) => TripsCompanion.insert(
@@ -38,6 +39,7 @@ class TripMapper {
         homePort: Value(t.homePort),
         notes: Value(t.notes),
         colorValue: Value(t.colorValue),
+        datasetId: Value(t.datasetId),
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
@@ -49,6 +51,9 @@ class TripMapper {
         homePort: Value(t.homePort),
         notes: Value(t.notes),
         colorValue: Value(t.colorValue),
+        // datasetId TIDAK di-include di update path -- kepemilikan
+        // dataset sengaja tidak boleh berubah setelah trip dibuat
+        // (kalau imported tetap imported, kalau user-created tetap).
         updatedAt: Value(DateTime.now()),
       );
 }
@@ -78,6 +83,7 @@ class HaulMapper {
         sweptAreaM2: r.sweptAreaM2,
         notes: r.notes,
         colorValue: r.colorValue,
+        datasetId: r.datasetId,
       );
 
   static HaulsCompanion toInsertCompanion(Haul h) => HaulsCompanion.insert(
@@ -96,6 +102,7 @@ class HaulMapper {
         sweptAreaM2: Value(h.sweptAreaM2),
         notes: Value(h.notes),
         colorValue: Value(h.colorValue),
+        datasetId: Value(h.datasetId),
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );

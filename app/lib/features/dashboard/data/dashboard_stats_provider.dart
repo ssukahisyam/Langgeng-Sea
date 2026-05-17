@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../data/database/app_database.dart';
 
@@ -52,9 +53,50 @@ final dashboardPeriodProvider = StateProvider<DashboardPeriod>(
   (ref) => DashboardPeriod.week7,
 );
 
+/// PR #33: toggle apakah dashboard stats include data hasil import GPX.
+/// Default `false` supaya progress nelayan sendiri tidak tercampur
+/// dengan data dari file orang lain. Persisted di SharedPreferences
+/// (lihat [DashboardIncludeImportedNotifier]).
+final dashboardIncludeImportedProvider =
+    NotifierProvider<DashboardIncludeImportedNotifier, bool>(
+  DashboardIncludeImportedNotifier.new,
+);
+
+class DashboardIncludeImportedNotifier extends Notifier<bool> {
+  static const _kKey = 'dashboard_include_imported_v1';
+
+  @override
+  bool build() {
+    // Load async; sementara default false, lalu update dari prefs.
+    _load();
+    return false;
+  }
+
+  Future<void> _load() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final v = prefs.getBool(_kKey) ?? false;
+      if (v != state) state = v;
+    } catch (_) {
+      // Sandbox / test environment tanpa platform channel: tetap default.
+    }
+  }
+
+  Future<void> setValue(bool value) async {
+    state = value;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_kKey, value);
+    } catch (_) {
+      // Swallow — kegagalan persist bukan blocker UX.
+    }
+  }
+}
+
 /// Aggregates trip/haul/logbook data for the selected period.
 final dashboardStatsProvider = FutureProvider<DashboardStats>((ref) async {
   final period = ref.watch(dashboardPeriodProvider);
+  final includeImported = ref.watch(dashboardIncludeImportedProvider);
   final db = ref.watch(appDatabaseProvider);
 
   final now = DateTime.now();
@@ -69,6 +111,10 @@ final dashboardStatsProvider = FutureProvider<DashboardStats>((ref) async {
   final tripQuery = db.select(db.trips);
   if (since != null) {
     tripQuery.where((t) => t.startedAt.isBiggerOrEqualValue(since));
+  }
+  // PR #33: filter berdasarkan datasetId. Default exclude imported.
+  if (!includeImported) {
+    tripQuery.where((t) => t.datasetId.isNull());
   }
   final trips = await tripQuery.get();
   final tripIds = trips.map((t) => t.id).toSet();
