@@ -8,6 +8,7 @@ import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ambient_background.dart';
 import '../../../core/widgets/glass_card.dart';
+import '../../export_import/data/imported_dataset_repository.dart';
 import '../data/dashboard_stats_provider.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -49,6 +50,16 @@ class DashboardScreen extends ConsumerWidget {
               padding: EdgeInsets.symmetric(horizontal: AppSizes.sp5),
               child: _PeriodSwitcher(),
             ),
+            const SizedBox(height: AppSizes.sp3),
+
+            // PR #33: toggle Sertakan data impor — default off, supaya
+            // progress nelayan sendiri tidak tercampur dengan data
+            // dari file orang lain. Self-hide kalau belum ada dataset
+            // diimpor (clean UI).
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: AppSizes.sp5),
+              child: _IncludeImportedToggle(),
+            ),
             const SizedBox(height: AppSizes.sp4),
 
             // Content
@@ -82,6 +93,86 @@ class DashboardScreen extends ConsumerWidget {
 }
 
 // =============================================================================
+// Include-imported toggle (PR #33)
+// =============================================================================
+
+/// Toggle SwitchListTile yang membaca/tulis [dashboardIncludeImportedProvider].
+/// Self-hide kalau user belum punya dataset diimpor — supaya tidak ada
+/// noise UI di Dashboard buat user yang tidak pernah pakai fitur impor.
+class _IncludeImportedToggle extends ConsumerWidget {
+  const _IncludeImportedToggle();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tokens = context.tokens;
+    final text = context.text;
+    final colors = context.colors;
+
+    final hasAny = ref.watch(_importedDatasetsForToggleProvider);
+    if (!hasAny) return const SizedBox.shrink();
+
+    final include = ref.watch(dashboardIncludeImportedProvider);
+    return GlassCard(
+      level: GlassLevel.level2,
+      padding: const EdgeInsets.fromLTRB(
+        AppSizes.sp3 + 2,
+        AppSizes.sp2,
+        AppSizes.sp3 + 2,
+        AppSizes.sp2,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: tokens.accentSoft,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              PhosphorIconsFill.download,
+              size: 16,
+              color: colors.secondary,
+            ),
+          ),
+          const SizedBox(width: AppSizes.sp3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Sertakan data impor', style: text.labelMedium),
+                Text(
+                  'Hitung statistik dari file GPX yang diimpor',
+                  style: text.bodySmall?.copyWith(
+                    color: tokens.textTertiary,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: include,
+            onChanged: (v) => ref
+                .read(dashboardIncludeImportedProvider.notifier)
+                .setValue(v),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Internal provider — apakah ada dataset diimpor (untuk hide toggle
+/// kalau tidak ada). Pakai derived dari `importedDatasetsProvider`
+/// supaya reactive saat user import file pertama / hapus terakhir.
+final _importedDatasetsForToggleProvider = Provider<bool>((ref) {
+  final ds = ref.watch(importedDatasetsProvider).asData?.value;
+  return ds != null && ds.isNotEmpty;
+});
+
+// =============================================================================
 // Period Switcher
 // =============================================================================
 
@@ -90,7 +181,6 @@ class _PeriodSwitcher extends ConsumerWidget {
 
   static const _labels = ['Hari ini', '7 Hari', '30 Hari', 'Total'];
   static const _periods = DashboardPeriod.values;
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selected = ref.watch(dashboardPeriodProvider);
