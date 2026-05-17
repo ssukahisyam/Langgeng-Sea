@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../core/observability/logger.dart';
 import '../../../data/database/app_database.dart';
+import '../../export_import/data/imported_dataset_repository.dart';
 import '../domain/entities/marker.dart';
 
 /// Repository untuk operasi CRUD marker kustom.
@@ -212,6 +213,22 @@ final markerRepositoryProvider = Provider<MarkerRepository>((ref) {
 /// Reactive stream of semua marker.
 final allMarkersProvider = StreamProvider<List<AppMarker>>((ref) {
   return ref.watch(markerRepositoryProvider).watchAll();
+});
+
+/// Marker yang terlihat di MapScreen (PR #33). User-created markers
+/// (`datasetId == null`) selalu visible. Imported markers hanya
+/// visible kalau dataset induknya `visible = true` di
+/// `imported_datasets`.
+final visibleMarkersProvider = StreamProvider<List<AppMarker>>((ref) {
+  final markers = ref.watch(allMarkersProvider).asData?.value;
+  final visibleIds =
+      ref.watch(visibleDatasetIdsProvider).asData?.value ?? const <String>{};
+  if (markers == null) return Stream.value(const []);
+  final filtered = markers
+      .where((m) =>
+          m.datasetId == null || visibleIds.contains(m.datasetId))
+      .toList();
+  return Stream.value(filtered);
 });
 
 /// Fetch single marker by id (one-shot).

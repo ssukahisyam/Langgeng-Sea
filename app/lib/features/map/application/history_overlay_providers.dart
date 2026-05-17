@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../../../core/utils/latlng_bounds_util.dart';
 import '../../../core/utils/polyline_simplifier.dart';
+import '../../export_import/data/imported_dataset_repository.dart';
 import '../../tracking/data/haul_repository.dart';
 import '../../tracking/data/track_point_repository.dart';
 
@@ -30,6 +31,11 @@ typedef HaulTrackRender = ({
   /// by `TrackPopup` / `trackDisplayLabel` to format the default
   /// label and show "Dimulai ..." metadata.
   DateTime startedAt,
+
+  /// FK ke `imported_datasets.id` (PR #33). `null` = haul direkam
+  /// user di device ini. Non-null dipakai oleh MapScreen untuk
+  /// filter polyline berdasarkan dataset visibility.
+  String? datasetId,
 });
 
 /// Bundle surfaced to UI: the simplified polylines + pre-computed
@@ -63,6 +69,7 @@ typedef _SimplifyInput = ({
   List<LatLng> points,
   String? storedName,
   DateTime startedAt,
+  String? datasetId,
   double toleranceMeters,
 });
 
@@ -85,6 +92,7 @@ List<HaulTrackRender> _simplifyBatch(List<_SimplifyInput> inputs) {
         points: simplified,
         storedName: input.storedName,
         startedAt: input.startedAt,
+        datasetId: input.datasetId,
       ),
     );
   }
@@ -100,12 +108,25 @@ List<HaulTrackRender> _simplifyBatch(List<_SimplifyInput> inputs) {
 ///
 /// Auto-disposes when the overlay chip is off and the map screen isn't
 /// listening — saves memory for users with hundreds of trips.
+///
+/// PR #33: filter haul yang punya `dataset_id` non-null kalau
+/// dataset-nya tidak `visible`. User-created hauls (`dataset_id = null`)
+/// selalu visible.
 final allHistoryRenderProvider =
     FutureProvider.autoDispose<HistoryOverlayRender>((ref) async {
   final haulRepo = ref.watch(haulRepositoryProvider);
   final pointsRepo = ref.watch(trackPointRepositoryProvider);
+  // Watch visible dataset ids — provider akan auto-rebuild saat user
+  // toggle visibility.
+  final visibleIds =
+      ref.watch(visibleDatasetIdsProvider).asData?.value ?? const <String>{};
 
-  final hauls = await haulRepo.listAllCompleted();
+  final allHauls = await haulRepo.listAllCompleted();
+  // Filter: keep haul kalau datasetId null (user-created) ATAU
+  // datasetId ∈ visibleIds.
+  final hauls = allHauls
+      .where((h) => h.datasetId == null || visibleIds.contains(h.datasetId))
+      .toList();
   if (hauls.isEmpty) {
     return const HistoryOverlayRender(
       tracks: [],
@@ -133,6 +154,7 @@ final allHistoryRenderProvider =
         points: [for (final p in b.points) p.latLng],
         storedName: b.haul.name,
         startedAt: b.haul.startedAt,
+        datasetId: b.haul.datasetId,
         // 1 m tolerance preserves short-distance detail (e.g. 21 m test
         // tracks that previously got flattened to a straight line).
         toleranceMeters: 1.0,
@@ -192,6 +214,7 @@ final tripRenderProvider = FutureProvider.autoDispose
         points: simplified,
         storedName: h.name,
         startedAt: h.startedAt,
+        datasetId: h.datasetId,
       ),
     );
   }
@@ -246,6 +269,7 @@ final haulRenderProvider = FutureProvider.autoDispose
         points: simplified,
         storedName: haul.name,
         startedAt: haul.startedAt,
+        datasetId: haul.datasetId,
       ),
     ],
     bounds: LatLngBoundsUtil.fromPoints(simplified),
