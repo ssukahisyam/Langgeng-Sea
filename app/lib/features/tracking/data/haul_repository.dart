@@ -63,13 +63,69 @@ class HaulRepository {
     return haul;
   }
 
-  Future<void> finalizeHaul(Haul haul) async {
+  Future<Haul> finalizeHaul(Haul haul) async {
     await _dao.updateHaul(haul.id, HaulMapper.toUpdateCompanion(haul));
+    return haul;
+  }
+
+  /// Buat haul yang berasosiasi dengan dataset import (PR #33).
+  /// Dipakai oleh `GpxImporter` saat parse `<trk>` jadi Haul row.
+  ///
+  /// Berbeda dengan `startHaul` user-flow:
+  /// - Status langsung `completed` (bukan recording — file impor
+  ///   adalah snapshot historis, bukan tracking aktif)
+  /// - Stats agregat (`distanceMeters`, dst) di-pass langsung dari
+  ///   importer yang sudah hitung dari `<trkpt>`
+  /// - `dataset_id` di-isi sehingga UI tampilkan badge "Impor"
+  ///
+  /// Caller bertanggung jawab insert TrackPoint per `<trkpt>` ke
+  /// haul ini setelah row dibuat.
+  Future<Haul> createForDataset({
+    required String datasetId,
+    required String tripId,
+    required int orderIndex,
+    required DateTime startedAt,
+    required DateTime endedAt,
+    required double trawlWidthMeters,
+    required double distanceMeters,
+    required int durationSeconds,
+    required double sweptAreaM2,
+    String? name,
+    double? avgSpeedKnots,
+    double? avgHeadingDegrees,
+    int? colorValue,
+  }) async {
+    final haul = Haul(
+      id: _uuid.v4(),
+      tripId: tripId,
+      orderIndex: orderIndex,
+      startedAt: startedAt,
+      endedAt: endedAt,
+      status: HaulStatus.completed,
+      trawlWidthMeters: trawlWidthMeters,
+      name: name,
+      distanceMeters: distanceMeters,
+      durationSeconds: durationSeconds,
+      avgSpeedKnots: avgSpeedKnots,
+      avgHeadingDegrees: avgHeadingDegrees,
+      sweptAreaM2: sweptAreaM2,
+      colorValue: colorValue,
+      datasetId: datasetId,
+    );
+    await _dao.insertHaul(HaulMapper.toInsertCompanion(haul));
+    return haul;
   }
 
   Future<void> rename(String haulId, String? name) async {
     final existing = await getById(haulId);
     if (existing == null) return;
+    // PR #33: edit guard — haul imported tidak boleh di-rename.
+    if (existing.datasetId != null) {
+      throw StateError(
+        'Tarikan dari data impor tidak bisa diedit. '
+        'Hapus dataset utuh dari Kelola Data Impor.',
+      );
+    }
     await _dao.updateHaul(
       haulId,
       HaulMapper.toUpdateCompanion(existing.copyWith(name: name)),
@@ -83,6 +139,11 @@ class HaulRepository {
   Future<void> setColor(String haulId, int? colorValue) async {
     final existing = await getById(haulId);
     if (existing == null) return;
+    if (existing.datasetId != null) {
+      throw StateError(
+        'Warna tarikan dari data impor tidak bisa diubah.',
+      );
+    }
     final updated = colorValue == null
         ? existing.copyWith(clearColor: true)
         : existing.copyWith(colorValue: colorValue);
