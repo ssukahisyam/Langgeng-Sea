@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 import 'dart:ui';
 
 import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -40,6 +41,27 @@ class NotificationPermissionDeniedException implements Exception {
   String toString() =>
       'NotificationPermissionDeniedException: POST_NOTIFICATIONS belum '
       'di-grant. Foreground service tidak bisa start.';
+}
+
+/// Thrown ketika notification channel `langgeng_tracking` ada di
+/// device tetapi importance-nya `none` (user secara eksplisit
+/// disable channel itu di system settings setelah grant
+/// `POST_NOTIFICATIONS`). Pada kasus ini, app-level
+/// [Permission.notification.status] tetap `granted` tapi channel
+/// spesifik diblok — `startForeground()` akan crash dengan
+/// `CannotPostForegroundServiceNotificationException`.
+///
+/// Ditangkap oleh `TrackingController` sehingga UI bisa mengarahkan
+/// user ke channel detail screen di system settings (lewat tombol
+/// pada banner) ketimbang ke app-level notification settings yang
+/// sudah dianggap "granted".
+class NotificationChannelDisabledException implements Exception {
+  const NotificationChannelDisabledException();
+
+  @override
+  String toString() =>
+      'NotificationChannelDisabledException: channel `langgeng_tracking` '
+      'di-disable user di system settings. Foreground service tidak bisa start.';
 }
 
 /// Thrown ketika `flutter_background_service` gagal memulai service
@@ -81,6 +103,25 @@ class FlutterBackgroundTrackingService implements BackgroundTrackingService {
   Future<void> initialise() async {
     if (_initialised) return;
     _initialised = true;
+
+    // PR #31: eksplisit create notification channel SEBELUM
+    // `_service.configure()`. `flutter_background_service` membuat
+    // channel default dengan importance yang tidak konsisten antar
+    // build / OEM ROM — di PixelOS Android 14+, importance default
+    // bisa `none` yang memicu
+    // `CannotPostForegroundServiceNotificationException` saat
+    // `startForeground()` walaupun `POST_NOTIFICATIONS` sudah
+    // di-grant.
+    //
+    // Pakai importance `low` (cukup untuk FG service tanpa
+    // mengganggu user dengan suara/getar/badge). Channel id match
+    // dengan yang dipakai di `AndroidConfiguration.notificationChannelId`
+    // di bawah supaya plugin reuse channel ini, bukan bikin channel
+    // baru dengan importance default.
+    if (Platform.isAndroid) {
+      await _ensureNotificationChannel();
+    }
+
     // Set up the notification channel for the foreground service.
     final androidConfig = AndroidConfiguration(
       onStart: onBackgroundStart,
@@ -116,6 +157,99 @@ class FlutterBackgroundTrackingService implements BackgroundTrackingService {
       _lastStatus = status;
       _statusController.add(status);
     });
+  }
+
+  /// Eksplisit create notification channel `langgeng_tracking`
+  /// dengan importance `low`. Idempotent: kalau channel sudah ada,
+  /// `createNotificationChannel` (Android `NotificationManager
+  /// .createNotificationChannel`) update settings yang configurable
+  /// lewat API; importance yang sudah pernah di-set user tidak akan
+  /// ditimpa (Android sengaja mencegah ini).
+  ///
+  /// Method ini swallow semua exception — kegagalan bukan blocker
+  /// karena `_service.configure()` di bawah punya fallback path
+  /// (akan create channel sendiri dengan default importance, dan
+  /// guard di `start()` akan deteksi kalau importance terlalu rendah).
+  Future<void> _ensureNotificationChannel() async {
+    try {
+      final plugin = FlutterLocalNotificationsPlugin();
+      final androidImpl =
+          plugin.resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+      if (androidImpl == null) {
+        Logger.instance.warn(
+          'tracking.notif_channel_no_android_impl',
+          const {'reason': 'plugin returned null android impl'},
+        );
+        return;
+      }
+      const channel = AndroidNotificationChannel(
+        _kNotificationChannelId,
+        'Tracking GPS',
+        description: 'Notifikasi yang menjaga GPS tetap merekam '
+            'saat aplikasi berjalan di belakang.',
+        importance: Importance.low,
+        playSound: false,
+        enableVibration: false,
+        showBadge: false,
+      );
+      await androidImpl.createNotificationChannel(channel);
+      Logger.instance.info(
+        'tracking.notif_channel_ensured',
+        const {'channelId': _kNotificationChannelId, 'importance': 'low'},
+      );
+    } catch (e, stack) {
+      Logger.instance.warn(
+        'tracking.notif_channel_create_failed',
+        {'error': e.toString()},
+        e,
+        stack,
+      );
+    }
+  }
+
+  /// Cek apakah channel `langgeng_tracking` ada dan importance-nya
+  /// memungkinkan FG service untuk post notification. Return:
+  /// - `null` kalau channel ada dan OK (importance >= low) atau
+  ///   gagal cek (best-effort, biar guard di `start()` saja yang
+  ///   final).
+  /// - `NotificationChannelDisabledException` kalau channel ada
+  ///   tetapi importance-nya `none` (user disable manual).
+  Future<NotificationChannelDisabledException?>
+      _checkChannelEnabled() async {
+    try {
+      final plugin = FlutterLocalNotificationsPlugin();
+      final androidImpl =
+          plugin.resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+      if (androidImpl == null) return null;
+      final channels = await androidImpl.getNotificationChannels();
+      final channel = channels?.firstWhere(
+        (c) => c.id == _kNotificationChannelId,
+        orElse: () => const AndroidNotificationChannel(
+          _kNotificationChannelId,
+          'Tracking GPS',
+          importance: Importance.low,
+        ),
+      );
+      if (channel == null) return null;
+      if (channel.importance == Importance.none) {
+        Logger.instance.warn(
+          'tracking.notif_channel_disabled',
+          const {'channelId': _kNotificationChannelId},
+        );
+        return const NotificationChannelDisabledException();
+      }
+      return null;
+    } catch (e, stack) {
+      Logger.instance.warn(
+        'tracking.notif_channel_check_failed',
+        {'error': e.toString()},
+        e,
+        stack,
+      );
+      return null;
+    }
   }
 
   @override
@@ -229,6 +363,21 @@ class FlutterBackgroundTrackingService implements BackgroundTrackingService {
         _lastStatus = BackgroundTrackingStatus.failed;
         _statusController.add(BackgroundTrackingStatus.failed);
         throw const NotificationPermissionDeniedException();
+      }
+
+      // PR #31: channel-level enabled check.
+      // App-level POST_NOTIFICATIONS bisa granted tapi user manual
+      // disable channel `langgeng_tracking` di system settings.
+      // Pada kasus ini Android tetap menolak `startForeground()`
+      // dengan `CannotPostForegroundServiceNotificationException`.
+      // Lempar exception spesifik supaya UI bisa mengarahkan user
+      // ke channel detail screen, bukan ke app-level settings yang
+      // sudah dianggap "granted".
+      final channelIssue = await _checkChannelEnabled();
+      if (channelIssue != null) {
+        _lastStatus = BackgroundTrackingStatus.failed;
+        _statusController.add(BackgroundTrackingStatus.failed);
+        throw channelIssue;
       }
     }
 
@@ -385,8 +534,28 @@ Future<void> onBackgroundStart(ServiceInstance service) async {
   // Ensure the service runs as Android foreground service so Doze /
   // background restrictions don't kill us when the screen is off.
   // (Has no effect on iOS.)
+  //
+  // PR #31: wrap dengan try-catch. Sebelumnya kalau
+  // `setAsForegroundService()` lempar PlatformException (mis. notif
+  // channel disabled stricter ROM, atau race dengan service yang
+  // belum sempat bind), isolate crash dan app tutup.
   if (service is AndroidServiceInstance) {
-    await service.setAsForegroundService();
+    try {
+      await service.setAsForegroundService();
+    } catch (e, stack) {
+      Logger.instance.error(
+        'background.set_foreground_failed',
+        e,
+        stack,
+        {'error': e.toString()},
+      );
+      sendStatus(BackgroundTrackingStatus.failed);
+      // Stop isolate dengan rapi — kalau kita lanjut, GPS stream
+      // akan terkonsumsi tapi user tidak melihat notifikasi yang
+      // diharapkan dan tracking tidak benar-benar di-foreground.
+      await service.stopSelf();
+      return;
+    }
   }
 
   service.on('start').listen((event) async {
