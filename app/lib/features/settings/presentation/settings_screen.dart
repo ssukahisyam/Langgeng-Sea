@@ -14,7 +14,6 @@ import '../../../core/widgets/glass_card.dart';
 import '../../export_import/data/imported_dataset_repository.dart';
 import '../../onboarding/data/user_profile_repository.dart';
 import '../../onboarding/domain/entities/user_profile.dart';
-import '../application/gpx_sync_service.dart';
 import 'widgets/battery_optimization_tile.dart';
 import 'widgets/tracking_mode_card.dart';
 
@@ -66,16 +65,6 @@ class SettingsScreen extends ConsumerWidget {
       _PolylineWidthCard(),
       const SizedBox(height: AppSizes.sp3),
       _buildToolsCard(context, profile),
-      const SizedBox(height: AppSizes.sp4),
-      Text(
-        'Manajemen Data',
-        style: text.titleMedium?.copyWith(
-          fontWeight: FontWeight.w700,
-          color: context.colors.onSurface,
-        ),
-      ),
-      const SizedBox(height: AppSizes.sp2),
-      _buildDataCard(context, ref),
       const SizedBox(height: AppSizes.sp6),
       _buildFooter(context),
     ];
@@ -240,6 +229,30 @@ class SettingsScreen extends ConsumerWidget {
           ),
           Divider(
               color: tokens.border, height: 1, indent: 16, endIndent: 16),
+          // PR follow-up: tile Impor Data dipindah dari Manajemen
+          // Data card ke Tools card. Tile yang lama menggunakan
+          // GpxSyncService.importFromGpx() (parser legacy yang
+          // abaikan extension <lsea:haul>). Sekarang push ke
+          // ImportScreen yang pakai GpxImporter baru — fix bug:
+          // 1. Dataset row muncul di Kelola Data Impor
+          // 2. Warna polyline match colorValue dari file
+          // 3. Jarak/durasi/sweptArea match value di lsea:haul
+          _SettingsTile(
+            iconColor: context.colors.secondary,
+            iconBg: tokens.accentSoft,
+            icon: PhosphorIconsBold.download,
+            title: 'Impor Data',
+            subtitle: 'Muat file GPX dari nelayan lain',
+            onTap: () => context.push(AppRoutes.importData),
+          ),
+          Divider(
+              color: tokens.border, height: 1, indent: 16, endIndent: 16),
+          // PR #33: tile Kelola Data Impor pindah dari Manajemen
+          // Data card ke Tools card supaya semua data management
+          // ada di satu tempat.
+          _ImportedDatasetsTile(),
+          Divider(
+              color: tokens.border, height: 1, indent: 16, endIndent: 16),
           _SettingsTile(
             iconColor: context.colors.secondary,
             iconBg: tokens.accentSoft,
@@ -255,75 +268,6 @@ class SettingsScreen extends ConsumerWidget {
           // tanpa harus mulai tarikan dulu. Tile self-hide
           // di iOS / desktop.
           const BatteryOptimizationTile(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDataCard(BuildContext context, WidgetRef ref) {
-    final tokens = context.tokens;
-    return GlassCard(
-      padding: EdgeInsets.zero,
-      child: Column(
-        children: [
-          _SettingsTile(
-            iconColor: context.colors.primary,
-            iconBg: tokens.primarySoft,
-            icon: PhosphorIconsBold.export,
-            title: 'Ekspor Data (GPX)',
-            subtitle: 'Cadangkan rute dan penanda ke file GPX',
-            onTap: () async {
-              try {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Mengekspor data...')),
-                );
-                await ref.read(gpxSyncServiceProvider).exportToGpx();
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Gagal mengekspor data.')),
-                  );
-                }
-              }
-            },
-          ),
-          Divider(
-              color: tokens.border, height: 1, indent: 16, endIndent: 16),
-          _SettingsTile(
-            iconColor: context.colors.secondary,
-            iconBg: tokens.accentSoft,
-            icon: PhosphorIconsBold.download,
-            title: 'Impor Data (GPX)',
-            subtitle: 'Pulihkan rute dan penanda dari file GPX',
-            onTap: () async {
-              try {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Mengimpor data...')),
-                );
-                final count =
-                    await ref.read(gpxSyncServiceProvider).importFromGpx();
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                        content:
-                            Text('Berhasil mengimpor data ($count item).')),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Gagal mengimpor data.')),
-                  );
-                }
-              }
-            },
-          ),
-          Divider(
-              color: tokens.border, height: 1, indent: 16, endIndent: 16),
-          // PR #33: tile Kelola Data Impor — counter dataset
-          // diambil dari importedDatasetsProvider stream supaya
-          // langsung sync setelah user import file baru.
-          _ImportedDatasetsTile(),
         ],
       ),
     );
