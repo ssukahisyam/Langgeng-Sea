@@ -1975,8 +1975,8 @@ class _DatasetFilterToggle extends StatelessWidget {
               children: [
                 Icon(
                   isNoneVisible
-                      ? PhosphorIconsRegular.filesFolder
-                      : PhosphorIconsFill.filesFolder,
+                      ? PhosphorIconsRegular.folder
+                      : PhosphorIconsFill.folder,
                   color: iconColor,
                   size: 20,
                 ),
