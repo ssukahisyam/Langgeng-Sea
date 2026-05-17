@@ -176,6 +176,24 @@ final haulRepositoryProvider = Provider<HaulRepository>((ref) {
   return HaulRepository(db);
 });
 
+/// Reactive stream of completed hauls (PR follow-up untuk fix bug
+/// "Tampilkan Jejak" tidak rebuild saat user finalize haul baru).
+///
+/// Sebelumnya `allHistoryRenderProvider` di
+/// `history_overlay_providers.dart` memakai `listAllCompleted()`
+/// future snapshot — provider tidak rebuild saat haul baru di-insert
+/// ke DB. Akibatnya, setelah user "Angkat Trawl" untuk selesaikan
+/// haul, polyline overlay tetap kosong sampai user toggle off lalu
+/// on lagi tombol jejak.
+///
+/// Provider ini expose `watchAllCompleted()` stream sebagai
+/// StreamProvider Riverpod supaya consumer dapat menjadi reactive
+/// terhadap insert/update/delete di tabel hauls. autoDispose supaya
+/// stream cancel saat MapScreen tab tidak aktif.
+final completedHaulsProvider = StreamProvider.autoDispose<List<Haul>>((ref) {
+  return ref.watch(haulRepositoryProvider).watchAllCompleted();
+});
+
 final recordingHaulProvider = StreamProvider<Haul?>((ref) {
   return ref.watch(haulRepositoryProvider).watchRecording();
 });

@@ -102,6 +102,22 @@ class _TrackingModeCardState extends ConsumerState<TrackingModeCard> {
                     ],
                   ),
                 ),
+                // PR follow-up (Bug 3 edukasi): info icon yang
+                // memunculkan dialog perbedaan Normal vs Akurasi
+                // supaya user paham bahwa Mode Normal tidak track
+                // saat layar mati — sesuai design, bukan bug.
+                IconButton(
+                  onPressed: _showInfoDialog,
+                  icon: Icon(
+                    PhosphorIconsRegular.info,
+                    size: 18,
+                    color: tokens.textSecondary,
+                  ),
+                  tooltip: 'Info Mode Tracking',
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 32, minHeight: 32),
+                ),
                 if (_busy)
                   SizedBox(
                     width: 16,
@@ -156,6 +172,54 @@ class _TrackingModeCardState extends ConsumerState<TrackingModeCard> {
   /// Pindah Akurasi → Normal: tidak butuh konfirmasi, langsung simpan.
   /// Kalau ada haul yang sedang recording, downgrade foreground service
   /// supaya tidak orphan (R5 AC1).
+  /// PR follow-up: dialog edukasi perbedaan Normal vs Akurasi.
+  /// Dimunculkan saat user tap info icon. Konsisten dengan wording
+  /// di subtitle TrackingMode supaya tidak ada ekspektasi
+  /// "Normal harusnya tetap track saat layar mati" yang berlawanan
+  /// dengan design Mode Normal (foreground GPS subscription saja
+  /// tanpa foreground service).
+  Future<void> _showInfoDialog() async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Mode Tracking'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Mode Normal',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+            SizedBox(height: 4),
+            Text(
+              'Tracking pause saat layar mati atau aplikasi di-background. '
+              'Cocok untuk trip pendek dengan layar selalu aktif. '
+              'Hemat baterai, tidak butuh izin tambahan.',
+            ),
+            SizedBox(height: 12),
+            Text(
+              'Mode Akurasi',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+            SizedBox(height: 4),
+            Text(
+              'Tracking tetap merekam saat layar mati & aplikasi di belakang. '
+              'Cocok untuk trip panjang. Memerlukan izin notifikasi dan '
+              'pengoptimalan baterai.',
+            ),
+          ],
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Mengerti'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _switchToNormal() async {
     setState(() => _busy = true);
     try {
