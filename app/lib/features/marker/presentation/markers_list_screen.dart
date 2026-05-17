@@ -8,9 +8,9 @@ import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ambient_background.dart';
 import '../../../core/widgets/glass_card.dart';
+import '../../map/application/map_mode_provider.dart';
 import '../data/marker_repository.dart';
 import '../domain/entities/marker.dart';
-import 'widgets/add_marker_dialog.dart';
 import 'widgets/edit_marker_category_sheet.dart';
 
 /// Layar daftar marker kustom dengan filter kategori.
@@ -114,30 +114,28 @@ class _MarkersListScreenState extends ConsumerState<MarkersListScreen> {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddMarkerDialog(context),
-        child: const Icon(PhosphorIconsBold.mapPinPlus),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _startPickFlow(context),
+        icon: const Icon(PhosphorIconsBold.mapPinPlus),
+        label: const Text('Tambah'),
       ),
     );
   }
 
-  Future<void> _showAddMarkerDialog(BuildContext context) async {
-    final marker = await showDialog<AppMarker>(
-      context: context,
-      builder: (_) => const AddMarkerDialog(
-        latitude: 0,
-        longitude: 0,
-      ),
-    );
-    if (marker != null) {
-      await ref.read(markerRepositoryProvider).create(
-            name: marker.name,
-            category: marker.category,
-            latitude: marker.latitude,
-            longitude: marker.longitude,
-            notes: marker.notes,
-          );
-    }
+  /// PR #32: pindah ke MapScreen dan masuk
+  /// `MapMode.pickMarkerLocation`. Penggantian dari flow lama yang
+  /// pakai `AddMarkerDialog(latitude: 0, longitude: 0)` placeholder
+  /// — itu bug yang membuat marker masuk ke koordinat (0, 0) di
+  /// laut Atlantik kalau user submit dialog tanpa edit lat/lon.
+  /// Sekarang user wajib pilih koordinat di peta sebelum dialog
+  /// muncul.
+  void _startPickFlow(BuildContext context) {
+    // Set mode dulu, baru navigate. Order ini supaya ketika MapScreen
+    // build pertama kali, provider sudah aktif → switch case di
+    // _buildModeControls langsung render PickLocationOverlay tanpa
+    // kedip ke idle controls.
+    ref.read(markerPickActiveProvider.notifier).state = true;
+    GoRouter.of(context).go(AppRoutes.map);
   }
 
   /// Jump to map and focus on this marker without starting navigation automatically.

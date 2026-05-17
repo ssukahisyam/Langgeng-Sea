@@ -66,6 +66,8 @@ import 'widgets/history_polyline_layer.dart';
 import 'widgets/location_permission_sheet.dart';
 import 'widgets/map_attribution.dart';
 import 'widgets/map_controls.dart';
+import 'widgets/marker_pick_tooltip.dart';
+import 'widgets/pick_location_overlay.dart';
 import 'widgets/track_popup.dart';
 
 /// Home tab — map + live GPS position + haul recording controls.
@@ -96,6 +98,17 @@ class _MapScreenState extends ConsumerState<MapScreen>
   bool _followingUser = true;
   bool _headingUpMode = false;
   static bool _checkedRecovery = false;
+
+  /// PR #32: GlobalKey untuk Add Marker FAB. Dipakai oleh
+  /// MarkerPickTooltip untuk menentukan posisi target tooltip
+  /// saat first-time hint ditampilkan.
+  final GlobalKey _addMarkerKey = GlobalKey(debugLabel: 'addMarkerFab');
+
+  /// PR #32: active tooltip overlay entry. Disimpan di state supaya
+  /// auto-dismiss timer dan tap-outside dismiss bisa remove instance
+  /// yang sama. Null saat tooltip tidak aktif.
+  OverlayEntry? _markerPickTooltipEntry;
+  Timer? _markerPickTooltipTimer;
 
   /// Active popup for tapped polyline track. Null when no popup is shown.
   HaulTrackRender? _activePopupTrack;
@@ -180,6 +193,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
         await _showRecoveryDialog(orphan);
       }
 
+      // PR #32: first-time tooltip untuk fitur long-press Add Marker.
+      // Schedule setelah recovery flow supaya tidak overlap dengan
+      // dialog lain. Tooltip self-hide kalau widget unmount sebelum
+      // post-frame callback selesai.
+      if (mounted) {
+        await _maybeShowMarkerPickTooltip();
+      }
+
     });
   }
 
@@ -187,6 +208,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _serviceStatusSub?.cancel();
+    _markerPickTooltipTimer?.cancel();
+    _markerPickTooltipEntry?.remove();
+    _markerPickTooltipEntry = null;
     _mapController.dispose();
     super.dispose();
   }
@@ -266,6 +290,16 @@ class _MapScreenState extends ConsumerState<MapScreen>
         if (!mounted) return;
         _maybeAutoDismissPermissionSheet();
       });
+    }
+    // PR #32: kalau app pause sambil mode pick aktif, reset ke idle
+    // untuk safety. Saat user kembali dari recent apps, mode tidak
+    // dalam state setengah jadi (PickLocationOverlay tampil dengan
+    // koordinat lama yang mungkin tidak relevan lagi).
+    if (state == AppLifecycleState.paused) {
+      final picking = ref.read(markerPickActiveProvider);
+      if (picking) {
+        ref.read(markerPickActiveProvider.notifier).state = false;
+      }
     }
   }
 
@@ -408,6 +442,116 @@ class _MapScreenState extends ConsumerState<MapScreen>
     ref.read(markersOverlayEnabledProvider.notifier).state = true;
   }
 
+  /// PR #32: handler saat user konfirmasi koordinat di
+  /// [PickLocationOverlay]. Reset mode lalu buka [AddMarkerDialog]
+  /// dengan koordinat dari camera center.
+  Future<void> _onPickMarkerConfirm(LatLng coord) async {
+    // Reset mode dulu supaya UI bersih sebelum dialog muncul
+    // (overlay menghilang, peta full).
+    ref.read(markerPickActiveProvider.notifier).state = false;
+    if (!mounted) return;
+    final draft = await showDialog<AppMarker>(
+      context: context,
+      builder: (_) => AddMarkerDialog(
+        latitude: coord.latitude,
+        longitude: coord.longitude,
+      ),
+    );
+    if (draft == null || !mounted) return;
+    await ref.read(markerRepositoryProvider).create(
+          name: draft.name,
+          category: draft.category,
+          latitude: draft.latitude,
+          longitude: draft.longitude,
+          notes: draft.notes,
+        );
+    if (!mounted) return;
+    ref.read(markersOverlayEnabledProvider.notifier).state = true;
+  }
+
+  /// PR #32: handler saat user tap [Batal] di [PickLocationOverlay].
+  /// Reset mode tanpa side effect.
+  void _onPickMarkerCancel() {
+    ref.read(markerPickActiveProvider.notifier).state = false;
+  }
+
+  /// PR #32: handler long-press tombol Add Marker. Masuk mode
+  /// `pickMarkerLocation` setelah haptic feedback. Guard:
+  /// - Block kalau ada haul yang sedang recording (R6 AC1) — user
+  ///   diberi snackbar penjelasan.
+  /// - Block kalau location permission belum granted — pakai snackbar
+  ///   yang sama dengan tap pendek.
+  Future<void> _onAddMarkerLongPress(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final isRecording = ref.read(trackingControllerProvider).isRecording;
+    if (isRecording) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Selesaikan tracking dulu untuk menandai lokasi non-GPS.',
+          ),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+    await _haptic();
+    if (!context.mounted) return;
+    // Dismiss tooltip kalau masih aktif — user sudah tahu fiturnya.
+    _dismissMarkerPickTooltip();
+    ref.read(markerPickActiveProvider.notifier).state = true;
+  }
+
+  /// PR #32: tampilkan first-time tooltip kalau belum pernah
+  /// di-dismiss user. Idempotent — kalau sudah pernah dipanggil di
+  /// session ini dan tooltip masih aktif, jangan duplicate.
+  Future<void> _maybeShowMarkerPickTooltip() async {
+    if (_markerPickTooltipEntry != null) return;
+    final shown = await MarkerPickTooltip.hasBeenShown();
+    if (shown || !mounted) return;
+
+    // Jangan tampil kalau ada permission sheet, recovery dialog, atau
+    // mode tracking sedang aktif — overlay layering bisa rebut fokus.
+    final permState = ref.read(locationPermissionProvider);
+    if (permState != LocationPermissionState.ready) return;
+    final isRecording = ref.read(trackingControllerProvider).isRecording;
+    if (isRecording) return;
+
+    final entry = MarkerPickTooltip.buildOverlay(
+      context: context,
+      targetKey: _addMarkerKey,
+      onDismiss: _dismissMarkerPickTooltip,
+    );
+    _markerPickTooltipEntry = entry;
+    final overlay = Overlay.maybeOf(context);
+    if (overlay == null) {
+      _markerPickTooltipEntry = null;
+      return;
+    }
+    overlay.insert(entry);
+    // Auto-dismiss setelah 5 detik supaya tidak permanent kalau user
+    // tidak interact (R4 AC2).
+    _markerPickTooltipTimer = Timer(
+      const Duration(seconds: 5),
+      _dismissMarkerPickTooltip,
+    );
+  }
+
+  /// Dismiss + persist seen flag. Idempotent.
+  void _dismissMarkerPickTooltip() {
+    _markerPickTooltipTimer?.cancel();
+    _markerPickTooltipTimer = null;
+    final entry = _markerPickTooltipEntry;
+    if (entry != null) {
+      entry.remove();
+      _markerPickTooltipEntry = null;
+      // Fire-and-forget — kegagalan persist bukan blocker UX.
+      unawaited(MarkerPickTooltip.markShown());
+    }
+  }
+
   // ---------------------------------------------------------------------
   // Navigation handlers
   // ---------------------------------------------------------------------
@@ -460,6 +604,16 @@ class _MapScreenState extends ConsumerState<MapScreen>
     if (permState != LocationPermissionState.ready) {
       await _showPermissionSheet();
       return;
+    }
+
+    // PR #32: kalau user sedang dalam mode pick marker, reset dulu
+    // sebelum mulai tracking. Defensive — UI di-_buildModeControls
+    // sudah hide _ActionPanel saat MapMode.pickMarkerLocation, tapi
+    // ada path entry lain (mis. global shortcut, deep link) yang
+    // bisa memicu start tanpa user lewat MapScreen idle controls.
+    final picking = ref.read(markerPickActiveProvider);
+    if (picking) {
+      ref.read(markerPickActiveProvider.notifier).state = false;
     }
 
     await _haptic();
@@ -669,6 +823,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
       MapMode.viewingHistory => HistoryOverlayControls(
           key: const ValueKey(MapMode.viewingHistory),
           cameraController: _cameraController,
+        ),
+      MapMode.pickMarkerLocation => PickLocationOverlay(
+          key: const ValueKey(MapMode.pickMarkerLocation),
+          mapController: _mapController,
+          onConfirm: _onPickMarkerConfirm,
+          onCancel: _onPickMarkerCancel,
         ),
       MapMode.navigating => const SizedBox.shrink(
           key: ValueKey('nav-fallback'),
@@ -1014,7 +1174,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   : AppSizes.sp4,
               child: _AddMarkerButton(
                 onTap: () => _onAddMarkerPressed(context, ref),
+                onLongPress: () => _onAddMarkerLongPress(context, ref),
                 enabled: hasPermission,
+                targetKey: _addMarkerKey,
               ),
             ),
 
@@ -1318,24 +1480,43 @@ class _MarkersToggle extends StatelessWidget {
 // ===========================================================================
 
 class _AddMarkerButton extends StatelessWidget {
-  const _AddMarkerButton({required this.onTap, required this.enabled});
+  const _AddMarkerButton({
+    required this.onTap,
+    required this.onLongPress,
+    required this.enabled,
+    this.targetKey,
+  });
 
   final VoidCallback onTap;
+
+  /// PR #32: long-press masuk mode `pickMarkerLocation`. Caller
+  /// bertanggung jawab atas haptic feedback (tidak dilakukan di
+  /// widget ini supaya logic mode + guard recording berada di
+  /// caller, bukan di leaf widget).
+  final VoidCallback onLongPress;
+
   final bool enabled;
+
+  /// Optional global key untuk first-time tooltip (PR #32 R4).
+  /// Ditempatkan di widget tombol supaya tooltip tahu posisi target.
+  final GlobalKey? targetKey;
 
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     return Semantics(
-      label: 'Tambah penanda di posisi saat ini',
+      label: 'Tambah penanda di posisi saat ini. '
+          'Tekan lama untuk pilih lokasi di peta.',
       button: true,
       enabled: enabled,
       child: GlassCard(
+        key: targetKey,
         level: GlassLevel.level2,
         borderRadius: BorderRadius.circular(AppSizes.radiusPill),
         padding: EdgeInsets.zero,
         child: InkWell(
           onTap: enabled ? onTap : null,
+          onLongPress: enabled ? onLongPress : null,
           borderRadius: BorderRadius.circular(AppSizes.radiusPill),
           child: Container(
             width: 52,

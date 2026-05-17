@@ -72,6 +72,11 @@ dependencies:
   # is not throttled by Android Doze when the screen is off.
   wakelock_plus: ^1.2.8
 
+  # Persistent device-state preferences (PR #32) — first-time tooltip
+  # flag for marker pick discoverability. Used for non-domain UI
+  # state that doesn't deserve a Drift schema bump.
+  shared_preferences: ^2.3.0
+
   # Utils
   intl: ">=0.19.0 <1.0.0"
   collection: ^1.18.0
