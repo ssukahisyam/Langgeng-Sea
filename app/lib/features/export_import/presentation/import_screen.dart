@@ -170,7 +170,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
       }
 
       final importer = ref.read(gpxImporterProvider);
-      final preview = importer.parse(content);
+      final preview = importer.parse(content, fileName: file.name);
 
       setState(() {
         _preview = preview;
