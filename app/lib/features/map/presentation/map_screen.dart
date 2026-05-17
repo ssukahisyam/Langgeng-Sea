@@ -291,6 +291,16 @@ class _MapScreenState extends ConsumerState<MapScreen>
         _maybeAutoDismissPermissionSheet();
       });
     }
+    // PR #32: kalau app pause sambil mode pick aktif, reset ke idle
+    // untuk safety. Saat user kembali dari recent apps, mode tidak
+    // dalam state setengah jadi (PickLocationOverlay tampil dengan
+    // koordinat lama yang mungkin tidak relevan lagi).
+    if (state == AppLifecycleState.paused) {
+      final picking = ref.read(markerPickActiveProvider);
+      if (picking) {
+        ref.read(markerPickActiveProvider.notifier).state = false;
+      }
+    }
   }
 
   /// Wraps [LocationPermissionSheet.show] with the bookkeeping that
@@ -594,6 +604,16 @@ class _MapScreenState extends ConsumerState<MapScreen>
     if (permState != LocationPermissionState.ready) {
       await _showPermissionSheet();
       return;
+    }
+
+    // PR #32: kalau user sedang dalam mode pick marker, reset dulu
+    // sebelum mulai tracking. Defensive — UI di-_buildModeControls
+    // sudah hide _ActionPanel saat MapMode.pickMarkerLocation, tapi
+    // ada path entry lain (mis. global shortcut, deep link) yang
+    // bisa memicu start tanpa user lewat MapScreen idle controls.
+    final picking = ref.read(markerPickActiveProvider);
+    if (picking) {
+      ref.read(markerPickActiveProvider.notifier).state = false;
     }
 
     await _haptic();
