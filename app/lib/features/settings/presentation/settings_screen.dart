@@ -566,7 +566,7 @@ class _ImportedDatasetsTile extends ConsumerWidget {
     return _SettingsTile(
       iconColor: context.colors.primary,
       iconBg: tokens.primarySoft,
-      icon: PhosphorIconsBold.filesFolderOpen,
+      icon: PhosphorIconsBold.folderOpen,
       title: 'Kelola Data Impor',
       subtitle: subtitle,
       onTap: () => context.push(AppRoutes.importedDatasets),

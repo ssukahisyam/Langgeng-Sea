@@ -108,7 +108,7 @@ class _EmptyState extends StatelessWidget {
                 borderRadius: BorderRadius.circular(22),
               ),
               child: Icon(
-                PhosphorIconsRegular.filesFolderOpen,
+                PhosphorIconsRegular.folderOpen,
                 size: 36,
                 color: tokens.textSecondary,
               ),
@@ -182,8 +182,8 @@ class _DatasetCardState extends ConsumerState<_DatasetCard> {
                   ),
                   child: Icon(
                     ds.visible
-                        ? PhosphorIconsFill.filesFolder
-                        : PhosphorIconsRegular.filesFolder,
+                        ? PhosphorIconsFill.folder
+                        : PhosphorIconsRegular.folder,
                     size: 18,
                     color: ds.visible
                         ? colors.primary
