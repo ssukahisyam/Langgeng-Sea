@@ -8,6 +8,7 @@ import '../../../core/utils/polyline_simplifier.dart';
 import '../../export_import/data/imported_dataset_repository.dart';
 import '../../tracking/data/haul_repository.dart';
 import '../../tracking/data/track_point_repository.dart';
+import '../../tracking/domain/entities/haul.dart';
 
 /// A single haul's simplified polyline + metadata, ready to feed into
 /// PolylineLayer without any further per-frame work.
@@ -112,16 +113,39 @@ List<HaulTrackRender> _simplifyBatch(List<_SimplifyInput> inputs) {
 /// PR #33: filter haul yang punya `dataset_id` non-null kalau
 /// dataset-nya tidak `visible`. User-created hauls (`dataset_id = null`)
 /// selalu visible.
+///
+/// PR follow-up (Bug 2 fix):
+/// - Watch [completedHaulsProvider] (stream reactive) instead of
+///   `listAllCompleted()` future snapshot supaya overlay rebuild
+///   otomatis saat user finalize haul baru.
+/// - Tunggu `visibleDatasetIdsProvider` ready sebelum filter — kalau
+///   stream masih loading, return empty render sementara, jangan
+///   filter aggressive yang menyembunyikan imported haul karena
+///   visibleIds belum settle.
 final allHistoryRenderProvider =
     FutureProvider.autoDispose<HistoryOverlayRender>((ref) async {
-  final haulRepo = ref.watch(haulRepositoryProvider);
   final pointsRepo = ref.watch(trackPointRepositoryProvider);
-  // Watch visible dataset ids — provider akan auto-rebuild saat user
-  // toggle visibility.
-  final visibleIds =
-      ref.watch(visibleDatasetIdsProvider).asData?.value ?? const <String>{};
 
-  final allHauls = await haulRepo.listAllCompleted();
+  // Watch dua sumber sebagai AsyncValue — jangan langsung fallback
+  // ke empty supaya tidak tampak kosong sementara saat first frame
+  // sebelum stream emit.
+  final visibleIdsAsync = ref.watch(visibleDatasetIdsProvider);
+  final allHaulsAsync = ref.watch(completedHaulsProvider);
+
+  if (visibleIdsAsync.isLoading || allHaulsAsync.isLoading) {
+    // Tetap return empty supaya UI tidak crash, tapi MapScreen
+    // dapat menampilkan loading state lewat AsyncValue dari provider
+    // yang watch ini. Better dari aggressive-empty + stale render.
+    return const HistoryOverlayRender(
+      tracks: [],
+      bounds: null,
+      sourceHaulCount: 0,
+    );
+  }
+
+  final visibleIds = visibleIdsAsync.value ?? const <String>{};
+  final allHauls = allHaulsAsync.value ?? const <Haul>[];
+
   // Filter: keep haul kalau datasetId null (user-created) ATAU
   // datasetId ∈ visibleIds.
   final hauls = allHauls
