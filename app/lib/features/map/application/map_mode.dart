@@ -1,13 +1,16 @@
 /// Contextual state of `Map_Screen` that governs which adaptive UI
 /// controls are visible at any moment.
 ///
-/// Map_Mode has exactly four values and is derived deterministically
-/// from three independent input booleans:
+/// Map_Mode has exactly five values and is derived deterministically
+/// from four independent input booleans:
 ///
 /// - `tracking` — whether `Tracking_Controller` currently has an
 ///   active Trip/Haul recording session.
 /// - `navigating` — whether `Navigation_Service` currently has an
 ///   active `GotoTarget` or `FollowTrackTarget`.
+/// - `markerPickActive` — whether user has entered the marker pick
+///   mode via long-press of the Add Marker FAB or from the Markers
+///   list (PR #32).
 /// - `historyOverlayActive` — whether the `History_Overlay` toggle is
 ///   turned on (the "footprints" button).
 ///
@@ -37,15 +40,29 @@ enum MapMode {
   /// tracking or navigation is active. `Map_Screen` shows the history
   /// overlay controls (filter, "Paskan semua").
   viewingHistory,
+
+  /// User entered marker-picking mode (PR #32) via long-press of the
+  /// Add Marker FAB or the Markers list "+" button. The map shows a
+  /// crosshair fixed at the viewport center and a bottom sheet with
+  /// live coordinates plus [Tandai di Sini] / [Batal] buttons. User
+  /// pans the map to center the crosshair on the desired location,
+  /// then taps confirm to open `AddMarkerDialog` with that coord.
+  ///
+  /// Lower priority than `tracking` and `navigating`: if either becomes
+  /// active concurrently (race), pick mode auto-cancels and the higher
+  /// priority UI takes over. Entry points (long-press FAB, list "+")
+  /// guard against this anyway, but the derive priority is the safety
+  /// net.
+  pickMarkerLocation,
 }
 
-/// Pure derivation of [MapMode] from the three independent input
+/// Pure derivation of [MapMode] from the four independent input
 /// booleans.
 ///
 /// The priority order is fixed and deterministic:
 ///
 /// ```text
-///   navigating > tracking > viewingHistory > idle
+///   navigating > tracking > pickMarkerLocation > viewingHistory > idle
 /// ```
 ///
 /// Rationale:
@@ -56,19 +73,24 @@ enum MapMode {
 /// - A live tracking session is more important than a passive history
 ///   view because losing visibility of "Berhenti tracking" risks
 ///   leaving the recorder running by accident.
+/// - Marker pick mode is an explicit user action mid-flow, but lower
+///   than tracking/navigation. If user somehow enters pick mode while
+///   tracking starts (race), tracking wins and pick auto-cancels.
 /// - History overlay only wins when nothing else is going on.
 ///
 /// This function is intentionally a top-level pure function (no side
 /// effects, no Flutter/Riverpod dependencies) so it can be exhaustively
-/// property-tested over all 2³ = 8 boolean combinations
+/// property-tested over all 2⁴ = 16 boolean combinations
 /// (see Requirement 4 "mutual exclusion + priority" invariant).
 MapMode deriveMapMode({
   required bool tracking,
   required bool navigating,
   required bool historyOverlayActive,
+  bool markerPickActive = false,
 }) {
   if (navigating) return MapMode.navigating;
   if (tracking) return MapMode.tracking;
+  if (markerPickActive) return MapMode.pickMarkerLocation;
   if (historyOverlayActive) return MapMode.viewingHistory;
   return MapMode.idle;
 }
