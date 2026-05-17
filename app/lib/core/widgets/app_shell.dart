@@ -1,4 +1,4 @@
-import 'dart:ui';
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -152,47 +152,56 @@ class _NavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppSizes.radiusXl),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          decoration: BoxDecoration(
-            color: tokens.surface3.withValues(alpha: 0.65),
-            borderRadius: BorderRadius.circular(AppSizes.radiusXl),
-            border:
-                Border.all(color: tokens.borderStrong.withValues(alpha: 0.4)),
-            boxShadow: [
-              BoxShadow(
-                color: tokens.shadowMd,
-                blurRadius: 24,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          height: _kNavBarContentHeight,
-          padding: const EdgeInsets.symmetric(horizontal: AppSizes.sp2),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              for (var i = 0; i < AppShell.tabs.length; i++)
-                Expanded(
-                  child: _NavButton(
-                    tab: AppShell.tabs[i],
-                    selected: i == currentIndex,
-                    onTap: () => onTap(i),
-                  ),
-                ),
-            ],
-          ),
+    // PR follow-up performance: hapus BackdropFilter sigma 12. Komentar
+    // di atas class menjelaskan blur ini menurunkan map screen ke 20-30
+    // FPS di Redmi Note 10 Pro. Implementasi sebelumnya tetap pakai
+    // BackdropFilter (mismatch dengan komentar). Sekarang pakai solid
+    // composite color yang reads sama tapi cost ~0 ms per frame.
+    final scaffoldBg = Theme.of(context).scaffoldBackgroundColor;
+    return Container(
+      decoration: BoxDecoration(
+        color: Color.alphaBlend(
+          tokens.surface3.withValues(alpha: 0.95),
+          scaffoldBg,
         ),
+        borderRadius: BorderRadius.circular(AppSizes.radiusXl),
+        border: Border.all(
+          color: tokens.borderStrong.withValues(alpha: 0.4),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: tokens.shadowMd,
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      height: _kNavBarContentHeight,
+      padding: const EdgeInsets.symmetric(horizontal: AppSizes.sp2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          for (var i = 0; i < AppShell.tabs.length; i++)
+            Expanded(
+              child: _NavButton(
+                tab: AppShell.tabs[i],
+                selected: i == currentIndex,
+                onTap: () => onTap(i),
+              ),
+            ),
+        ],
       ),
     );
   }
 }
 
-/// AnimatedSwitcher with a directional horizontal slide. Cheap enough
-/// to keep 120 Hz on mid-range Android.
+/// Tab transition pakai [PageTransitionSwitcher] + [SharedAxisTransition].
+///
+/// Sebelumnya pakai `AnimatedSwitcher` + `SlideTransition` custom yang
+/// menampilkan area hitam saat outgoing-incoming gap tidak tertutup
+/// (background Scaffold transparan). Sekarang `SharedAxisTransition`
+/// menyediakan `fillColor` solid yang menutup gap, plus animation
+/// horizontal yang smooth dan resmi dari Flutter Material team.
 class _TabTransition extends StatelessWidget {
   const _TabTransition({
     required this.direction,
@@ -215,29 +224,17 @@ class _TabTransition extends StatelessWidget {
       );
     }
 
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 240),
-      reverseDuration: const Duration(milliseconds: 180),
-      switchInCurve: Curves.easeOutCubic,
-      switchOutCurve: Curves.easeInCubic,
-      layoutBuilder: (entering, previous) => Stack(
-        alignment: Alignment.center,
-        children: [
-          ...previous,
-          if (entering != null) entering,
-        ],
-      ),
-      transitionBuilder: (child, animation) {
-        // On incoming tab animation.value goes 0 → 1; on outgoing it
-        // goes 1 → 0 (AnimatedSwitcher uses reverseAnimation for the
-        // previous child automatically). So the sign of direction is
-        // correct for both legs.
-        final tween = Tween<Offset>(
-          begin: Offset(direction.toDouble(), 0),
-          end: Offset.zero,
-        );
-        return SlideTransition(
-          position: tween.animate(animation),
+    final scaffoldBg = Theme.of(context).scaffoldBackgroundColor;
+
+    return PageTransitionSwitcher(
+      duration: const Duration(milliseconds: 220),
+      reverse: direction < 0,
+      transitionBuilder: (child, primaryAnimation, secondaryAnimation) {
+        return SharedAxisTransition(
+          animation: primaryAnimation,
+          secondaryAnimation: secondaryAnimation,
+          transitionType: SharedAxisTransitionType.horizontal,
+          fillColor: scaffoldBg,
           child: child,
         );
       },

@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -542,14 +543,60 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
   Future<void> _handleExport() async {
     setState(() => _isExporting = true);
     try {
+      // 1. Generate file ke internal app cache (existing path).
       final service = ref.read(exportServiceProvider);
       final file = await service.exportFiltered(filter: _filter);
       if (!mounted) return;
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        subject: 'Data Langgeng Sea',
-        text: 'Data ekspor dari aplikasi Langgeng Sea',
-      );
+
+      // 2. Save copy ke folder pilihan user via Storage Access
+      // Framework Android. User dapat pilih Downloads, Documents,
+      // atau folder apapun di File Manager — file akan visible di
+      // file manager OEM tanpa perlu permission khusus.
+      final fileName = file.uri.pathSegments.last;
+      final bytes = await file.readAsBytes();
+      String? savedPath;
+      try {
+        savedPath = await FilePicker.platform.saveFile(
+          dialogTitle: 'Simpan file ekspor',
+          fileName: fileName,
+          type: FileType.custom,
+          allowedExtensions: const ['gpx'],
+          bytes: bytes,
+        );
+      } catch (_) {
+        // SAF picker gagal di beberapa OEM ROM (Xiaomi MIUI lama,
+        // Huawei tanpa Google services). Fallback ke share-only.
+        savedPath = null;
+      }
+
+      if (!mounted) return;
+
+      // 3. Tampilkan snackbar konfirmasi dengan action Bagikan.
+      if (savedPath != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Disimpan di $savedPath'),
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'Bagikan',
+              onPressed: () async {
+                await Share.shareXFiles(
+                  [XFile(file.path)],
+                  subject: 'Data Langgeng Sea',
+                  text: 'Data ekspor dari aplikasi Langgeng Sea',
+                );
+              },
+            ),
+          ),
+        );
+      } else {
+        // Save dialog di-cancel atau gagal — fallback langsung ke share.
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          subject: 'Data Langgeng Sea',
+          text: 'Data ekspor dari aplikasi Langgeng Sea',
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

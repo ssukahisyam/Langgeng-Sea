@@ -14,7 +14,6 @@ import '../../../core/widgets/glass_card.dart';
 import '../../export_import/data/imported_dataset_repository.dart';
 import '../../onboarding/data/user_profile_repository.dart';
 import '../../onboarding/domain/entities/user_profile.dart';
-import '../application/gpx_sync_service.dart';
 import 'widgets/battery_optimization_tile.dart';
 import 'widgets/tracking_mode_card.dart';
 
@@ -31,319 +30,281 @@ class SettingsScreen extends ConsumerWidget {
     return AmbientBackground(
       child: SafeArea(
         bottom: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            AppSizes.sp5,
-            AppSizes.sp4,
-            AppSizes.sp5,
-            120,
-          ),
+        child: _buildLazyList(context, ref, mode, profile),
+      ),
+    );
+  }
+
+  /// PR follow-up performance: pakai [ListView.builder] dengan
+  /// `RepaintBoundary` per item supaya scroll lebih smooth. Sebelumnya
+  /// `ListView(children: [...])` build semua child sekaligus saat
+  /// mount, dan setiap card berisi shadow / gradient / GlassCard yang
+  /// di-paint dalam satu pass — itu yang bikin frame drop saat user
+  /// scroll ke bawah.
+  Widget _buildLazyList(
+    BuildContext context,
+    WidgetRef ref,
+    ThemeMode mode,
+    UserProfile? profile,
+  ) {
+    final text = context.text;
+    final tokens = context.tokens;
+
+    // Build daftar widget item. Method-helper-style supaya body
+    // tetap kebaca dan tiap card bisa di-bungkus RepaintBoundary
+    // tanpa nested noise.
+    final items = <Widget>[
+      Text(AppStrings.tabSettings, style: text.headlineLarge),
+      const SizedBox(height: AppSizes.sp5),
+      _buildProfileCard(context, profile),
+      const SizedBox(height: AppSizes.sp3),
+      _buildThemeCard(context, ref, mode),
+      const SizedBox(height: AppSizes.sp3),
+      const TrackingModeCard(),
+      const SizedBox(height: AppSizes.sp3),
+      _PolylineWidthCard(),
+      const SizedBox(height: AppSizes.sp3),
+      _buildToolsCard(context, profile),
+      const SizedBox(height: AppSizes.sp6),
+      _buildFooter(context),
+    ];
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(
+        AppSizes.sp5,
+        AppSizes.sp4,
+        AppSizes.sp5,
+        120,
+      ),
+      itemCount: items.length,
+      itemBuilder: (context, i) => RepaintBoundary(
+        child: items[i],
+      ),
+    );
+  }
+
+  Widget _buildProfileCard(BuildContext context, UserProfile? profile) {
+    final text = context.text;
+    final tokens = context.tokens;
+    return Semantics(
+      label: profile == null
+          ? 'Profil belum diisi, ketuk untuk mengisi'
+          : 'Profil ${profile.name}, kapal ${profile.vesselName}, '
+              'ketuk untuk mengedit',
+      button: true,
+      child: GlassCard(
+        level: GlassLevel.level2,
+        padding: const EdgeInsets.all(AppSizes.sp4),
+        onTap: () => context.push(AppRoutes.profileEdit),
+        child: Row(
           children: [
-            Text(AppStrings.tabSettings, style: text.headlineLarge),
-            const SizedBox(height: AppSizes.sp5),
-
-            // Profile card — tap to edit
-            Semantics(
-              label: profile == null
-                  ? 'Profil belum diisi, ketuk untuk mengisi'
-                  : 'Profil ${profile.name}, kapal ${profile.vesselName}, '
-                      'ketuk untuk mengedit',
-              button: true,
-              child: GlassCard(
-                level: GlassLevel.level2,
-                padding: const EdgeInsets.all(AppSizes.sp4),
-                onTap: () => context.push(AppRoutes.profileEdit),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        gradient: tokens.primaryGradient,
-                        borderRadius: BorderRadius.circular(18),
-                        boxShadow: [
-                          BoxShadow(
-                            color: tokens.glowPrimary,
-                            blurRadius: 20,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        PhosphorIconsFill.sailboat,
-                        color: Colors.white,
-                        size: 28,
-                      ),
-                    ),
-                    const SizedBox(width: AppSizes.sp4),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            profile?.vesselName ?? 'Profil Belum Diisi',
-                            style: text.titleMedium,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _profileSubtitle(profile),
-                            style: text.bodySmall?.copyWith(
-                              color: tokens.textTertiary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(
-                      PhosphorIconsRegular.pencilSimple,
-                      size: 20,
-                      color: tokens.textSecondary,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: AppSizes.sp3),
-
-            // Theme selector
-            GlassCard(
-              level: GlassLevel.level2,
-              padding: const EdgeInsets.all(AppSizes.sp1),
-              child: Column(
-                children: [
-                  _SettingsTile(
-                    iconColor: context.colors.secondary,
-                    iconBg: tokens.accentSoft,
-                    icon: PhosphorIconsBold.moon,
-                    title: 'Tema Aplikasi',
-                    subtitle: _themeLabel(mode),
-                    trailing: SegmentedButton<ThemeMode>(
-                      segments: const [
-                        ButtonSegment(
-                          value: ThemeMode.light,
-                          icon: Icon(PhosphorIconsRegular.sun, size: 16),
-                        ),
-                        ButtonSegment(
-                          value: ThemeMode.dark,
-                          icon: Icon(PhosphorIconsRegular.moon, size: 16),
-                        ),
-                        ButtonSegment(
-                          value: ThemeMode.system,
-                          icon: Icon(PhosphorIconsRegular.circleHalf, size: 16),
-                        ),
-                      ],
-                      selected: {mode},
-                      showSelectedIcon: false,
-                      onSelectionChanged: (s) =>
-                          ref.read(themeModeProvider.notifier).setMode(s.first),
-                    ),
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                gradient: tokens.primaryGradient,
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: tokens.glowPrimary,
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
                   ),
                 ],
               ),
-            ),
-
-            const SizedBox(height: AppSizes.sp3),
-
-            // PR #29: Mode Tracking toggle (Normal / Akurasi).
-            // Diletakkan di atas card "Lebar Bukaan Trawl" supaya
-            // setting yang berdampak permission/notifikasi paling
-            // visible. BatteryOptimizationTile di card di bawah
-            // self-hide kalau mode = Normal.
-            const TrackingModeCard(),
-
-            const SizedBox(height: AppSizes.sp3),
-
-            // Polyline width slider
-            _PolylineWidthCard(),
-
-            const SizedBox(height: AppSizes.sp3),
-
-            // Trawl width quick-glance + offline map entry
-            GlassCard(
-              level: GlassLevel.level2,
-              padding: const EdgeInsets.all(AppSizes.sp1),
-              child: Column(
-                children: [
-                  _SettingsTile(
-                    iconColor: context.colors.secondary,
-                    iconBg: tokens.accentSoft,
-                    icon: PhosphorIconsBold.ruler,
-                    title: 'Lebar Bukaan Trawl',
-                    subtitle: profile == null
-                        ? 'Isi profil untuk mengatur'
-                        : '${_fmtWidth(profile.trawlWidthMeters)} meter',
-                    onTap: profile == null
-                        ? null
-                        : () => context.push(AppRoutes.profileEdit),
-                  ),
-                  Divider(
-                      color: tokens.border,
-                      height: 1,
-                      indent: 16,
-                      endIndent: 16),
-                  _SettingsTile(
-                    iconColor: context.colors.primary,
-                    iconBg: tokens.primarySoft,
-                    icon: PhosphorIconsBold.downloadSimple,
-                    title: 'Peta Offline',
-                    subtitle: 'Download tile agar peta jalan tanpa sinyal',
-                    onTap: () => context.push(AppRoutes.offlineMap),
-                  ),
-                  Divider(
-                      color: tokens.border,
-                      height: 1,
-                      indent: 16,
-                      endIndent: 16),
-                  _SettingsTile(
-                    iconColor: context.colors.primary,
-                    iconBg: tokens.primarySoft,
-                    icon: PhosphorIconsBold.shareFat,
-                    title: 'Ekspor Data',
-                    subtitle: 'Bagikan jalur & penanda dalam format GPX',
-                    onTap: () => context.push(AppRoutes.exportData),
-                  ),
-                  Divider(
-                      color: tokens.border,
-                      height: 1,
-                      indent: 16,
-                      endIndent: 16),
-                  _SettingsTile(
-                    iconColor: context.colors.secondary,
-                    iconBg: tokens.accentSoft,
-                    icon: PhosphorIconsBold.mapPin,
-                    title: 'Kelola Penanda',
-                    subtitle: 'Lihat & atur penanda lokasi di peta',
-                    onTap: () => context.push(AppRoutes.markerList),
-                  ),
-                  Divider(
-                      color: tokens.border,
-                      height: 1,
-                      indent: 16,
-                      endIndent: 16),
-                  // PR #27 R3: tile permission battery optimization
-                  // supaya nelayan bisa atur ulang akurasi-saat-layar-mati
-                  // tanpa harus mulai tarikan dulu. Tile self-hide
-                  // di iOS / desktop.
-                  const BatteryOptimizationTile(),
-                ],
+              child: const Icon(
+                PhosphorIconsFill.sailboat,
+                color: Colors.white,
+                size: 28,
               ),
             ),
-
-            const SizedBox(height: AppSizes.sp4),
-            Text(
-              'Manajemen Data',
-              style: text.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: context.colors.onSurface,
-              ),
-            ),
-            const SizedBox(height: AppSizes.sp2),
-            GlassCard(
-              padding: EdgeInsets.zero,
+            const SizedBox(width: AppSizes.sp4),
+            Expanded(
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  _SettingsTile(
-                    iconColor: context.colors.primary,
-                    iconBg: tokens.primarySoft,
-                    icon: PhosphorIconsBold.export,
-                    title: 'Ekspor Data (GPX)',
-                    subtitle: 'Cadangkan rute dan penanda ke file GPX',
-                    onTap: () async {
-                      try {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Mengekspor data...')),
-                        );
-                        await ref.read(gpxSyncServiceProvider).exportToGpx();
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Gagal mengekspor data.')),
-                          );
-                        }
-                      }
-                    },
-                  ),
-                  Divider(
-                      color: tokens.border,
-                      height: 1,
-                      indent: 16,
-                      endIndent: 16),
-                  _SettingsTile(
-                    iconColor: context.colors.secondary,
-                    iconBg: tokens.accentSoft,
-                    icon: PhosphorIconsBold.download,
-                    title: 'Impor Data (GPX)',
-                    subtitle: 'Pulihkan rute dan penanda dari file GPX',
-                    onTap: () async {
-                      try {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Mengimpor data...')),
-                        );
-                        final count = await ref.read(gpxSyncServiceProvider).importFromGpx();
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Berhasil mengimpor data ($count item).')),
-                          );
-                        }
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Gagal mengimpor data.')),
-                          );
-                        }
-                      }
-                    },
-                  ),
-                  Divider(
-                      color: tokens.border,
-                      height: 1,
-                      indent: 16,
-                      endIndent: 16),
-                  // PR #33: tile Kelola Data Impor — counter dataset
-                  // diambil dari importedDatasetsProvider stream supaya
-                  // langsung sync setelah user import file baru.
-                  _ImportedDatasetsTile(),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: AppSizes.sp6),
-            Center(
-              child: Column(
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: tokens.primarySoft,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      PhosphorIconsFill.anchorSimple,
-                      size: 22,
-                      color: context.colors.primary,
-                    ),
-                  ),
-                  const SizedBox(height: AppSizes.sp2),
                   Text(
-                    'Langgeng Sea v0.1.0 (M8)',
-                    style: text.labelSmall?.copyWith(
-                      color: tokens.textSecondary,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    profile?.vesselName ?? 'Profil Belum Diisi',
+                    style: text.titleMedium,
                   ),
+                  const SizedBox(height: 2),
                   Text(
-                    AppStrings.tagline,
-                    style:
-                        text.labelSmall?.copyWith(color: tokens.textTertiary),
+                    _profileSubtitle(profile),
+                    style: text.bodySmall?.copyWith(
+                      color: tokens.textTertiary,
+                    ),
                   ),
                 ],
               ),
+            ),
+            Icon(
+              PhosphorIconsRegular.pencilSimple,
+              size: 20,
+              color: tokens.textSecondary,
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildThemeCard(BuildContext context, WidgetRef ref, ThemeMode mode) {
+    final tokens = context.tokens;
+    return GlassCard(
+      level: GlassLevel.level2,
+      padding: const EdgeInsets.all(AppSizes.sp1),
+      child: Column(
+        children: [
+          _SettingsTile(
+            iconColor: context.colors.secondary,
+            iconBg: tokens.accentSoft,
+            icon: PhosphorIconsBold.moon,
+            title: 'Tema Aplikasi',
+            subtitle: _themeLabel(mode),
+            trailing: SegmentedButton<ThemeMode>(
+              segments: const [
+                ButtonSegment(
+                  value: ThemeMode.light,
+                  icon: Icon(PhosphorIconsRegular.sun, size: 16),
+                ),
+                ButtonSegment(
+                  value: ThemeMode.dark,
+                  icon: Icon(PhosphorIconsRegular.moon, size: 16),
+                ),
+                ButtonSegment(
+                  value: ThemeMode.system,
+                  icon: Icon(PhosphorIconsRegular.circleHalf, size: 16),
+                ),
+              ],
+              selected: {mode},
+              showSelectedIcon: false,
+              onSelectionChanged: (s) =>
+                  ref.read(themeModeProvider.notifier).setMode(s.first),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToolsCard(BuildContext context, UserProfile? profile) {
+    final tokens = context.tokens;
+    return GlassCard(
+      level: GlassLevel.level2,
+      padding: const EdgeInsets.all(AppSizes.sp1),
+      child: Column(
+        children: [
+          _SettingsTile(
+            iconColor: context.colors.secondary,
+            iconBg: tokens.accentSoft,
+            icon: PhosphorIconsBold.ruler,
+            title: 'Lebar Bukaan Trawl',
+            subtitle: profile == null
+                ? 'Isi profil untuk mengatur'
+                : '${_fmtWidth(profile.trawlWidthMeters)} meter',
+            onTap: profile == null
+                ? null
+                : () => context.push(AppRoutes.profileEdit),
+          ),
+          Divider(
+              color: tokens.border, height: 1, indent: 16, endIndent: 16),
+          _SettingsTile(
+            iconColor: context.colors.primary,
+            iconBg: tokens.primarySoft,
+            icon: PhosphorIconsBold.downloadSimple,
+            title: 'Peta Offline',
+            subtitle: 'Download tile agar peta jalan tanpa sinyal',
+            onTap: () => context.push(AppRoutes.offlineMap),
+          ),
+          Divider(
+              color: tokens.border, height: 1, indent: 16, endIndent: 16),
+          _SettingsTile(
+            iconColor: context.colors.primary,
+            iconBg: tokens.primarySoft,
+            icon: PhosphorIconsBold.shareFat,
+            title: 'Ekspor Data',
+            subtitle: 'Bagikan jalur & penanda dalam format GPX',
+            onTap: () => context.push(AppRoutes.exportData),
+          ),
+          Divider(
+              color: tokens.border, height: 1, indent: 16, endIndent: 16),
+          // PR follow-up: tile Impor Data dipindah dari Manajemen
+          // Data card ke Tools card. Tile yang lama menggunakan
+          // GpxSyncService.importFromGpx() (parser legacy yang
+          // abaikan extension <lsea:haul>). Sekarang push ke
+          // ImportScreen yang pakai GpxImporter baru — fix bug:
+          // 1. Dataset row muncul di Kelola Data Impor
+          // 2. Warna polyline match colorValue dari file
+          // 3. Jarak/durasi/sweptArea match value di lsea:haul
+          _SettingsTile(
+            iconColor: context.colors.secondary,
+            iconBg: tokens.accentSoft,
+            icon: PhosphorIconsBold.download,
+            title: 'Impor Data',
+            subtitle: 'Muat file GPX dari nelayan lain',
+            onTap: () => context.push(AppRoutes.importData),
+          ),
+          Divider(
+              color: tokens.border, height: 1, indent: 16, endIndent: 16),
+          // PR #33: tile Kelola Data Impor pindah dari Manajemen
+          // Data card ke Tools card supaya semua data management
+          // ada di satu tempat.
+          _ImportedDatasetsTile(),
+          Divider(
+              color: tokens.border, height: 1, indent: 16, endIndent: 16),
+          _SettingsTile(
+            iconColor: context.colors.secondary,
+            iconBg: tokens.accentSoft,
+            icon: PhosphorIconsBold.mapPin,
+            title: 'Kelola Penanda',
+            subtitle: 'Lihat & atur penanda lokasi di peta',
+            onTap: () => context.push(AppRoutes.markerList),
+          ),
+          Divider(
+              color: tokens.border, height: 1, indent: 16, endIndent: 16),
+          // PR #27 R3: tile permission battery optimization
+          // supaya nelayan bisa atur ulang akurasi-saat-layar-mati
+          // tanpa harus mulai tarikan dulu. Tile self-hide
+          // di iOS / desktop.
+          const BatteryOptimizationTile(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooter(BuildContext context) {
+    final text = context.text;
+    final tokens = context.tokens;
+    return Center(
+      child: Column(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: tokens.primarySoft,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              PhosphorIconsFill.anchorSimple,
+              size: 22,
+              color: context.colors.primary,
+            ),
+          ),
+          const SizedBox(height: AppSizes.sp2),
+          Text(
+            'Langgeng Sea v0.1.0 (M8)',
+            style: text.labelSmall?.copyWith(
+              color: tokens.textSecondary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          Text(
+            AppStrings.tagline,
+            style: text.labelSmall?.copyWith(color: tokens.textTertiary),
+          ),
+        ],
       ),
     );
   }
@@ -456,12 +417,29 @@ class _SettingsTile extends StatelessWidget {
 }
 
 /// Card with a slider to adjust the map polyline width (4–16px).
-class _PolylineWidthCard extends ConsumerWidget {
+class _PolylineWidthCard extends ConsumerStatefulWidget {
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_PolylineWidthCard> createState() =>
+      _PolylineWidthCardState();
+}
+
+class _PolylineWidthCardState extends ConsumerState<_PolylineWidthCard> {
+  /// Draft value selama user drag slider. Null = pakai value
+  /// committed dari provider. Saat user lepas slider (`onChangeEnd`),
+  /// kita commit sekali ke DB lalu reset draft → provider stream
+  /// emit nilai baru → null fallback ke committed.
+  ///
+  /// Tujuan: hindari DB write per drag-tick (12 commit untuk slider
+  /// 4→16) yang trigger Drift stream re-emit + MapScreen polyline
+  /// rebuild.
+  double? _draftValue;
+
+  @override
+  Widget build(BuildContext context) {
     final text = context.text;
     final tokens = context.tokens;
-    final currentWidth = ref.watch(polylineWidthProvider);
+    final committedWidth = ref.watch(polylineWidthProvider);
+    final currentWidth = _draftValue ?? committedWidth;
 
     return GlassCard(
       level: GlassLevel.level2,
@@ -512,7 +490,9 @@ class _PolylineWidthCard extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: AppSizes.sp2),
-            // Visual preview line
+            // Visual preview line — pakai currentWidth (draft) supaya
+            // user dapat feedback realtime saat drag tanpa harus
+            // commit ke DB.
             Container(
               height: currentWidth,
               decoration: BoxDecoration(
@@ -537,9 +517,17 @@ class _PolylineWidthCard extends ConsumerWidget {
                 max: 16,
                 divisions: 12,
                 onChanged: (value) {
-                  ref
+                  // Local state only — TIDAK commit ke DB di sini.
+                  setState(() => _draftValue = value);
+                },
+                onChangeEnd: (value) async {
+                  // Commit final value ke DB sekali, lalu reset draft.
+                  await ref
                       .read(appSettingsRepositoryProvider)
                       .setPolylineWidth(value.round());
+                  if (mounted) {
+                    setState(() => _draftValue = null);
+                  }
                 },
               ),
             ),
