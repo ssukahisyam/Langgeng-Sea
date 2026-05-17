@@ -9,6 +9,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/ambient_background.dart';
 import '../../../core/widgets/glass_card.dart';
+import '../../export_import/data/imported_dataset_repository.dart';
 import '../../logbook/data/log_book_repository.dart';
 import '../../logbook/domain/entities/log_book_entry.dart';
 import '../../map/application/map_overlay_state.dart';
@@ -117,6 +118,19 @@ class TripDetailScreen extends ConsumerWidget {
 
     switch (result) {
       case ItemOption.rename:
+        // PR #33: imported trip tidak boleh di-rename. Repo throw
+        // StateError, tapi guard di sini supaya snackbar lebih clear.
+        if (trip.isImported) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Trip dari data impor tidak bisa diedit. Hapus dataset utuh dari Kelola Data Impor.',
+              ),
+              duration: Duration(seconds: 3),
+            ),
+          );
+          break;
+        }
         final newName = await RenameDialog.show(
           context,
           title: 'Ubah Nama Trip',
@@ -139,7 +153,15 @@ class TripDetailScreen extends ConsumerWidget {
               'ikut terhapus. Tindakan ini tidak dapat dibatalkan.',
         );
         if (!confirmed || !context.mounted) return;
+        // PR #33: simpan datasetId sebelum delete untuk auto-cleanup
+        // empty dataset setelah child terakhir dihapus.
+        final datasetId = trip.datasetId;
         await ref.read(tripRepositoryProvider).deleteTrip(trip.id);
+        if (datasetId != null) {
+          await ref
+              .read(importedDatasetRepositoryProvider)
+              .autoCleanupIfEmpty(datasetId);
+        }
         if (!context.mounted) return;
         _pop(context);
       case ItemOption.dismissed:

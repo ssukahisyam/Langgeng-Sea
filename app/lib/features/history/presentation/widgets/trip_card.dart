@@ -52,11 +52,21 @@ class TripCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      title,
-                      style: text.titleMedium,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            title,
+                            style: text.titleMedium,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (trip.isImported) ...[
+                          const SizedBox(width: AppSizes.sp2),
+                          _ImportedBadge(),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -184,6 +194,45 @@ class _ActiveBadge extends StatelessWidget {
               fontWeight: FontWeight.w800,
               fontSize: 10,
               letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Badge "Impor" untuk trip yang berasal dari file GPX (PR #33).
+class _ImportedBadge extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final text = context.text;
+    final tokens = context.tokens;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.sp2 + 2,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        color: tokens.accentSoft,
+        borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            PhosphorIconsBold.download,
+            size: 11,
+            color: context.colors.secondary,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            'Impor',
+            style: text.labelSmall?.copyWith(
+              color: context.colors.secondary,
+              fontWeight: FontWeight.w700,
+              fontSize: 10,
+              letterSpacing: 0.3,
             ),
           ),
         ],
