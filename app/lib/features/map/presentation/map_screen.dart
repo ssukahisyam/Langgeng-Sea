@@ -98,6 +98,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
   bool _headingUpMode = false;
   static bool _checkedRecovery = false;
 
+  /// PR #32: GlobalKey untuk Add Marker FAB. Dipakai oleh
+  /// MarkerPickTooltip untuk menentukan posisi target tooltip
+  /// saat first-time hint ditampilkan.
+  final GlobalKey _addMarkerKey = GlobalKey(debugLabel: 'addMarkerFab');
+
   /// Active popup for tapped polyline track. Null when no popup is shown.
   HaulTrackRender? _activePopupTrack;
   LatLng? _activePopupLatLng;
@@ -440,6 +445,33 @@ class _MapScreenState extends ConsumerState<MapScreen>
   /// Reset mode tanpa side effect.
   void _onPickMarkerCancel() {
     ref.read(markerPickActiveProvider.notifier).state = false;
+  }
+
+  /// PR #32: handler long-press tombol Add Marker. Masuk mode
+  /// `pickMarkerLocation` setelah haptic feedback. Guard:
+  /// - Block kalau ada haul yang sedang recording (R6 AC1) — user
+  ///   diberi snackbar penjelasan.
+  /// - Block kalau location permission belum granted — pakai snackbar
+  ///   yang sama dengan tap pendek.
+  Future<void> _onAddMarkerLongPress(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final isRecording = ref.read(trackingControllerProvider).isRecording;
+    if (isRecording) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Selesaikan tracking dulu untuk menandai lokasi non-GPS.',
+          ),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+    await _haptic();
+    if (!context.mounted) return;
+    ref.read(markerPickActiveProvider.notifier).state = true;
   }
 
   // ---------------------------------------------------------------------
@@ -1054,7 +1086,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   : AppSizes.sp4,
               child: _AddMarkerButton(
                 onTap: () => _onAddMarkerPressed(context, ref),
+                onLongPress: () => _onAddMarkerLongPress(context, ref),
                 enabled: hasPermission,
+                targetKey: _addMarkerKey,
               ),
             ),
 
@@ -1358,24 +1392,43 @@ class _MarkersToggle extends StatelessWidget {
 // ===========================================================================
 
 class _AddMarkerButton extends StatelessWidget {
-  const _AddMarkerButton({required this.onTap, required this.enabled});
+  const _AddMarkerButton({
+    required this.onTap,
+    required this.onLongPress,
+    required this.enabled,
+    this.targetKey,
+  });
 
   final VoidCallback onTap;
+
+  /// PR #32: long-press masuk mode `pickMarkerLocation`. Caller
+  /// bertanggung jawab atas haptic feedback (tidak dilakukan di
+  /// widget ini supaya logic mode + guard recording berada di
+  /// caller, bukan di leaf widget).
+  final VoidCallback onLongPress;
+
   final bool enabled;
+
+  /// Optional global key untuk first-time tooltip (PR #32 R4).
+  /// Ditempatkan di widget tombol supaya tooltip tahu posisi target.
+  final GlobalKey? targetKey;
 
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     return Semantics(
-      label: 'Tambah penanda di posisi saat ini',
+      label: 'Tambah penanda di posisi saat ini. '
+          'Tekan lama untuk pilih lokasi di peta.',
       button: true,
       enabled: enabled,
       child: GlassCard(
+        key: targetKey,
         level: GlassLevel.level2,
         borderRadius: BorderRadius.circular(AppSizes.radiusPill),
         padding: EdgeInsets.zero,
         child: InkWell(
           onTap: enabled ? onTap : null,
+          onLongPress: enabled ? onLongPress : null,
           borderRadius: BorderRadius.circular(AppSizes.radiusPill),
           child: Container(
             width: 52,
