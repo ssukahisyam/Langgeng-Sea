@@ -1314,14 +1314,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
                         ),
                       ),
                     ),
-                  // Mode Normal info banner (PR #29 R2 AC7).
-                  // Muncul saat tracking aktif di mode Normal supaya
-                  // user paham bahwa tracking akan pause kalau app
-                  // dipindah ke background / layar mati. Banner ini
-                  // dan banner backgroundDegraded di atas saling
-                  // exclusive secara natural — di mode Normal,
-                  // backgroundStatus = stopped, jadi
-                  // backgroundDegraded = false.
+                  // Mode Normal info banner.
+                  // PR follow-up Bug 1: Mode Normal sekarang tetap
+                  // pakai foreground service (best-effort screen-off
+                  // tanpa optimasi baterai). Banner di-update supaya
+                  // konsisten dengan behavior baru.
                   if (isRecording &&
                       trackingMode == TrackingMode.normal &&
                       !trackingState.backgroundDegraded)
@@ -1343,7 +1340,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                             const SizedBox(width: AppSizes.sp2),
                             Expanded(
                               child: Text(
-                                'Mode Normal — tracking pause saat layar mati',
+                                'Mode Normal — best-effort, tanpa optimasi baterai',
                                 style: context.text.bodySmall?.copyWith(
                                   color: context.tokens.textSecondary,
                                   fontSize: 11,

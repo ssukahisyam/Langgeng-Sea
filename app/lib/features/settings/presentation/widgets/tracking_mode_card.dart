@@ -193,9 +193,9 @@ class _TrackingModeCardState extends ConsumerState<TrackingModeCard> {
             ),
             SizedBox(height: 4),
             Text(
-              'Tracking pause saat layar mati atau aplikasi di-background. '
-              'Cocok untuk trip pendek dengan layar selalu aktif. '
-              'Hemat baterai, tidak butuh izin tambahan.',
+              'Tracking tetap berusaha merekam saat layar mati, tapi tanpa '
+              'optimasi baterai sehingga hasilnya bisa kurang akurat di '
+              'beberapa device. Memerlukan izin notifikasi.',
             ),
             SizedBox(height: 12),
             Text(
@@ -204,7 +204,7 @@ class _TrackingModeCardState extends ConsumerState<TrackingModeCard> {
             ),
             SizedBox(height: 4),
             Text(
-              'Tracking tetap merekam saat layar mati & aplikasi di belakang. '
+              'Tracking tetap merekam saat layar mati dengan akurasi maksimal. '
               'Cocok untuk trip panjang. Memerlukan izin notifikasi dan '
               'pengoptimalan baterai.',
             ),
