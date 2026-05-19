@@ -57,13 +57,14 @@ enum TrackingMode {
   /// yang sedang aktif. Bahasa Indonesia, ringkas (≤ 1 baris di
   /// layar Redmi Note 10 Pro).
   ///
-  /// Wording diperjelas (post-PR #29) supaya user paham bahwa Mode
-  /// Normal SENGAJA tidak track saat layar mati — bukan bug. User
-  /// yang butuh tracking screen-off harus pindah ke Mode Akurasi.
+  /// Wording diperjelas (post-PR follow-up Bug 1) supaya user paham
+  /// bahwa Mode Normal sekarang tetap pakai foreground service
+  /// (best-effort screen-off) tapi tanpa minta izin baterai. Mode
+  /// Akurasi tetap full path dengan battery optimization.
   String get subtitle => switch (this) {
         TrackingMode.normal =>
-          'Tracking hanya saat aplikasi terbuka & layar aktif. Hemat baterai.',
+          'Best-effort layar mati, tanpa izin baterai. Hemat tapi kurang akurat.',
         TrackingMode.accurate =>
-          'Tracking tetap merekam saat layar mati. Memerlukan izin notifikasi.',
+          'Tracking akurat saat layar mati. Memerlukan izin notifikasi & baterai.',
       };
 }

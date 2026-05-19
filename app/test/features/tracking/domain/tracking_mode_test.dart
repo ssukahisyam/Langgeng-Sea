@@ -45,10 +45,13 @@ void main() {
   });
 
   group('TrackingMode.subtitle', () {
-    test('Normal subtitle menjelaskan foreground-only behavior', () {
+    test('Normal subtitle menjelaskan best-effort screen-off behavior', () {
       final s = TrackingMode.normal.subtitle;
-      expect(s, contains('aplikasi terbuka'));
-      expect(s.toLowerCase(), contains('hemat baterai'));
+      // PR follow-up Bug 1: wording diperbarui supaya match behavior
+      // baru — Mode Normal pakai foreground service tanpa battery
+      // optimization (best-effort).
+      expect(s.toLowerCase(), contains('best-effort'));
+      expect(s.toLowerCase(), contains('layar mati'));
     });
 
     test('Akurasi subtitle menjelaskan foreground service behavior', () {
