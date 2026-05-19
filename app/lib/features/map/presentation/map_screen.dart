@@ -67,9 +67,11 @@ import 'widgets/location_permission_sheet.dart';
 import 'widgets/map_attribution.dart';
 import 'widgets/map_controls.dart';
 import 'widgets/marker_pick_tooltip.dart';
+import 'widgets/offline_regions_layer.dart';
 import 'widgets/pick_location_overlay.dart';
 import 'widgets/track_popup.dart';
 import '../../export_import/data/imported_dataset_repository.dart';
+import '../../offline_map/data/offline_region_repository.dart';
 
 /// Home tab — map + live GPS position + haul recording controls.
 class MapScreen extends ConsumerStatefulWidget {
@@ -1004,12 +1006,43 @@ class _MapScreenState extends ConsumerState<MapScreen>
                         ref.read(tileCacheServiceProvider).cachedTileProvider(
                               userAgentPackageName: 'id.co.langgengsea',
                             ),
+                    // PR follow-up Bug 2: kurangi area abu-abu saat
+                    // tracking. keepBuffer 4 menahan tile yang sudah
+                    // di-load supaya tidak di-prune saat user pan
+                    // sedikit. panBuffer 2 pre-fetch ring 2 tile di
+                    // luar viewport supaya zoom cepat tidak bikin
+                    // gap. Default flutter_map keepBuffer=2,
+                    // panBuffer=1 -- mid-range Android cukup untuk
+                    // 4/2 tanpa memory pressure berarti.
+                    keepBuffer: 4,
+                    panBuffer: 2,
+                    errorTileCallback: (tile, error, stack) {
+                      Logger.instance.warn(
+                        'map.tile_load_failed',
+                        {
+                          'z': tile.coordinates.z,
+                          'x': tile.coordinates.x,
+                          'y': tile.coordinates.y,
+                          'error': error.toString(),
+                        },
+                      );
+                    },
                   ),
                   TileLayer(
                     urlTemplate:
                         'https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png',
                     userAgentPackageName: 'id.co.langgengsea',
+                    keepBuffer: 4,
+                    panBuffer: 2,
                   ),
+                  // PR follow-up Bug 3: visual area peta offline yang
+                  // sudah didownload. PolygonLayer di-render setelah
+                  // base tile + seamark, sebelum polyline tracking
+                  // supaya area highlight tidak menutupi jejak.
+                  // Toggle visibility lewat offlineRegionsOverlayProvider
+                  // (default off, di-control dari MapControls).
+                  if (ref.watch(offlineRegionsOverlayProvider))
+                    OfflineRegionsLayer(),
                   if (allHistoryTracks.isNotEmpty)
                     HistoryPolylineLayer(
                       tracks: allHistoryTracks,
@@ -1255,6 +1288,33 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       notifier.state = !notifier.state;
                     },
                   ),
+                  // PR follow-up Bug 3: tombol toggle area peta offline
+                  // yang sudah didownload. Self-hide kalau belum ada
+                  // region completed (clean UI untuk user yang belum
+                  // pernah pakai fitur Peta Offline).
+                  Consumer(builder: (context, ref, _) {
+                    final regions =
+                        ref.watch(offlineRegionsProvider).asData?.value ??
+                            const [];
+                    final hasCompleted =
+                        regions.any((r) => r.isReady);
+                    if (!hasCompleted) {
+                      return const SizedBox.shrink();
+                    }
+                    final overlayOn =
+                        ref.watch(offlineRegionsOverlayProvider);
+                    return Padding(
+                      padding: const EdgeInsets.only(top: AppSizes.sp2),
+                      child: _OfflineRegionsToggle(
+                        on: overlayOn,
+                        onTap: () {
+                          final notifier =
+                              ref.read(offlineRegionsOverlayProvider.notifier);
+                          notifier.state = !notifier.state;
+                        },
+                      ),
+                    );
+                  }),
                   const SizedBox(height: AppSizes.sp2),
                   const GpsAccuracyChip(),
                 ],
@@ -1458,6 +1518,50 @@ class _AllHistoryToggle extends StatelessWidget {
               on
                   ? PhosphorIconsFill.footprints
                   : PhosphorIconsRegular.footprints,
+              color: color,
+              size: 20,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Toggle visibility area peta offline yang sudah didownload (PR
+/// follow-up Bug 3). Mirror style dengan `_AllHistoryToggle` supaya
+/// konsisten visual di kolom kontrol kanan.
+class _OfflineRegionsToggle extends StatelessWidget {
+  const _OfflineRegionsToggle({required this.on, required this.onTap});
+
+  final bool on;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final color = on ? context.colors.primary : tokens.textTertiary;
+    return Semantics(
+      label: on
+          ? 'Sembunyikan area peta offline'
+          : 'Tampilkan area peta offline yang sudah didownload',
+      button: true,
+      toggled: on,
+      child: GlassCard(
+        level: GlassLevel.level2,
+        borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+        padding: EdgeInsets.zero,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+          child: Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            child: Icon(
+              on
+                  ? PhosphorIconsFill.downloadSimple
+                  : PhosphorIconsRegular.downloadSimple,
               color: color,
               size: 20,
             ),
