@@ -10,6 +10,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../core/constants/app_strings.dart';
+import '../../../core/observability/logger.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/services/gps_reading.dart';
 import '../../../core/services/gps_service.dart';
