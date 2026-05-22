@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:langgeng_sea/core/settings/data/app_settings_repository.dart';
 import 'package:langgeng_sea/core/settings/domain/entities/app_settings.dart';
 import 'package:langgeng_sea/data/database/app_database.dart';
+import 'package:langgeng_sea/features/tracking/domain/entities/tracking_mode.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -32,12 +33,14 @@ void main() {
           alarmSoundEnabled: true,
           alarmVibrateEnabled: true,
           polylineWidth: 10,
+          trackingMode: TrackingMode.accurate,
           updatedAt: t,
         ),
         AppSettings(
           alarmSoundEnabled: true,
           alarmVibrateEnabled: true,
           polylineWidth: 10,
+          trackingMode: TrackingMode.accurate,
           updatedAt: t,
         ),
       );
@@ -63,8 +66,7 @@ void main() {
       expect(s.alarmVibrateEnabled, isTrue);
     });
 
-    test('setSoundEnabled persists and read-back reflects change',
-        () async {
+    test('setSoundEnabled persists and read-back reflects change', () async {
       await repo.setSoundEnabled(false);
       final s = await repo.get();
       expect(s.alarmSoundEnabled, isFalse);
@@ -79,8 +81,7 @@ void main() {
       expect(s.alarmSoundEnabled, isTrue);
     });
 
-    test('watch() emits an initial value then reacts to updates',
-        () async {
+    test('watch() emits an initial value then reacts to updates', () async {
       final values = <AppSettings>[];
       final sub = repo.watch().listen(values.add);
 

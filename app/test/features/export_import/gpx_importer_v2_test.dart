@@ -6,7 +6,11 @@
 // Strategy: pakai in-memory AppDatabase (Drift), bypass repository
 // FK kompleks dengan langsung verify count + kategori marker.
 
-import 'package:drift/drift.dart';
+// PR #40: drift exports `isNull`/`isNotNull` matchers for SQL builder
+// expressions yang clash dengan flutter_test matchers di test ini.
+// Hide drift's matchers supaya `expect(..., isNull)` tetap pakai
+// matcher version dari flutter_test.
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -264,8 +268,7 @@ void main() {
       expect(inserted, 8);
 
       // Verify dataset row
-      final datasetRepo =
-          container.read(importedDatasetRepositoryProvider);
+      final datasetRepo = container.read(importedDatasetRepositoryProvider);
       final datasets = await datasetRepo.getAll();
       expect(datasets, hasLength(1));
       final ds = datasets.single;
@@ -332,17 +335,14 @@ void main() {
       );
       await importer.import(preview);
 
-      final tripRows = await db
-          .customSelect('SELECT name FROM trips')
-          .get();
+      final tripRows = await db.customSelect('SELECT name FROM trips').get();
       expect(tripRows, hasLength(1));
       // Tanpa <lsea:trip> extension, tripName = null. Group key
       // jadi '_default' → fallback name "Impor: {filename}".
       expect(tripRows.single.data['name'], 'Impor: osmand.gpx');
 
-      final markerRows = await db
-          .customSelect("SELECT category FROM markers")
-          .get();
+      final markerRows =
+          await db.customSelect("SELECT category FROM markers").get();
       expect(markerRows, hasLength(1));
       expect(markerRows.single.data['category'], 'other');
     });
