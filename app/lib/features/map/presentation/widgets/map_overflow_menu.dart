@@ -4,35 +4,31 @@ import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../../core/router/app_router.dart';
+import '../../../../core/theme/app_sizes.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/glass_card.dart';
 import '../../application/all_history_visible_provider.dart';
 import '../../application/map_mode.dart';
 import '../../application/map_mode_provider.dart';
 
-/// Three-dot overflow menu for `Map_Screen`.
+/// Three-dot overflow menu for `MapScreen`.
 ///
-/// Hosts controls that the adaptive UI hides from the primary toolbar
-/// depending on the current [MapMode] — without itself changing the
-/// mode. Pulled out of `Map_Screen` as a standalone widget so its
-/// visibility rules (see Requirement 4.10) stay testable in isolation.
+/// Hosts secondary controls supaya kolom kanan tidak sesak. Sejak
+/// PR #40 entry "Kalibrasi kompas" di-pindah ke sini dari kolom
+/// utama (sebelumnya selalu mengambil slot di [MapControls]).
 ///
-/// Minimum contents mandated by Requirement 4.10:
-///   (a) Toggle History_Overlay when it is active but its toolbar
-///       control is hidden (Tracking / Navigating modes).
-///   (b) "Tambah penanda di sini" — quick marker creation at the
-///       current map center. The caller owns the "current center"
-///       resolution and passes a ready-to-fire [onAddMarkerHere].
-///   (c) Quick access to [MarkersListScreen] via the shared router.
+/// Isi default:
+///   - Kalibrasi kompas → push ke `AppRoutes.compass`
+///   - Toggle History_Overlay (mempertahankan label dinamis)
+///   - "Tambah penanda di sini" — dijalankan via [onAddMarkerHere]
+///   - "Kelola penanda" → push ke `AppRoutes.markerList`
+///   - "Paskan semua" — kondisional via [onFitAll], hanya muncul
+///     saat mode bukan [MapMode.viewingHistory] (mode itu sudah
+///     punya tombol Paskan sendiri di `HistoryOverlayControls`).
 ///
-/// An additional "Paskan semua" item surfaces whenever [onFitAll] is
-/// provided and [MapMode] is not [MapMode.viewingHistory] — the
-/// viewing-history mode already exposes that button in its dedicated
-/// controls widget, so duplicating it there would clutter the menu.
-///
-/// The menu intentionally does NOT consume tracking / navigation
-/// controllers; toggling `allHistoryVisibleProvider` stays a pure
-/// data mutation, the mode priority rule (`mapModeProvider`) re-reads
-/// it on the next frame. That keeps the menu side-effect-free with
-/// respect to [MapMode].
+/// Trigger: pakai [MapActionButton] supaya seragam dengan tombol
+/// floating lain (44×44, GlassCard level2). Sebelumnya pakai
+/// [PopupMenuButton] default yang lebih besar dan tidak match style.
 class MapOverflowMenu extends ConsumerWidget {
   const MapOverflowMenu({
     super.key,
@@ -62,10 +58,17 @@ class MapOverflowMenu extends ConsumerWidget {
 
     return PopupMenuButton<_MenuAction>(
       tooltip: 'Menu peta',
-      icon: const Icon(PhosphorIconsRegular.dotsThreeVertical),
       position: PopupMenuPosition.under,
       onSelected: (action) => _handle(context, ref, action),
+      child: const _OverflowTriggerButton(),
       itemBuilder: (context) => <PopupMenuEntry<_MenuAction>>[
+        const PopupMenuItem<_MenuAction>(
+          value: _MenuAction.compassCalibration,
+          child: _MenuRow(
+            icon: PhosphorIconsBold.compass,
+            label: 'Kalibrasi kompas',
+          ),
+        ),
         PopupMenuItem<_MenuAction>(
           value: _MenuAction.toggleHistory,
           child: _MenuRow(
@@ -104,6 +107,8 @@ class MapOverflowMenu extends ConsumerWidget {
 
   void _handle(BuildContext context, WidgetRef ref, _MenuAction action) {
     switch (action) {
+      case _MenuAction.compassCalibration:
+        context.push(AppRoutes.compass);
       case _MenuAction.toggleHistory:
         final notifier = ref.read(allHistoryVisibleProvider.notifier);
         notifier.state = !notifier.state;
@@ -117,10 +122,42 @@ class MapOverflowMenu extends ConsumerWidget {
   }
 }
 
+/// Trigger visual untuk PopupMenuButton supaya ukurannya seragam
+/// dengan tombol floating lain (44×44, GlassCard level2).
+///
+/// Tidak pakai [MapActionButton] sebagai child PopupMenuButton karena
+/// MapActionButton punya InkWell sendiri yang akan menelan tap event
+/// — PopupMenuButton ber-rely pada GestureDetector internal yang tap
+/// child-nya. Jadi kita re-render visual MapActionButton tanpa
+/// InkWell di sini, dan biarkan PopupMenuButton handle tap.
+class _OverflowTriggerButton extends StatelessWidget {
+  const _OverflowTriggerButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    return GlassCard(
+      level: GlassLevel.level2,
+      padding: EdgeInsets.zero,
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      child: SizedBox(
+        width: 44,
+        height: 44,
+        child: Icon(
+          PhosphorIconsRegular.dotsThreeVertical,
+          color: tokens.textSecondary,
+          size: 22,
+        ),
+      ),
+    );
+  }
+}
+
 /// Intent identifiers for [MapOverflowMenu] entries. Kept as a private
 /// enum so the public API is a typed callback surface, not a string
 /// soup.
 enum _MenuAction {
+  compassCalibration,
   toggleHistory,
   addMarkerHere,
   manageMarkers,

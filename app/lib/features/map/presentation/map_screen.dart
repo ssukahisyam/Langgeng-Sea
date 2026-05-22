@@ -66,12 +66,13 @@ import 'widgets/history_polyline_layer.dart';
 import 'widgets/location_permission_sheet.dart';
 import 'widgets/map_attribution.dart';
 import 'widgets/map_controls.dart';
+import 'widgets/map_layers_expandable.dart';
+import 'widgets/map_overflow_menu.dart';
 import 'widgets/marker_pick_tooltip.dart';
 import 'widgets/offline_regions_layer.dart';
 import 'widgets/pick_location_overlay.dart';
 import 'widgets/track_popup.dart';
 import '../../export_import/data/imported_dataset_repository.dart';
-import '../../offline_map/data/offline_region_repository.dart';
 
 /// Home tab — map + live GPS position + haul recording controls.
 class MapScreen extends ConsumerStatefulWidget {
@@ -1138,6 +1139,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
             // already moves into the navigation panel header context;
             // the user can re-open the full top panel by stopping
             // navigation. This dramatically reduces vertical clutter.
+            //
+            // PR #40: GpsAccuracyChip dipindah dari kolom kanan ke
+            // sini (sebelah kanan top bar) supaya ukuran kolom kanan
+            // konsisten dan info status GPS tetap menonjol di area
+            // perhatian utama.
             Positioned(
               top: AppSizes.sp3,
               left: AppSizes.sp4,
@@ -1148,7 +1154,18 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   // entirely. The NavigationPanel below carries the
                   // primary context (target + progress).
                   if (navActive == null) ...[
-                    if (isRecording) const LiveStatsPanel() else _IdleAppBar(),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: isRecording
+                              ? const LiveStatsPanel()
+                              : _IdleAppBar(),
+                        ),
+                        const SizedBox(width: AppSizes.sp2),
+                        const GpsAccuracyChip(),
+                      ],
+                    ),
                   ],
                   if (overlayActive && overlayAsync != null) ...[
                     const SizedBox(height: AppSizes.sp2),
@@ -1162,11 +1179,23 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   ],
                   if (navActive != null) ...[
                     if (overlayActive) const SizedBox(height: AppSizes.sp2),
-                    NavigationPanel(
-                      state: navActive,
-                      onStop: () => ref
-                          .read(navigationControllerProvider.notifier)
-                          .stop(),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: NavigationPanel(
+                            state: navActive,
+                            onStop: () => ref
+                                .read(navigationControllerProvider.notifier)
+                                .stop(),
+                          ),
+                        ),
+                        const SizedBox(width: AppSizes.sp2),
+                        const Padding(
+                          padding: EdgeInsets.only(top: AppSizes.sp2),
+                          child: GpsAccuracyChip(),
+                        ),
+                      ],
                     ),
                     // While navigating + recording, surface a compact
                     // mini banner so Mulai/Berhenti remains accessible
@@ -1228,6 +1257,17 @@ class _MapScreenState extends ConsumerState<MapScreen>
             ),
 
             // --- Right-side floating controls ---
+            //
+            // PR #40 — kolom kanan dirombak:
+            // - Tombol toggle layer (markers, all-history, offline,
+            //   dataset filter) dijahit ke MapLayersExpandable supaya
+            //   kolom tidak sesak dan ukurannya seragam.
+            // - Kompas calibration pindah ke MapOverflowMenu.
+            // - GpsAccuracyChip dipindah ke top bar (lihat
+            //   Positioned top di bawah).
+            // Sekarang kolom kanan permanen: Layers + Overflow +
+            // Center-on-me. MiniTrackingButton tetap kondisional saat
+            // navigasi aktif.
             Positioned(
               right: AppSizes.sp4,
               bottom: (mode == MapMode.idle ||
@@ -1241,11 +1281,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 crossAxisAlignment: CrossAxisAlignment.end,
                 verticalDirection: VerticalDirection.up,
                 children: [
+                  // Bottom-most di layar (verticalDirection.up): CTA
+                  // primary "Ke posisi saya".
                   MapControls(
                     onCenterOnMe: _centerOnMe,
                     centerEnabled: hasPermission,
-                    showCompass: true,
-                    onCompassCalibration: () => context.push(AppRoutes.compass),
+                    showCompass: false,
                   ),
                   if (navActive != null) ...[
                     const SizedBox(height: AppSizes.sp2),
@@ -1256,69 +1297,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     ),
                   ],
                   const SizedBox(height: AppSizes.sp2),
-                  _MarkersToggle(
-                    on: markersOn,
-                    onTap: () {
-                      final notifier =
-                          ref.read(markersOverlayEnabledProvider.notifier);
-                      notifier.state = !notifier.state;
-                    },
+                  MapLayersExpandable(
+                    onOpenDatasetFilter: () => _showDatasetFilterSheet(context),
                   ),
-                  // PR #33: tombol filter dataset import. Self-hide
-                  // kalau belum ada dataset diimpor (clean UI).
-                  Consumer(builder: (context, ref, _) {
-                    final datasets =
-                        ref.watch(importedDatasetsProvider).asData?.value;
-                    if (datasets == null || datasets.isEmpty) {
-                      return const SizedBox.shrink();
-                    }
-                    final visibleCount =
-                        datasets.where((d) => d.visible).length;
-                    return Padding(
-                      padding: const EdgeInsets.only(top: AppSizes.sp2),
-                      child: _DatasetFilterToggle(
-                        visibleCount: visibleCount,
-                        totalCount: datasets.length,
-                        onTap: () => _showDatasetFilterSheet(context),
-                      ),
-                    );
-                  }),
                   const SizedBox(height: AppSizes.sp2),
-                  _AllHistoryToggle(
-                    on: allHistoryOn,
-                    onTap: () {
-                      final notifier =
-                          ref.read(allHistoryVisibleProvider.notifier);
-                      notifier.state = !notifier.state;
-                    },
+                  MapOverflowMenu(
+                    onAddMarkerHere: () => _onAddMarkerPressed(context, ref),
                   ),
-                  // PR follow-up Bug 3: tombol toggle area peta offline
-                  // yang sudah didownload. Self-hide kalau belum ada
-                  // region completed (clean UI untuk user yang belum
-                  // pernah pakai fitur Peta Offline).
-                  Consumer(builder: (context, ref, _) {
-                    final regions =
-                        ref.watch(offlineRegionsProvider).asData?.value ??
-                            const [];
-                    final hasCompleted = regions.any((r) => r.isReady);
-                    if (!hasCompleted) {
-                      return const SizedBox.shrink();
-                    }
-                    final overlayOn = ref.watch(offlineRegionsOverlayProvider);
-                    return Padding(
-                      padding: const EdgeInsets.only(top: AppSizes.sp2),
-                      child: _OfflineRegionsToggle(
-                        on: overlayOn,
-                        onTap: () {
-                          final notifier =
-                              ref.read(offlineRegionsOverlayProvider.notifier);
-                          notifier.state = !notifier.state;
-                        },
-                      ),
-                    );
-                  }),
-                  const SizedBox(height: AppSizes.sp2),
-                  const GpsAccuracyChip(),
                 ],
               ),
             ),
@@ -1453,132 +1438,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
 }
 
 // ===========================================================================
-// All-history footprints toggle (sits right under the GPS accuracy chip)
+// PR #40: _AllHistoryToggle, _OfflineRegionsToggle, _MarkersToggle
+// dipindah ke widgets/map_layers_expandable.dart sebagai entries di
+// dalam panel expandable. Class-class lama dihapus karena tidak ada
+// caller lagi.
 // ===========================================================================
-
-class _AllHistoryToggle extends StatelessWidget {
-  const _AllHistoryToggle({required this.on, required this.onTap});
-
-  final bool on;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.tokens;
-    final color = on ? context.colors.primary : tokens.textTertiary;
-    return Semantics(
-      label: on ? 'Sembunyikan jejak riwayat' : 'Tampilkan semua riwayat',
-      button: true,
-      toggled: on,
-      child: GlassCard(
-        level: GlassLevel.level2,
-        borderRadius: BorderRadius.circular(AppSizes.radiusPill),
-        padding: EdgeInsets.zero,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(AppSizes.radiusPill),
-          child: Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            child: Icon(
-              on
-                  ? PhosphorIconsFill.footprints
-                  : PhosphorIconsRegular.footprints,
-              color: color,
-              size: 20,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Toggle visibility area peta offline yang sudah didownload (PR
-/// follow-up Bug 3). Mirror style dengan `_AllHistoryToggle` supaya
-/// konsisten visual di kolom kontrol kanan.
-class _OfflineRegionsToggle extends StatelessWidget {
-  const _OfflineRegionsToggle({required this.on, required this.onTap});
-
-  final bool on;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.tokens;
-    final color = on ? context.colors.primary : tokens.textTertiary;
-    return Semantics(
-      label: on
-          ? 'Sembunyikan area peta offline'
-          : 'Tampilkan area peta offline yang sudah didownload',
-      button: true,
-      toggled: on,
-      child: GlassCard(
-        level: GlassLevel.level2,
-        borderRadius: BorderRadius.circular(AppSizes.radiusPill),
-        padding: EdgeInsets.zero,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(AppSizes.radiusPill),
-          child: Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            child: Icon(
-              on
-                  ? PhosphorIconsFill.downloadSimple
-                  : PhosphorIconsRegular.downloadSimple,
-              color: color,
-              size: 20,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ===========================================================================
-// Markers toggle (sits below the All-History toggle)
-// ===========================================================================
-
-class _MarkersToggle extends StatelessWidget {
-  const _MarkersToggle({required this.on, required this.onTap});
-
-  final bool on;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.tokens;
-    final color = on ? context.colors.primary : tokens.textTertiary;
-    return Semantics(
-      label: on ? 'Sembunyikan penanda' : 'Tampilkan penanda',
-      button: true,
-      toggled: on,
-      child: GlassCard(
-        level: GlassLevel.level2,
-        borderRadius: BorderRadius.circular(AppSizes.radiusPill),
-        padding: EdgeInsets.zero,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(AppSizes.radiusPill),
-          child: Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            child: Icon(
-              on ? PhosphorIconsFill.mapPin : PhosphorIconsRegular.mapPin,
-              color: color,
-              size: 20,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 // ===========================================================================
 // Add-marker FAB (mirrors MapControls' center-on-me button on the left)
@@ -2002,86 +1866,12 @@ class _MiniTrackingButton extends StatelessWidget {
 }
 
 // ===========================================================================
-// PR #33: Dataset filter toggle + sheet
+// PR #33 → PR #40: Dataset filter sheet
+//
+// `_DatasetFilterToggle` (toggle button standalone) dipindah ke
+// MapLayersExpandable sebagai entry. Sheet di bawah tetap di sini
+// karena dipanggil dari MapLayersExpandable via callback.
 // ===========================================================================
-
-/// Toggle button kecil yang menampilkan jumlah dataset visible vs total.
-/// Tap → buka [_DatasetFilterSheet] modal.
-class _DatasetFilterToggle extends StatelessWidget {
-  const _DatasetFilterToggle({
-    required this.visibleCount,
-    required this.totalCount,
-    required this.onTap,
-  });
-
-  final int visibleCount;
-  final int totalCount;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.tokens;
-    final colors = context.colors;
-    final isAllVisible = visibleCount == totalCount && totalCount > 0;
-    final isNoneVisible = visibleCount == 0;
-    final iconColor = isNoneVisible
-        ? tokens.textTertiary
-        : (isAllVisible ? colors.primary : tokens.textSecondary);
-    return Semantics(
-      label: 'Filter data impor — $visibleCount dari $totalCount terlihat',
-      button: true,
-      child: GlassCard(
-        level: GlassLevel.level2,
-        borderRadius: BorderRadius.circular(AppSizes.radiusPill),
-        padding: EdgeInsets.zero,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(AppSizes.radiusPill),
-          child: Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Icon(
-                  isNoneVisible
-                      ? PhosphorIconsRegular.folder
-                      : PhosphorIconsFill.folder,
-                  color: iconColor,
-                  size: 20,
-                ),
-                if (totalCount > 0)
-                  Positioned(
-                    right: 2,
-                    top: 2,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 1,
-                      ),
-                      decoration: BoxDecoration(
-                        color: colors.primary,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '$visibleCount',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 /// Modal bottom sheet daftar dataset import dengan checkbox per file
 /// untuk toggle visibility tanpa harus buka Settings → Kelola Data Impor.
