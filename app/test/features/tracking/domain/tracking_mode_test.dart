@@ -1,63 +1,42 @@
-// Unit tests untuk enum [TrackingMode].
+// Unit tests untuk enum [TrackingMode] (PR #40 single-value form).
 //
-// Fokus: round-trip mapping DB <-> enum, label / subtitle untuk UI,
-// dan defensive fallback untuk nilai yang tidak dikenal.
+// Sejak PR #40 mode tracking dicabut. Enum dipertahankan dengan
+// satu nilai [TrackingMode.accurate] untuk backward compat dengan
+// kolom DB. Test memastikan mapping legacy `'normal'` dari row
+// pre-v11 yang mungkin belum kena migrasi tetap di-treat sebagai
+// `accurate`.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:langgeng_sea/features/tracking/domain/entities/tracking_mode.dart';
 
 void main() {
-  group('TrackingMode.fromDbValue', () {
-    test('parses canonical values', () {
-      expect(TrackingMode.fromDbValue('normal'), TrackingMode.normal);
-      expect(TrackingMode.fromDbValue('accurate'), TrackingMode.accurate);
+  group('TrackingMode (single-value sejak PR #40)', () {
+    test('hanya punya satu nilai: accurate', () {
+      expect(TrackingMode.values, [TrackingMode.accurate]);
     });
 
-    test('falls back to normal for unknown / null / empty', () {
-      // Defensive: data corrupt atau kolom kosong sebelum migrasi
-      // terkonfirmasi tidak boleh meng-crash app.
-      expect(TrackingMode.fromDbValue(null), TrackingMode.normal);
-      expect(TrackingMode.fromDbValue(''), TrackingMode.normal);
-      expect(TrackingMode.fromDbValue('foobar'), TrackingMode.normal);
-      expect(TrackingMode.fromDbValue('NORMAL'), TrackingMode.normal,
-          reason: 'casing matters — DB selalu lowercase');
-    });
-
-    test('round-trip dbValue -> fromDbValue identity', () {
-      for (final mode in TrackingMode.values) {
-        expect(TrackingMode.fromDbValue(mode.dbValue), mode);
-      }
-    });
-  });
-
-  group('TrackingMode.dbValue', () {
-    test('uses lowercase enum name', () {
-      expect(TrackingMode.normal.dbValue, 'normal');
+    test('dbValue selalu accurate', () {
       expect(TrackingMode.accurate.dbValue, 'accurate');
     });
   });
 
-  group('TrackingMode.displayLabel', () {
-    test('Bahasa Indonesia label per mode', () {
-      expect(TrackingMode.normal.displayLabel, 'Normal');
-      expect(TrackingMode.accurate.displayLabel, 'Akurasi');
-    });
-  });
-
-  group('TrackingMode.subtitle', () {
-    test('Normal subtitle menjelaskan best-effort screen-off behavior', () {
-      final s = TrackingMode.normal.subtitle;
-      // PR follow-up Bug 1: wording diperbarui supaya match behavior
-      // baru — Mode Normal pakai foreground service tanpa battery
-      // optimization (best-effort).
-      expect(s.toLowerCase(), contains('best-effort'));
-      expect(s.toLowerCase(), contains('layar mati'));
+  group('TrackingMode.fromDbValue', () {
+    test('memetakan apapun ke accurate', () {
+      // Migrasi v11 sudah update semua row ke 'accurate', tapi
+      // device yang DB-nya restored dari backup pre-v11 mungkin
+      // masih punya 'normal' atau nilai lain — semua harus di-treat
+      // sebagai accurate untuk konsistensi runtime.
+      expect(TrackingMode.fromDbValue('accurate'), TrackingMode.accurate);
+      expect(TrackingMode.fromDbValue('normal'), TrackingMode.accurate);
+      expect(TrackingMode.fromDbValue(null), TrackingMode.accurate);
+      expect(TrackingMode.fromDbValue(''), TrackingMode.accurate);
+      expect(TrackingMode.fromDbValue('foobar'), TrackingMode.accurate);
     });
 
-    test('Akurasi subtitle menjelaskan foreground service behavior', () {
-      final s = TrackingMode.accurate.subtitle;
-      expect(s.toLowerCase(), contains('layar mati'));
-      expect(s.toLowerCase(), contains('notifikasi'));
+    test('round-trip dbValue identity', () {
+      for (final mode in TrackingMode.values) {
+        expect(TrackingMode.fromDbValue(mode.dbValue), mode);
+      }
     });
   });
 }

@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/database/app_database.dart';
-import '../../../features/tracking/domain/entities/tracking_mode.dart';
 import '../data/app_settings_repository.dart';
 import '../domain/entities/app_settings.dart';
 
@@ -30,12 +29,8 @@ final polylineWidthProvider = Provider<double>((ref) {
   return settings.asData?.value.polylineWidth.toDouble() ?? 10.0;
 });
 
-/// Convenience provider untuk [TrackingMode] saat ini (PR #29).
-///
-/// Default [TrackingMode.normal] sebelum DB loaded supaya widget yang
-/// gating tap MULAI tidak salah-trigger flow Akurasi sebelum settings
-/// stream ready. Nilai berubah reaktif via [appSettingsProvider].
-final trackingModeProvider = Provider<TrackingMode>((ref) {
-  final settings = ref.watch(appSettingsProvider);
-  return settings.asData?.value.trackingMode ?? TrackingMode.normal;
-});
+// PR #40: `trackingModeProvider` dihapus. Mode tracking sudah
+// dicabut — tracking selalu pakai jalur Akurasi tanpa pilihan user.
+// Caller yang dulu watch provider ini sekarang tidak perlu watch
+// apapun: skipBatteryPermission ditentukan langsung di
+// TrackingController (false untuk start path, true untuk resume).

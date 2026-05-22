@@ -41,7 +41,6 @@ import '../../tracking/data/background_tracking_service.dart';
 import '../../tracking/data/haul_repository.dart';
 import '../../tracking/data/trip_repository.dart';
 import '../../tracking/domain/entities/haul.dart';
-import '../../tracking/domain/entities/tracking_mode.dart';
 import '../../tracking/domain/entities/trip.dart';
 import '../../tracking/presentation/widgets/active_haul_polyline.dart';
 import '../../tracking/presentation/widgets/haul_summary_sheet.dart';
@@ -204,7 +203,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
       if (mounted) {
         await _maybeShowMarkerPickTooltip();
       }
-
     });
   }
 
@@ -241,7 +239,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
       ref.read(markersOverlayEnabledProvider.notifier).state = true;
       final markers = await ref.read(allMarkersProvider.future);
       final marker = markers.firstWhere((m) => m.id == markerId);
-      
+
       if (mounted) {
         setState(() => _followingUser = false);
         final targetZoom = math.max(_mapController.camera.zoom, 18.0);
@@ -258,7 +256,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
       // watching the tripRenderProvider via _watchOverlayRender.
       ref.read(mapOverlayControllerProvider.notifier).showTrip(tripId);
       final tripRender = await ref.read(tripRenderProvider(tripId).future);
-      
+
       if (mounted && tripRender.bounds != null) {
         setState(() => _followingUser = false);
         _cameraController.fitCameraExplicit(tripRender.bounds!);
@@ -274,7 +272,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
       // watching the haulRenderProvider via _watchOverlayRender.
       ref.read(mapOverlayControllerProvider.notifier).showHaul(haulId);
       final haulRender = await ref.read(haulRenderProvider(haulId).future);
-      
+
       if (mounted && haulRender.bounds != null) {
         setState(() => _followingUser = false);
         _cameraController.fitCameraExplicit(haulRender.bounds!);
@@ -381,7 +379,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
     });
 
     if (isNav && reading.hasReliableHeading) {
-      _mapController.moveAndRotate(reading.latLng, 18, -reading.headingDegrees!);
+      _mapController.moveAndRotate(
+          reading.latLng, 18, -reading.headingDegrees!);
     } else {
       _mapController.moveAndRotate(reading.latLng, 18, 0);
     }
@@ -880,7 +879,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final trackingState = ref.watch(trackingControllerProvider);
     final isRecording = trackingState.isRecording;
     final mode = ref.watch(mapModeProvider);
-    final trackingMode = ref.watch(trackingModeProvider);
 
     // Navigation overlay state -- drives the top-of-map panel, the
     // dashed go-to polyline, and the bearing arrow on the boat marker.
@@ -922,7 +920,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
       }
     });
     // Removed ref.listen<bool>(allHistoryVisibleProvider, ...) as requested:
-    // Toggling the "Tampilkan Jejak" button should only show/hide the tracks 
+    // Toggling the "Tampilkan Jejak" button should only show/hide the tracks
     // without automatically shifting or zooming the map camera.
 
     // Compose polyline layers using HistoryPolylineLayer for tap detection.
@@ -1150,10 +1148,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   // entirely. The NavigationPanel below carries the
                   // primary context (target + progress).
                   if (navActive == null) ...[
-                    if (isRecording)
-                      const LiveStatsPanel()
-                    else
-                      _IdleAppBar(),
+                    if (isRecording) const LiveStatsPanel() else _IdleAppBar(),
                   ],
                   if (overlayActive && overlayAsync != null) ...[
                     const SizedBox(height: AppSizes.sp2),
@@ -1218,7 +1213,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
             // --- Add-marker FAB (left side) ---
             Positioned(
               left: AppSizes.sp4,
-              bottom: (mode == MapMode.idle || mode == MapMode.tracking || isRecording) && navActive == null
+              bottom: (mode == MapMode.idle ||
+                          mode == MapMode.tracking ||
+                          isRecording) &&
+                      navActive == null
                   ? 160.0
                   : AppSizes.sp4,
               child: _AddMarkerButton(
@@ -1232,7 +1230,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
             // --- Right-side floating controls ---
             Positioned(
               right: AppSizes.sp4,
-              bottom: (mode == MapMode.idle || mode == MapMode.tracking || isRecording) && navActive == null
+              bottom: (mode == MapMode.idle ||
+                          mode == MapMode.tracking ||
+                          isRecording) &&
+                      navActive == null
                   ? 160.0
                   : AppSizes.sp4,
               child: Column(
@@ -1258,7 +1259,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   _MarkersToggle(
                     on: markersOn,
                     onTap: () {
-                      final notifier = ref.read(markersOverlayEnabledProvider.notifier);
+                      final notifier =
+                          ref.read(markersOverlayEnabledProvider.notifier);
                       notifier.state = !notifier.state;
                     },
                   ),
@@ -1285,7 +1287,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   _AllHistoryToggle(
                     on: allHistoryOn,
                     onTap: () {
-                      final notifier = ref.read(allHistoryVisibleProvider.notifier);
+                      final notifier =
+                          ref.read(allHistoryVisibleProvider.notifier);
                       notifier.state = !notifier.state;
                     },
                   ),
@@ -1297,13 +1300,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     final regions =
                         ref.watch(offlineRegionsProvider).asData?.value ??
                             const [];
-                    final hasCompleted =
-                        regions.any((r) => r.isReady);
+                    final hasCompleted = regions.any((r) => r.isReady);
                     if (!hasCompleted) {
                       return const SizedBox.shrink();
                     }
-                    final overlayOn =
-                        ref.watch(offlineRegionsOverlayProvider);
+                    final overlayOn = ref.watch(offlineRegionsOverlayProvider);
                     return Padding(
                       padding: const EdgeInsets.only(top: AppSizes.sp2),
                       child: _OfflineRegionsToggle(
@@ -1375,43 +1376,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
                         ),
                       ),
                     ),
-                  // Mode Normal info banner.
-                  // PR follow-up Bug 1: Mode Normal sekarang tetap
-                  // pakai foreground service (best-effort screen-off
-                  // tanpa optimasi baterai). Banner di-update supaya
-                  // konsisten dengan behavior baru.
-                  if (isRecording &&
-                      trackingMode == TrackingMode.normal &&
-                      !trackingState.backgroundDegraded)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: AppSizes.sp2),
-                      child: GlassCard(
-                        level: GlassLevel.level1,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSizes.sp3,
-                          vertical: AppSizes.sp2,
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              PhosphorIconsFill.info,
-                              size: 16,
-                              color: context.colors.primary,
-                            ),
-                            const SizedBox(width: AppSizes.sp2),
-                            Expanded(
-                              child: Text(
-                                'Mode Normal — best-effort, tanpa optimasi baterai',
-                                style: context.text.bodySmall?.copyWith(
-                                  color: context.tokens.textSecondary,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                  // PR #40: banner "Mode Normal" dihapus seiring
+                  // pencabutan mode tracking. Tracking sekarang
+                  // selalu pakai jalur Akurasi dengan foreground
+                  // service + battery exemption — tidak ada lagi
+                  // best-effort screen-off path.
                   const GpsErrorBanner(),
                   const SizedBox(height: AppSizes.sp2),
                   // Mode-driven bottom controls (Task 9.6)
@@ -1986,7 +1955,7 @@ class _MiniTrackingButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final primaryColor = isRecording ? tokens.danger : context.colors.primary;
-    
+
     return Tooltip(
       message: isRecording ? 'Akhiri Tarikan' : 'Mulai Tarikan',
       child: GlassCard(
@@ -2017,8 +1986,8 @@ class _MiniTrackingButton extends StatelessWidget {
                 width: 48,
                 height: 48,
                 child: Icon(
-                  isRecording 
-                      ? PhosphorIconsFill.stopCircle 
+                  isRecording
+                      ? PhosphorIconsFill.stopCircle
                       : PhosphorIconsFill.playCircle,
                   color: Colors.white,
                   size: 24,
@@ -2244,13 +2213,10 @@ class _DatasetFilterSheet extends ConsumerWidget {
                   child: TextButton(
                     onPressed: () {
                       // Sembunyikan semua dataset
-                      final repo =
-                          ref.read(importedDatasetRepositoryProvider);
-                      final datasets = ref
-                              .read(importedDatasetsProvider)
-                              .asData
-                              ?.value ??
-                          const [];
+                      final repo = ref.read(importedDatasetRepositoryProvider);
+                      final datasets =
+                          ref.read(importedDatasetsProvider).asData?.value ??
+                              const [];
                       for (final d in datasets) {
                         repo.setVisible(d.id, false);
                       }
@@ -2262,13 +2228,10 @@ class _DatasetFilterSheet extends ConsumerWidget {
                 Expanded(
                   child: FilledButton(
                     onPressed: () {
-                      final repo =
-                          ref.read(importedDatasetRepositoryProvider);
-                      final datasets = ref
-                              .read(importedDatasetsProvider)
-                              .asData
-                              ?.value ??
-                          const [];
+                      final repo = ref.read(importedDatasetRepositoryProvider);
+                      final datasets =
+                          ref.read(importedDatasetsProvider).asData?.value ??
+                              const [];
                       for (final d in datasets) {
                         repo.setVisible(d.id, true);
                       }
@@ -2284,4 +2247,3 @@ class _DatasetFilterSheet extends ConsumerWidget {
     );
   }
 }
-

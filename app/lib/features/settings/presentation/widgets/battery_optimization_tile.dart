@@ -6,10 +6,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../../core/observability/logger.dart';
-import '../../../../core/settings/application/app_settings_provider.dart';
 import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../tracking/domain/entities/tracking_mode.dart';
 
 /// Settings tile yang menampilkan & mengatur permission
 /// `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`.
@@ -40,8 +38,7 @@ class BatteryOptimizationTile extends ConsumerStatefulWidget {
 }
 
 class _BatteryOptimizationTileState
-    extends ConsumerState<BatteryOptimizationTile>
-    with WidgetsBindingObserver {
+    extends ConsumerState<BatteryOptimizationTile> with WidgetsBindingObserver {
   PermissionStatus? _status;
   bool _busy = false;
 
@@ -86,7 +83,8 @@ class _BatteryOptimizationTileState
     if (!Platform.isAndroid || _busy) return;
     setState(() => _busy = true);
     try {
-      final current = _status ?? await Permission.ignoreBatteryOptimizations.status;
+      final current =
+          _status ?? await Permission.ignoreBatteryOptimizations.status;
       if (current.isGranted) {
         // Sudah aktif → bawa user ke layar Settings sistem supaya
         // bisa cabut/ganti manual.
@@ -94,9 +92,9 @@ class _BatteryOptimizationTileState
       } else {
         // Belum diatur / ditolak → request lagi (dialog OS muncul).
         await Permission.ignoreBatteryOptimizations.request().timeout(
-          const Duration(seconds: 10),
-          onTimeout: () => PermissionStatus.denied,
-        );
+              const Duration(seconds: 10),
+              onTimeout: () => PermissionStatus.denied,
+            );
       }
     } catch (e) {
       Logger.instance.warn(
@@ -119,14 +117,10 @@ class _BatteryOptimizationTileState
       return const SizedBox.shrink();
     }
 
-    // PR #29: self-hide kalau mode tracking = Normal. Battery
-    // optimization exemption tidak relevan saat foreground service
-    // tidak digunakan, jadi tile cuma menambah noise di Settings.
-    // Kalau user pindah ke Akurasi nanti, tile otomatis muncul.
-    final mode = ref.watch(trackingModeProvider);
-    if (mode == TrackingMode.normal) {
-      return const SizedBox.shrink();
-    }
+    // PR #40: tile selalu tampil di Android sejak mode tracking
+    // dihapus. Sebelumnya self-hide saat mode == Normal — sekarang
+    // semua user pakai jalur Akurasi yang butuh battery exemption,
+    // jadi tile ini selalu relevan.
 
     final tokens = context.tokens;
     final colors = context.colors;
