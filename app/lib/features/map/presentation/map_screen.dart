@@ -997,14 +997,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 ),
                 children: [
                   TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'id.co.langgengsea',
+                    urlTemplate: TileEndpoints.osm,
+                    userAgentPackageName: TileEndpoints.userAgent,
                     maxNativeZoom: 19,
                     retinaMode: RetinaMode.isHighDensity(context),
                     tileProvider:
                         ref.read(tileCacheServiceProvider).cachedTileProvider(
-                              userAgentPackageName: 'id.co.langgengsea',
+                              userAgentPackageName: TileEndpoints.userAgent,
                             ),
                     // PR follow-up Bug 2: kurangi area abu-abu saat
                     // tracking. keepBuffer 4 menahan tile yang sudah
@@ -1028,12 +1027,27 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       );
                     },
                   ),
+                  // PR #40 — seamark layer sekarang routed via FMTC
+                  // (cachedSeamarkTileProvider) supaya rambu navigasi
+                  // ikut ke-cache offline. Sebelumnya pakai
+                  // NetworkTileProvider default → blank saat offline.
                   TileLayer(
-                    urlTemplate:
-                        'https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'id.co.langgengsea',
+                    urlTemplate: TileEndpoints.openSeaMap,
+                    userAgentPackageName: TileEndpoints.userAgent,
+                    retinaMode: RetinaMode.isHighDensity(context),
+                    tileProvider: ref
+                        .read(tileCacheServiceProvider)
+                        .cachedSeamarkTileProvider(
+                          userAgentPackageName: TileEndpoints.userAgent,
+                        ),
                     keepBuffer: 4,
                     panBuffer: 2,
+                    errorTileCallback: (tile, error, stack) {
+                      // Seamark errors lebih sering & noisy (banyak
+                      // tile null karena memang tidak ada rambu di
+                      // titik tersebut). Skip logging supaya logcat
+                      // tidak banjir.
+                    },
                   ),
                   // PR follow-up Bug 3: visual area peta offline yang
                   // sudah didownload. PolygonLayer di-render setelah

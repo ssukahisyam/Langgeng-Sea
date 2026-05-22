@@ -79,11 +79,18 @@ class OfflineDownloadController extends Notifier<OfflineDownloadState> {
   /// Queue a new region and start downloading it. The region row is
   /// persisted immediately (as `pending`) so it survives cancel/retry
   /// cycles and app restarts.
+  ///
+  /// PR #40 — [retina] meneruskan flag retinaMode dari live TileLayer
+  /// supaya download zoom range cocok dengan apa yang nanti diminta
+  /// flutter_map saat render. [downloadSeamark] mengontrol apakah
+  /// layer rambu navigasi ikut di-cache (default true).
   Future<OfflineRegion> startDownload({
     required String name,
     required LatLngBounds bounds,
     required int minZoom,
     required int maxZoom,
+    bool retina = false,
+    bool downloadSeamark = true,
   }) async {
     // Don't let two downloads race.
     if (state.region != null) {
@@ -106,7 +113,13 @@ class OfflineDownloadController extends Notifier<OfflineDownloadState> {
     await _repo.insert(region);
     state = state.copyWith(region: region);
 
-    _sub = _tiles.downloadRegion(region).listen(
+    _sub = _tiles
+        .downloadRegion(
+          region,
+          retina: retina,
+          downloadSeamark: downloadSeamark,
+        )
+        .listen(
           _onProgress,
           onError: (Object e, _) => _onError(e, region),
           onDone: () => _onDone(region),
@@ -136,7 +149,15 @@ class OfflineDownloadController extends Notifier<OfflineDownloadState> {
 
   /// Retry a previously-failed region. Creates a fresh download with
   /// the same bounds + zoom range.
-  Future<void> retry(OfflineRegion region) async {
+  ///
+  /// PR #40 — terima [retina] supaya retry pakai zoom range yang sama
+  /// dengan first download. Caller (UI offline regions screen) pass
+  /// nilai dari `RetinaMode.isHighDensity(context)`.
+  Future<void> retry(
+    OfflineRegion region, {
+    bool retina = false,
+    bool downloadSeamark = true,
+  }) async {
     if (state.region != null) {
       throw StateError('Another download is already running');
     }
@@ -147,7 +168,13 @@ class OfflineDownloadController extends Notifier<OfflineDownloadState> {
     await _repo.update(reset);
     state = state.copyWith(region: reset);
 
-    _sub = _tiles.downloadRegion(reset).listen(
+    _sub = _tiles
+        .downloadRegion(
+          reset,
+          retina: retina,
+          downloadSeamark: downloadSeamark,
+        )
+        .listen(
           _onProgress,
           onError: (Object e, _) => _onError(e, reset),
           onDone: () => _onDone(reset),

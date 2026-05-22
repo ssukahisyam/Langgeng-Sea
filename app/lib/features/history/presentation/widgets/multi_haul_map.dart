@@ -7,6 +7,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/latlng_bounds_util.dart';
+import '../../../offline_map/data/tile_cache_service.dart';
 import '../../../tracking/domain/entities/haul.dart';
 import '../../../tracking/domain/entities/track_point.dart';
 
@@ -88,7 +89,8 @@ class _MultiHaulMapState extends State<MultiHaulMap> {
         orderIndex: haul.orderIndex,
       );
 
-      final isSelected = widget.selectedHaulId == null || widget.selectedHaulId == haul.id;
+      final isSelected =
+          widget.selectedHaulId == null || widget.selectedHaulId == haul.id;
       final opacity = isSelected ? 1.0 : 0.3;
       final mainStroke = isSelected ? 4.0 : 2.0;
       final shadowStroke = isSelected ? 8.0 : 0.0;
@@ -102,7 +104,7 @@ class _MultiHaulMapState extends State<MultiHaulMap> {
           ),
         );
       }
-      
+
       polylines.add(
         Polyline(
           points: latLngs,
@@ -145,9 +147,8 @@ class _MultiHaulMapState extends State<MultiHaulMap> {
                 ),
                 children: [
                   TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'id.co.langgengsea',
+                    urlTemplate: TileEndpoints.osm,
+                    userAgentPackageName: TileEndpoints.userAgent,
                     maxNativeZoom: 19,
                     retinaMode: RetinaMode.isHighDensity(context),
                   ),

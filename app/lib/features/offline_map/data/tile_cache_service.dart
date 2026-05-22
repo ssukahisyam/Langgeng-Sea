@@ -1,6 +1,10 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_tile_caching/flutter_map_tile_caching.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../domain/entities/offline_region.dart';
 
@@ -13,8 +17,30 @@ class TileEndpoints {
       'https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png';
   static const String userAgent = 'id.co.langgengsea';
 
-  /// Name of the FMTC store that backs online/offline OSM tiles.
+  /// Name of the FMTC store yang menampung tile OSM base layer.
   static const String osmStore = 'langgeng_sea_osm';
+
+  /// PR #40: store kedua untuk overlay seamark (rambu navigasi laut
+  /// dari OpenSeaMap). Sebelumnya layer ini pakai NetworkTileProvider
+  /// default — tidak pernah di-cache, jadi rambu navigasi selalu
+  /// blank saat offline. Store terpisah supaya tidak saling
+  /// mempengaruhi cleanup OSM base.
+  static const String seamarkStore = 'langgeng_sea_seamark';
+}
+
+/// Default zoom range yang dipakai saat user download offline region.
+///
+/// PR #40 — sebelumnya user pilih sendiri lewat RangeSlider 3-16.
+/// Audit pasca rilis menemukan slider hanya bikin user bingung dan
+/// banyak yang download dengan zoom max 14 padahal app menampilkan
+/// sampai zoom 19. Sekarang hardcode supaya selalu cocok dengan
+/// kebutuhan navigasi laut: min 8 (regional view) sampai 18
+/// (detail pelabuhan/mooring). Total ±10 level cukup untuk semua
+/// skenario fishing tanpa membuat download terlalu besar.
+class OfflineDownloadDefaults {
+  const OfflineDownloadDefaults._();
+  static const int minZoom = 8;
+  static const int maxZoom = 18;
 }
 
 /// Live progress snapshot for a running tile download.
@@ -52,17 +78,34 @@ abstract class TileCacheService {
   /// Idempotent — subsequent calls are cheap no-ops.
   Future<void> initialise();
 
-  /// A flutter_map-ready provider that checks the cache first and
-  /// falls back to the network. Safe to call after [initialise].
+  /// Provider OSM base layer (tile.openstreetmap.org). Pakai
+  /// `cacheFirst` — tile cache di-cek dulu, fallback network kalau
+  /// tidak ada. Cocok untuk live map saat user mungkin online atau
+  /// offline.
   TileProvider cachedTileProvider({String? userAgentPackageName});
+
+  /// PR #40: provider seamark layer (tiles.openseamap.org/seamark).
+  /// Sebelumnya layer ini pakai NetworkTileProvider default — tidak
+  /// pernah cached. Sekarang routed via FMTC store terpisah supaya
+  /// rambu navigasi tetap muncul saat offline.
+  TileProvider cachedSeamarkTileProvider({String? userAgentPackageName});
 
   /// Kick off a bulk download of every tile covering [region] between
   /// its [OfflineRegion.minZoom] and [OfflineRegion.maxZoom].
   ///
-  /// Emits progress snapshots. The stream closes when the download
-  /// finishes (success or failure); callers should inspect the final
-  /// snapshot's [TileDownloadProgress.failedTiles].
-  Stream<TileDownloadProgress> downloadRegion(OfflineRegion region);
+  /// PR #40 — [retina] menentukan apakah perlu download tile zoom
+  /// `maxZoom + 1` extra supaya match dengan retinaMode di live
+  /// [TileLayer] (flutter_map mensimulasikan retina dengan request
+  /// tile zoom yang lebih tinggi). [downloadSeamark] mengontrol
+  /// apakah layer rambu navigasi ikut di-cache (default true).
+  ///
+  /// Emits progress snapshots gabungan untuk OSM + seamark. Stream
+  /// closes saat semua download selesai (success atau failure).
+  Stream<TileDownloadProgress> downloadRegion(
+    OfflineRegion region, {
+    bool retina = false,
+    bool downloadSeamark = true,
+  });
 
   /// Cancel the currently-running download, if any. Safe to call when
   /// nothing is downloading.
@@ -88,50 +131,138 @@ class FmtcTileCacheService implements TileCacheService {
     if (_initialised) return;
     await FMTCObjectBoxBackend().initialise();
 
-    // Ensure the store exists. `create` is idempotent.
+    // Ensure both stores exist. `create` is idempotent.
     await const FMTCStore(TileEndpoints.osmStore).manage.create();
+    await const FMTCStore(TileEndpoints.seamarkStore).manage.create();
 
     _initialised = true;
   }
 
   @override
   TileProvider cachedTileProvider({String? userAgentPackageName}) {
+    // PR #40: forward user-agent ke FMTC supaya request OSM tidak
+    // ditolak rate-limiter. Sebelumnya parameter diterima tapi tidak
+    // pernah dipasang ke header request.
     return const FMTCStore(TileEndpoints.osmStore).getTileProvider(
       settings: FMTCTileProviderSettings(
         behavior: CacheBehavior.cacheFirst,
       ),
+      headers: {
+        if (userAgentPackageName != null) 'User-Agent': userAgentPackageName,
+      },
     );
   }
 
   @override
-  Stream<TileDownloadProgress> downloadRegion(OfflineRegion region) async* {
-    const store = FMTCStore(TileEndpoints.osmStore);
+  TileProvider cachedSeamarkTileProvider({String? userAgentPackageName}) {
+    return const FMTCStore(TileEndpoints.seamarkStore).getTileProvider(
+      settings: FMTCTileProviderSettings(
+        behavior: CacheBehavior.cacheFirst,
+      ),
+      headers: {
+        if (userAgentPackageName != null) 'User-Agent': userAgentPackageName,
+      },
+    );
+  }
 
-    final rect = RectangleRegion(region.bounds).toDownloadable(
+  @override
+  Stream<TileDownloadProgress> downloadRegion(
+    OfflineRegion region, {
+    bool retina = false,
+    bool downloadSeamark = true,
+  }) async* {
+    // PR #40 — kompensasi retina simulation: live TileLayer dengan
+    // retinaMode aktif minta tile di zoom +1 dari display zoom. Kalau
+    // download tidak ikut menaikkan max zoom, user retina device
+    // akan tetap dapat blank tile padahal sudah download.
+    final effectiveMaxZoom = retina ? region.maxZoom + 1 : region.maxZoom;
+
+    // PR #40 — inflate bounds 1 tile margin di max zoom supaya
+    // keepBuffer/panBuffer di live layer tidak melewati area
+    // download. Tanpa ini user yang berhenti tepat di pinggir bounds
+    // dapat blank tile saat pan kecil.
+    final inflatedBounds = _inflateBounds(region.bounds, effectiveMaxZoom);
+
+    // Step 1: download base OSM layer.
+    final osmStore = const FMTCStore(TileEndpoints.osmStore);
+    final osmRect = RectangleRegion(inflatedBounds).toDownloadable(
       minZoom: region.minZoom,
-      maxZoom: region.maxZoom,
+      maxZoom: effectiveMaxZoom,
       options: TileLayer(
         urlTemplate: TileEndpoints.osm,
         userAgentPackageName: TileEndpoints.userAgent,
       ),
     );
 
-    final downloadProgress = store.download.startForeground(region: rect);
+    int osmCached = 0;
+    int osmFailed = 0;
+    int osmAttempted = 0;
+    int osmMax = 0;
+    int osmSize = 0;
 
-    await for (final p in downloadProgress) {
+    final osmStream = osmStore.download.startForeground(region: osmRect);
+    await for (final p in osmStream) {
+      osmCached = p.cachedTiles;
+      osmFailed = p.failedTiles;
+      osmAttempted = p.attemptedTiles;
+      osmMax = p.maxTiles;
+      osmSize = (p.cachedSize * 1024).round();
+
       yield TileDownloadProgress(
-        attemptedTiles: p.attemptedTiles,
-        cachedTiles: p.cachedTiles,
-        failedTiles: p.failedTiles,
-        maxTiles: p.maxTiles,
-        cachedSizeBytes: (p.cachedSize * 1024).round(),
+        attemptedTiles: osmAttempted,
+        cachedTiles: osmCached,
+        failedTiles: osmFailed,
+        maxTiles: downloadSeamark ? osmMax * 2 : osmMax,
+        cachedSizeBytes: osmSize,
+      );
+    }
+
+    if (!downloadSeamark) return;
+
+    // Step 2: download seamark overlay layer ke store terpisah.
+    // Pakai zoom range yang sama plus retina compensation.
+    final seamarkStore = const FMTCStore(TileEndpoints.seamarkStore);
+    final seamarkRect = RectangleRegion(inflatedBounds).toDownloadable(
+      minZoom: region.minZoom,
+      maxZoom: effectiveMaxZoom,
+      options: TileLayer(
+        urlTemplate: TileEndpoints.openSeaMap,
+        userAgentPackageName: TileEndpoints.userAgent,
+      ),
+    );
+
+    int seamarkCached = 0;
+    int seamarkFailed = 0;
+    int seamarkAttempted = 0;
+    int seamarkSize = 0;
+
+    final seamarkStream =
+        seamarkStore.download.startForeground(region: seamarkRect);
+    await for (final p in seamarkStream) {
+      seamarkCached = p.cachedTiles;
+      seamarkFailed = p.failedTiles;
+      seamarkAttempted = p.attemptedTiles;
+      seamarkSize = (p.cachedSize * 1024).round();
+
+      yield TileDownloadProgress(
+        attemptedTiles: osmAttempted + seamarkAttempted,
+        cachedTiles: osmCached + seamarkCached,
+        failedTiles: osmFailed + seamarkFailed,
+        maxTiles: osmMax + p.maxTiles,
+        cachedSizeBytes: osmSize + seamarkSize,
       );
     }
   }
 
   @override
   Future<void> cancelDownload() async {
-    await const FMTCStore(TileEndpoints.osmStore).download.cancel();
+    // Kedua store mungkin sedang download. cancel best-effort.
+    try {
+      await const FMTCStore(TileEndpoints.osmStore).download.cancel();
+    } catch (_) {/* ignore */}
+    try {
+      await const FMTCStore(TileEndpoints.seamarkStore).download.cancel();
+    } catch (_) {/* ignore */}
   }
 
   @override
@@ -147,13 +278,38 @@ class FmtcTileCacheService implements TileCacheService {
 
   @override
   Future<int> totalCachedBytes() async {
-    final stats = await const FMTCStore(TileEndpoints.osmStore).stats.all;
-    return (stats.size * 1024).round();
+    final osm = await const FMTCStore(TileEndpoints.osmStore).stats.all;
+    final seamark = await const FMTCStore(TileEndpoints.seamarkStore).stats.all;
+    return ((osm.size + seamark.size) * 1024).round();
+  }
+
+  /// Inflate bounds dengan satu tile margin di [zoom] level.
+  /// Dipakai supaya download menutup area sedikit lebih luas
+  /// dari yang user pilih, mengkompensasi keepBuffer / panBuffer
+  /// di live TileLayer yang prefetch tile sekitar viewport.
+  static LatLngBounds _inflateBounds(LatLngBounds bounds, int zoom) {
+    // Approx ukuran satu tile di zoom Z dalam derajat:
+    // longitude: 360 / 2^Z
+    // latitude: tergantung lintang, tapi untuk margin kecil bisa
+    // diperkirakan dengan cos(lat) * 360 / 2^Z. Kita pakai pendekatan
+    // sederhana: ambil 1 tile longitude width sebagai margin di
+    // semua sisi. Cukup untuk panBuffer 1-2 di live layer.
+    final tileWidth = 360.0 / math.pow(2, zoom);
+    return LatLngBounds(
+      LatLng(
+        (bounds.south - tileWidth).clamp(-85.0, 85.0),
+        (bounds.west - tileWidth).clamp(-180.0, 180.0),
+      ),
+      LatLng(
+        (bounds.north + tileWidth).clamp(-85.0, 85.0),
+        (bounds.east + tileWidth).clamp(-180.0, 180.0),
+      ),
+    );
   }
 }
 
 /// Riverpod binding for [TileCacheService]. Swap this in tests via
-/// `gpsServiceProvider.overrideWithValue(FakeTileCacheService())`.
+/// `tileCacheServiceProvider.overrideWithValue(FakeTileCacheService())`.
 final tileCacheServiceProvider = Provider<TileCacheService>((ref) {
   return FmtcTileCacheService();
 });

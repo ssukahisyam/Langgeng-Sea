@@ -15,6 +15,7 @@ import '../../../core/widgets/ambient_background.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../application/offline_download_controller.dart';
+import '../data/offline_region_repository.dart';
 import '../data/tile_cache_service.dart';
 
 /// Map-picker that lets the user frame an offline region.
@@ -24,6 +25,13 @@ import '../data/tile_cache_service.dart';
 /// underneath it. This keeps the interaction forgiving on a boat
 /// pitching at sea (no fiddly corner handles) and matches the
 /// Screen 13 prototype layout.
+///
+/// PR #40 — flow disederhanakan:
+/// - Tidak ada lagi RangeSlider zoom; range hardcoded ke 8-18
+///   (lihat [OfflineDownloadDefaults]).
+/// - Nama region opsional; kalau user tidak isi, auto-generate
+///   "Wilayah N" (N = jumlah region existing + 1).
+/// - Layer seamark ikut didownload otomatis.
 class RegionPickerScreen extends ConsumerStatefulWidget {
   const RegionPickerScreen({super.key});
 
@@ -36,11 +44,6 @@ class _RegionPickerScreenState extends ConsumerState<RegionPickerScreen> {
   static const double _horizontalInset = 32;
   static const double _topInset = 96; // below the app bar
   static const double _bottomInset = 300; // above the config panel
-
-  // Zoom range offered in the dialog. Capped at 16 to respect OSM ToS
-  // (dense urban zooms aren't helpful at sea anyway).
-  static const int _defaultMinZoom = 8;
-  static const int _defaultMaxZoom = 14;
 
   final MapController _map = MapController();
   LatLngBounds? _currentSelection;
@@ -83,9 +86,15 @@ class _RegionPickerScreenState extends ConsumerState<RegionPickerScreen> {
     final estimate =
         ref.read(offlineDownloadControllerProvider.notifier).estimate(
               bounds: bounds,
-              minZoom: _defaultMinZoom,
-              maxZoom: _defaultMaxZoom,
+              minZoom: OfflineDownloadDefaults.minZoom,
+              maxZoom: OfflineDownloadDefaults.maxZoom,
             );
+
+    // PR #40 — auto-generate default name "Wilayah N" supaya user
+    // tidak wajib ngetik. N = count region existing + 1.
+    final existingCount =
+        ref.read(offlineRegionsProvider).asData?.value.length ?? 0;
+    final defaultName = 'Wilayah ${existingCount + 1}';
 
     final result = await showModalBottomSheet<_DownloadConfig>(
       context: context,
@@ -94,8 +103,7 @@ class _RegionPickerScreenState extends ConsumerState<RegionPickerScreen> {
       builder: (_) => _DownloadSheet(
         bounds: bounds,
         estimate: estimate,
-        defaultMinZoom: _defaultMinZoom,
-        defaultMaxZoom: _defaultMaxZoom,
+        defaultName: defaultName,
       ),
     );
     if (result == null || !mounted) return;
@@ -103,8 +111,10 @@ class _RegionPickerScreenState extends ConsumerState<RegionPickerScreen> {
     await ref.read(offlineDownloadControllerProvider.notifier).startDownload(
           name: result.name,
           bounds: bounds,
-          minZoom: result.minZoom,
-          maxZoom: result.maxZoom,
+          minZoom: OfflineDownloadDefaults.minZoom,
+          maxZoom: OfflineDownloadDefaults.maxZoom,
+          retina: RetinaMode.isHighDensity(context),
+          downloadSeamark: true,
         );
     if (!mounted) return;
     context.pop();
@@ -147,7 +157,7 @@ class _RegionPickerScreenState extends ConsumerState<RegionPickerScreen> {
                       initialCenter: const LatLng(-7.25, 113.42),
                       initialZoom: 9,
                       minZoom: 3,
-                      maxZoom: 16,
+                      maxZoom: 18,
                       onMapEvent: (_) => _recomputeBounds(),
                       interactionOptions: const InteractionOptions(
                         flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
@@ -194,8 +204,6 @@ class _RegionPickerScreenState extends ConsumerState<RegionPickerScreen> {
                   child: _ConfigPanel(
                     bounds: _currentSelection,
                     onContinue: _openDownloadSheet,
-                    minZoom: _defaultMinZoom,
-                    maxZoom: _defaultMaxZoom,
                   ),
                 ),
               ],
@@ -290,14 +298,10 @@ class _ConfigPanel extends ConsumerWidget {
   const _ConfigPanel({
     required this.bounds,
     required this.onContinue,
-    required this.minZoom,
-    required this.maxZoom,
   });
 
   final LatLngBounds? bounds;
   final VoidCallback onContinue;
-  final int minZoom;
-  final int maxZoom;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -308,8 +312,8 @@ class _ConfigPanel extends ConsumerWidget {
         ? null
         : ref.read(offlineDownloadControllerProvider.notifier).estimate(
               bounds: bounds!,
-              minZoom: minZoom,
-              maxZoom: maxZoom,
+              minZoom: OfflineDownloadDefaults.minZoom,
+              maxZoom: OfflineDownloadDefaults.maxZoom,
             );
 
     return GlassCard(
@@ -330,9 +334,12 @@ class _ConfigPanel extends ConsumerWidget {
                 child: _EstimateTile(
                   icon: PhosphorIconsRegular.database,
                   label: 'Estimasi',
+                  // PR #40 — perkalian 2 untuk approximasi seamark
+                  // tile (rata-rata seamark coverage di area pesisir
+                  // ~30-50% dari OSM tile). Cukup untuk preview UX.
                   value: estimate == null
                       ? '—'
-                      : _bytesHuman(estimate.estimatedBytes),
+                      : _bytesHuman((estimate.estimatedBytes * 1.5).round()),
                 ),
               ),
               const SizedBox(width: AppSizes.sp2),
@@ -448,28 +455,20 @@ class _EstimateTile extends StatelessWidget {
 // ===========================================================================
 
 class _DownloadConfig {
-  const _DownloadConfig({
-    required this.name,
-    required this.minZoom,
-    required this.maxZoom,
-  });
+  const _DownloadConfig({required this.name});
   final String name;
-  final int minZoom;
-  final int maxZoom;
 }
 
 class _DownloadSheet extends ConsumerStatefulWidget {
   const _DownloadSheet({
     required this.bounds,
     required this.estimate,
-    required this.defaultMinZoom,
-    required this.defaultMaxZoom,
+    required this.defaultName,
   });
 
   final LatLngBounds bounds;
   final ({int tileCount, int estimatedBytes}) estimate;
-  final int defaultMinZoom;
-  final int defaultMaxZoom;
+  final String defaultName;
 
   @override
   ConsumerState<_DownloadSheet> createState() => _DownloadSheetState();
@@ -477,15 +476,14 @@ class _DownloadSheet extends ConsumerStatefulWidget {
 
 class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
   late final TextEditingController _nameCtl;
-  late int _minZoom;
-  late int _maxZoom;
 
   @override
   void initState() {
     super.initState();
-    _nameCtl = TextEditingController();
-    _minZoom = widget.defaultMinZoom;
-    _maxZoom = widget.defaultMaxZoom;
+    // PR #40 — auto-fill nama default supaya user tidak perlu ngetik.
+    // User boleh override; kalau dikosongkan saat submit, dipakai
+    // default-nya.
+    _nameCtl = TextEditingController(text: widget.defaultName);
   }
 
   @override
@@ -495,32 +493,15 @@ class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
   }
 
   void _submit() {
-    final name = _nameCtl.text.trim();
-    if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Beri nama dulu area ini'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-      return;
-    }
-    Navigator.of(context).pop(
-      _DownloadConfig(name: name, minZoom: _minZoom, maxZoom: _maxZoom),
-    );
+    final raw = _nameCtl.text.trim();
+    final name = raw.isEmpty ? widget.defaultName : raw;
+    Navigator.of(context).pop(_DownloadConfig(name: name));
   }
 
   @override
   Widget build(BuildContext context) {
     final text = context.text;
     final tokens = context.tokens;
-
-    final newEstimate =
-        ref.read(offlineDownloadControllerProvider.notifier).estimate(
-              bounds: widget.bounds,
-              minZoom: _minZoom,
-              maxZoom: _maxZoom,
-            );
 
     return Padding(
       padding: EdgeInsets.only(
@@ -559,10 +540,10 @@ class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
             const SizedBox(height: AppSizes.sp3),
             TextField(
               controller: _nameCtl,
-              autofocus: true,
+              autofocus: false,
               decoration: InputDecoration(
-                labelText: 'Nama area',
-                hintText: 'Contoh: Selat Madura',
+                labelText: 'Nama area (opsional)',
+                hintText: widget.defaultName,
                 filled: true,
                 fillColor: tokens.surface1,
                 border: OutlineInputBorder(
@@ -581,23 +562,37 @@ class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
               ),
             ),
             const SizedBox(height: AppSizes.sp4),
-            Text(
-              'Zoom $_minZoom – $_maxZoom',
-              style: text.labelMedium,
+            // PR #40: zoom slider dihapus. Range hardcoded di
+            // OfflineDownloadDefaults (8-18). Tampilkan info statis
+            // supaya user paham apa yang akan didownload.
+            GlassCard(
+              level: GlassLevel.level1,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSizes.sp3,
+                vertical: AppSizes.sp2,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    PhosphorIconsRegular.info,
+                    size: 14,
+                    color: tokens.textTertiary,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Mencakup zoom ${OfflineDownloadDefaults.minZoom}-${OfflineDownloadDefaults.maxZoom} '
+                      '+ rambu navigasi (seamark)',
+                      style: text.bodySmall?.copyWith(
+                        color: tokens.textSecondary,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            RangeSlider(
-              values: RangeValues(_minZoom.toDouble(), _maxZoom.toDouble()),
-              min: 3,
-              max: 16,
-              divisions: 13,
-              labels: RangeLabels('$_minZoom', '$_maxZoom'),
-              onChanged: (v) {
-                setState(() {
-                  _minZoom = v.start.round();
-                  _maxZoom = v.end.round();
-                });
-              },
-            ),
+            const SizedBox(height: AppSizes.sp3),
             Row(
               children: [
                 Icon(
@@ -607,7 +602,7 @@ class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  _formatEstimate(newEstimate),
+                  _formatEstimate(widget.estimate),
                   style: text.bodySmall?.copyWith(
                     color: tokens.textSecondary,
                     fontFeatures: const [ui.FontFeature.tabularFigures()],
@@ -636,14 +631,17 @@ class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
   }
 
   String _formatEstimate(({int tileCount, int estimatedBytes}) e) {
+    // PR #40 — kompensasi untuk seamark (~50% extra) supaya angka
+    // estimasi mendekati realita download.
+    final bytesWithSeamark = (e.estimatedBytes * 1.5).round();
     final tileStr = e.tileCount < 1000
         ? '${e.tileCount} tile'
         : '${(e.tileCount / 1000).toStringAsFixed(1)}K tile';
-    final bytesStr = e.estimatedBytes < 1024 * 1024
-        ? '${(e.estimatedBytes / 1024).toStringAsFixed(0)} KB'
-        : e.estimatedBytes < 1024 * 1024 * 1024
-            ? '${(e.estimatedBytes / (1024 * 1024)).toStringAsFixed(0)} MB'
-            : '${(e.estimatedBytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+    final bytesStr = bytesWithSeamark < 1024 * 1024
+        ? '${(bytesWithSeamark / 1024).toStringAsFixed(0)} KB'
+        : bytesWithSeamark < 1024 * 1024 * 1024
+            ? '${(bytesWithSeamark / (1024 * 1024)).toStringAsFixed(0)} MB'
+            : '${(bytesWithSeamark / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
     return '$tileStr · $bytesStr estimasi';
   }
 }
