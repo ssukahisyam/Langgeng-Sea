@@ -15,7 +15,6 @@ import '../../export_import/data/imported_dataset_repository.dart';
 import '../../onboarding/data/user_profile_repository.dart';
 import '../../onboarding/domain/entities/user_profile.dart';
 import 'widgets/battery_optimization_tile.dart';
-import 'widgets/tracking_mode_card.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -59,8 +58,6 @@ class SettingsScreen extends ConsumerWidget {
       _buildProfileCard(context, profile),
       const SizedBox(height: AppSizes.sp3),
       _buildThemeCard(context, ref, mode),
-      const SizedBox(height: AppSizes.sp3),
-      const TrackingModeCard(),
       const SizedBox(height: AppSizes.sp3),
       _PolylineWidthCard(),
       const SizedBox(height: AppSizes.sp3),
@@ -207,8 +204,7 @@ class SettingsScreen extends ConsumerWidget {
                 ? null
                 : () => context.push(AppRoutes.profileEdit),
           ),
-          Divider(
-              color: tokens.border, height: 1, indent: 16, endIndent: 16),
+          Divider(color: tokens.border, height: 1, indent: 16, endIndent: 16),
           _SettingsTile(
             iconColor: context.colors.primary,
             iconBg: tokens.primarySoft,
@@ -217,8 +213,7 @@ class SettingsScreen extends ConsumerWidget {
             subtitle: 'Download tile agar peta jalan tanpa sinyal',
             onTap: () => context.push(AppRoutes.offlineMap),
           ),
-          Divider(
-              color: tokens.border, height: 1, indent: 16, endIndent: 16),
+          Divider(color: tokens.border, height: 1, indent: 16, endIndent: 16),
           _SettingsTile(
             iconColor: context.colors.primary,
             iconBg: tokens.primarySoft,
@@ -227,8 +222,7 @@ class SettingsScreen extends ConsumerWidget {
             subtitle: 'Bagikan jalur & penanda dalam format GPX',
             onTap: () => context.push(AppRoutes.exportData),
           ),
-          Divider(
-              color: tokens.border, height: 1, indent: 16, endIndent: 16),
+          Divider(color: tokens.border, height: 1, indent: 16, endIndent: 16),
           // PR follow-up: tile Impor Data dipindah dari Manajemen
           // Data card ke Tools card. Tile yang lama menggunakan
           // GpxSyncService.importFromGpx() (parser legacy yang
@@ -245,14 +239,12 @@ class SettingsScreen extends ConsumerWidget {
             subtitle: 'Muat file GPX dari nelayan lain',
             onTap: () => context.push(AppRoutes.importData),
           ),
-          Divider(
-              color: tokens.border, height: 1, indent: 16, endIndent: 16),
+          Divider(color: tokens.border, height: 1, indent: 16, endIndent: 16),
           // PR #33: tile Kelola Data Impor pindah dari Manajemen
           // Data card ke Tools card supaya semua data management
           // ada di satu tempat.
           _ImportedDatasetsTile(),
-          Divider(
-              color: tokens.border, height: 1, indent: 16, endIndent: 16),
+          Divider(color: tokens.border, height: 1, indent: 16, endIndent: 16),
           _SettingsTile(
             iconColor: context.colors.secondary,
             iconBg: tokens.accentSoft,
@@ -261,8 +253,7 @@ class SettingsScreen extends ConsumerWidget {
             subtitle: 'Lihat & atur penanda lokasi di peta',
             onTap: () => context.push(AppRoutes.markerList),
           ),
-          Divider(
-              color: tokens.border, height: 1, indent: 16, endIndent: 16),
+          Divider(color: tokens.border, height: 1, indent: 16, endIndent: 16),
           // PR #27 R3: tile permission battery optimization
           // supaya nelayan bisa atur ulang akurasi-saat-layar-mati
           // tanpa harus mulai tarikan dulu. Tile self-hide
@@ -419,8 +410,7 @@ class _SettingsTile extends StatelessWidget {
 /// Card with a slider to adjust the map polyline width (4–16px).
 class _PolylineWidthCard extends ConsumerStatefulWidget {
   @override
-  ConsumerState<_PolylineWidthCard> createState() =>
-      _PolylineWidthCardState();
+  ConsumerState<_PolylineWidthCard> createState() => _PolylineWidthCardState();
 }
 
 class _PolylineWidthCardState extends ConsumerState<_PolylineWidthCard> {
@@ -548,9 +538,8 @@ class _ImportedDatasetsTile extends ConsumerWidget {
     final tokens = context.tokens;
     final asyncDatasets = ref.watch(importedDatasetsProvider);
     final count = asyncDatasets.asData?.value.length ?? 0;
-    final subtitle = count == 0
-        ? 'Belum ada data impor'
-        : '$count dataset diimpor';
+    final subtitle =
+        count == 0 ? 'Belum ada data impor' : '$count dataset diimpor';
     return _SettingsTile(
       iconColor: context.colors.primary,
       iconBg: tokens.primarySoft,

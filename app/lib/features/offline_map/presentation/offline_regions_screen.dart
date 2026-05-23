@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart' show RetinaMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -72,7 +73,11 @@ class OfflineRegionsScreen extends ConsumerWidget {
                           !downloadState.isActive
                       ? () => ref
                           .read(offlineDownloadControllerProvider.notifier)
-                          .retry(region)
+                          .retry(
+                            region,
+                            retina: RetinaMode.isHighDensity(context),
+                            downloadSeamark: true,
+                          )
                       : null,
                 );
               },

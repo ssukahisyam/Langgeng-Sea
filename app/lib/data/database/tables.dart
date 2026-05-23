@@ -260,23 +260,18 @@ class AppSettingsTable extends Table {
 
   /// User-configurable polyline width in pixels for map track lines.
   /// Range: 4–16, default: 10.
-  IntColumn get polylineWidth =>
-      integer().withDefault(const Constant(10))();
+  IntColumn get polylineWidth => integer().withDefault(const Constant(10))();
 
-  /// Mode tracking yang dipilih user (PR #29).
+  /// Mode tracking. Sejak PR #40 (schema v11) mode tracking
+  /// dicabut — runtime selalu treat sebagai `'accurate'`. Kolom
+  /// dipertahankan untuk backward compat dengan row pre-v11 yang
+  /// mungkin masih punya nilai `'normal'` (legacy).
   ///
-  /// Disimpan sebagai TEXT supaya stable across refactor enum di Dart.
-  /// Nilai valid: `'normal'` (default — foreground GPS saja, no
-  /// permission tambahan) atau `'accurate'` (foreground service +
-  /// notifikasi + battery optimization). Mapping di domain layer
-  /// lewat [TrackingMode.fromDbValue] yang fallback ke `normal`
-  /// untuk nilai tidak dikenal.
-  ///
-  /// Schema v9 menambah kolom ini dengan default `'normal'` supaya
-  /// existing user yang upgrade dari v8 dapat behavior sama dengan
-  /// first install (tidak tiba-tiba dapat dialog izin).
+  /// Default berubah dari `'normal'` (v9-v10) menjadi `'accurate'`
+  /// (v11+). Migrasi v11 juga `UPDATE` semua row supaya kolom
+  /// konsisten setelah upgrade.
   TextColumn get trackingMode =>
-      text().withDefault(const Constant('normal'))();
+      text().withDefault(const Constant('accurate'))();
 
   DateTimeColumn get updatedAt => dateTime()();
 

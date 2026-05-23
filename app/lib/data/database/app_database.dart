@@ -77,7 +77,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -159,6 +159,23 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(markers, markers.datasetId);
             await m.addColumn(trips, trips.datasetId);
             await m.addColumn(hauls, hauls.datasetId);
+          }
+          // v10 → v11 (PR #40): mode tracking dicabut. Audit pasca
+          // rilis menemukan Mode Normal vs Akurasi hampir identik
+          // secara operasional, dan Mode Normal justru boros baterai
+          // karena throttling Doze tanpa exemption. Sekarang tracking
+          // selalu pakai jalur Akurasi.
+          //
+          // Migrasi: update semua row `app_settings` supaya
+          // `tracking_mode = 'accurate'`. Kolom DB sengaja
+          // dipertahankan (Drift drop-column lewat copy-table mahal)
+          // — domain layer (`TrackingMode.fromDbValue`) sudah
+          // memetakan apapun ke `accurate`, jadi kalau migrasi ini
+          // gagal di device tertentu app tetap konsisten.
+          if (from < 11) {
+            await customStatement(
+              "UPDATE app_settings SET tracking_mode = 'accurate'",
+            );
           }
         },
       );

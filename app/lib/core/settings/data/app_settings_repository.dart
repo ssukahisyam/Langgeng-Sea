@@ -26,10 +26,10 @@ class AppSettingsRepository {
 
   Future<void> setPolylineWidth(int width) => _dao.setPolylineWidth(width);
 
-  /// Persist tracking mode pilihan user (PR #29). Mapping enum → string
-  /// dilakukan di sini supaya UI tidak perlu tahu detail kolom DB.
-  Future<void> setTrackingMode(TrackingMode mode) =>
-      _dao.setTrackingMode(mode.dbValue);
+  // PR #40: `setTrackingMode` dihapus. Mode tracking sudah dicabut —
+  // tidak ada UI yang lagi mengubah field ini. Kolom DB `tracking_mode`
+  // tetap dipertahankan untuk backward compat tapi semua row di-update
+  // ke 'accurate' lewat migrasi v11.
 
   AppSettings _fromRow(AppSettingsRow r) => AppSettings(
         alarmSoundEnabled: r.alarmSoundEnabled,

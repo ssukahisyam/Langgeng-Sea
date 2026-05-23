@@ -2,9 +2,12 @@ import '../../../../features/tracking/domain/entities/tracking_mode.dart';
 
 /// Device-local application preferences.
 ///
-/// Presently hosts the M11 navigation alarm toggles (TTS + vibrate),
-/// map polyline width, and the PR #29 tracking mode toggle
-/// (Normal / Akurasi).
+/// Presently hosts the M11 navigation alarm toggles (TTS + vibrate)
+/// and map polyline width. The PR #29 tracking mode toggle (Normal /
+/// Akurasi) was retired in PR #40 — kolom DB `tracking_mode` tetap
+/// untuk backward compat tapi runtime selalu treat sebagai
+/// [TrackingMode.accurate].
+///
 /// Lives in [core/settings] — not in a feature module — because other
 /// milestones may deposit cross-cutting preferences here too (theme
 /// override, units, etc.) and keeping them behind one table avoids
@@ -36,11 +39,9 @@ class AppSettings {
   /// navigation guides). Range 4–16, default 10.
   final int polylineWidth;
 
-  /// Mode tracking yang dipilih user (PR #29). Default
-  /// [TrackingMode.normal] di first install supaya tidak ada dialog
-  /// izin yang muncul tanpa konteks. User pindah ke
-  /// [TrackingMode.accurate] secara sadar dari Settings saat butuh
-  /// trip panjang dengan layar mati.
+  /// Mode tracking. Sejak PR #40 enum `TrackingMode` hanya punya
+  /// satu nilai ([TrackingMode.accurate]) — field ini dipertahankan
+  /// untuk backward compat dengan kolom DB.
   final TrackingMode trackingMode;
 
   /// Bookkeeping only — bumped on every mutation so future "history
@@ -54,7 +55,7 @@ class AppSettings {
     alarmSoundEnabled: true,
     alarmVibrateEnabled: true,
     polylineWidth: 10,
-    trackingMode: TrackingMode.normal,
+    trackingMode: TrackingMode.accurate,
     updatedAt: DateTime.fromMillisecondsSinceEpoch(0),
   );
 

@@ -75,7 +75,7 @@ CREATE TABLE track_points (
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('AppDatabase migration v1 → v10', () {
+  group('AppDatabase migration v1 → v11', () {
     late AppDatabase db;
 
     setUp(() {
@@ -83,55 +83,59 @@ void main() {
 
       // Build a v1 schema + sample data DIRECTLY on the raw sqlite3
       // handle, before Drift inspects user_version.
-      db = AppDatabase.forTesting(NativeDatabase.memory(setup: (raw) {
-        raw
-          ..execute('PRAGMA user_version = 1;')
-          ..execute(_v1CreateTrips)
-          ..execute(_v1CreateHauls)
-          ..execute(_v1CreateTrackPoints);
+      db = AppDatabase.forTesting(
+        NativeDatabase.memory(
+          setup: (raw) {
+            raw
+              ..execute('PRAGMA user_version = 1;')
+              ..execute(_v1CreateTrips)
+              ..execute(_v1CreateHauls)
+              ..execute(_v1CreateTrackPoints);
 
-        raw.execute(
-          'INSERT INTO trips (id, name, started_at, status, '
-          'created_at, updated_at) '
-          "VALUES ('trip-1', 'Test Trip', ?, 'completed', ?, ?);",
-          [now, now, now],
-        );
-        raw.execute(
-          'INSERT INTO hauls (id, trip_id, order_index, started_at, status, '
-          'trawl_width_meters, distance_meters, duration_seconds, '
-          'swept_area_m2, created_at, updated_at) '
-          "VALUES ('haul-1', 'trip-1', 1, ?, 'completed', 20.0, "
-          '1234.5, 3600, 24690.0, ?, ?);',
-          [now, now, now],
-        );
-        raw.execute(
-          'INSERT INTO track_points (haul_id, latitude, longitude, timestamp) '
-          "VALUES ('haul-1', -7.2, 113.4, ?);",
-          [now],
-        );
-      },),);
+            raw.execute(
+              'INSERT INTO trips (id, name, started_at, status, '
+              'created_at, updated_at) '
+              "VALUES ('trip-1', 'Test Trip', ?, 'completed', ?, ?);",
+              [now, now, now],
+            );
+            raw.execute(
+              'INSERT INTO hauls (id, trip_id, order_index, started_at, status, '
+              'trawl_width_meters, distance_meters, duration_seconds, '
+              'swept_area_m2, created_at, updated_at) '
+              "VALUES ('haul-1', 'trip-1', 1, ?, 'completed', 20.0, "
+              '1234.5, 3600, 24690.0, ?, ?);',
+              [now, now, now],
+            );
+            raw.execute(
+              'INSERT INTO track_points (haul_id, latitude, longitude, timestamp) '
+              "VALUES ('haul-1', -7.2, 113.4, ?);",
+              [now],
+            );
+          },
+        ),
+      );
     });
 
     tearDown(() async {
       await db.close();
     });
 
-    test('onUpgrade runs and reaches schemaVersion 10', () async {
+    test('onUpgrade runs and reaches schemaVersion 11', () async {
       // Any query forces the migration to run.
-      final row = await db
-          .customSelect('PRAGMA user_version')
-          .getSingle();
+      final result = await db.customSelect('PRAGMA user_version').getSingle();
+      final userVersion = result.data['user_version'] as int;
       expect(
-        row.data.values.first,
-        10,
-        reason: 'migration should land at schemaVersion 10',
+        userVersion,
+        11,
+        reason: 'migration should land at schemaVersion 11',
       );
     });
 
     test('existing trip row survives the migration', () async {
       final trips = await db
           .customSelect(
-              "SELECT id, name, status FROM trips WHERE id = 'trip-1'",)
+            "SELECT id, name, status FROM trips WHERE id = 'trip-1'",
+          )
           .get();
       expect(trips, hasLength(1));
       expect(trips.single.data['name'], 'Test Trip');
@@ -148,10 +152,14 @@ void main() {
       expect(hauls, hasLength(1));
       final haul = hauls.single.data;
       expect(haul['trip_id'], 'trip-1');
-      expect((haul['distance_meters'] as num).toDouble(),
-          closeTo(1234.5, 0.01),);
-      expect((haul['swept_area_m2'] as num).toDouble(),
-          closeTo(24690.0, 0.01),);
+      expect(
+        (haul['distance_meters'] as num).toDouble(),
+        closeTo(1234.5, 0.01),
+      );
+      expect(
+        (haul['swept_area_m2'] as num).toDouble(),
+        closeTo(24690.0, 0.01),
+      );
     });
 
     test('existing track point survives the migration', () async {
@@ -186,9 +194,7 @@ void main() {
     });
 
     test('hauls.color_value column exists after upgrade (v5)', () async {
-      final rows = await db
-          .customSelect('PRAGMA table_info(hauls)')
-          .get();
+      final rows = await db.customSelect('PRAGMA table_info(hauls)').get();
       final colNames = rows.map((r) => r.data['name'] as String).toList();
       expect(
         colNames,
@@ -197,8 +203,7 @@ void main() {
       );
     });
 
-    test('legacy hauls.color_value defaults to NULL for pre-v5 rows',
-        () async {
+    test('legacy hauls.color_value defaults to NULL for pre-v5 rows', () async {
       final rows = await db
           .customSelect(
             "SELECT color_value FROM hauls WHERE id = 'haul-1'",
@@ -213,9 +218,7 @@ void main() {
     });
 
     test('trips.color_value column exists after upgrade (v7)', () async {
-      final rows = await db
-          .customSelect('PRAGMA table_info(trips)')
-          .get();
+      final rows = await db.customSelect('PRAGMA table_info(trips)').get();
       final colNames = rows.map((r) => r.data['name'] as String).toList();
       expect(
         colNames,
@@ -224,8 +227,7 @@ void main() {
       );
     });
 
-    test('legacy trips.color_value defaults to NULL for pre-v7 rows',
-        () async {
+    test('legacy trips.color_value defaults to NULL for pre-v7 rows', () async {
       final rows = await db
           .customSelect(
             "SELECT color_value FROM trips WHERE id = 'trip-1'",
@@ -243,8 +245,11 @@ void main() {
             'updated_at FROM app_settings WHERE id = 1',
           )
           .get();
-      expect(rows, hasLength(1),
-          reason: 'migration should seed exactly one app_settings row',);
+      expect(
+        rows,
+        hasLength(1),
+        reason: 'migration should seed exactly one app_settings row',
+      );
       final r = rows.single.data;
       // Drift stores bool as 0/1 via custom SQL, but the seed uses
       // literal 1 values so we compare against the numeric form.
@@ -286,7 +291,8 @@ void main() {
       );
       final profile = await db
           .customSelect(
-              'SELECT name, vessel_name FROM user_profiles WHERE id = 1',)
+            'SELECT name, vessel_name FROM user_profiles WHERE id = 1',
+          )
           .getSingle();
       expect(profile.data['name'], 'Pak Hasan');
       expect(profile.data['vessel_name'], 'KM Harapan');
@@ -294,9 +300,8 @@ void main() {
 
     test('app_settings.polyline_width column exists after upgrade (v8)',
         () async {
-      final rows = await db
-          .customSelect('PRAGMA table_info(app_settings)')
-          .get();
+      final rows =
+          await db.customSelect('PRAGMA table_info(app_settings)').get();
       final colNames = rows.map((r) => r.data['name'] as String).toList();
       expect(
         colNames,
@@ -317,9 +322,8 @@ void main() {
 
     test('app_settings.tracking_mode column exists after upgrade (v9)',
         () async {
-      final rows = await db
-          .customSelect('PRAGMA table_info(app_settings)')
-          .get();
+      final rows =
+          await db.customSelect('PRAGMA table_info(app_settings)').get();
       final colNames = rows.map((r) => r.data['name'] as String).toList();
       expect(
         colNames,
@@ -328,17 +332,19 @@ void main() {
       );
     });
 
-    test("tracking_mode defaults to 'normal' for pre-v9 rows", () async {
-      // PR #29: default ke 'normal' supaya existing user tidak
-      // tiba-tiba dapat dialog izin notifikasi/battery saat tap MULAI
-      // setelah upgrade — sama behavior dengan first install.
+    test("tracking_mode is 'accurate' after v11 migration", () async {
+      // PR #29 (v9): default ke 'normal'.
+      // PR #40 (v11): mode tracking dicabut, semua row di-update ke
+      // 'accurate'. Test ini start dari schema v8 (sebelum kolom ini
+      // ada), jadi setelah onUpgrade run sampai v11 kolom harus
+      // bernilai 'accurate' — bukan 'normal' lagi.
       final rows = await db
           .customSelect(
             'SELECT tracking_mode FROM app_settings WHERE id = 1',
           )
           .get();
       expect(rows, hasLength(1));
-      expect(rows.single.data['tracking_mode'], 'normal');
+      expect(rows.single.data['tracking_mode'], 'accurate');
     });
 
     test('imported_datasets table exists after upgrade (v10)', () async {
@@ -346,9 +352,7 @@ void main() {
     });
 
     test('markers.dataset_id column exists after upgrade (v10)', () async {
-      final rows = await db
-          .customSelect('PRAGMA table_info(markers)')
-          .get();
+      final rows = await db.customSelect('PRAGMA table_info(markers)').get();
       final colNames = rows.map((r) => r.data['name'] as String).toList();
       expect(
         colNames,
@@ -358,9 +362,7 @@ void main() {
     });
 
     test('trips.dataset_id column exists after upgrade (v10)', () async {
-      final rows = await db
-          .customSelect('PRAGMA table_info(trips)')
-          .get();
+      final rows = await db.customSelect('PRAGMA table_info(trips)').get();
       final colNames = rows.map((r) => r.data['name'] as String).toList();
       expect(
         colNames,
@@ -370,9 +372,7 @@ void main() {
     });
 
     test('hauls.dataset_id column exists after upgrade (v10)', () async {
-      final rows = await db
-          .customSelect('PRAGMA table_info(hauls)')
-          .get();
+      final rows = await db.customSelect('PRAGMA table_info(hauls)').get();
       final colNames = rows.map((r) => r.data['name'] as String).toList();
       expect(
         colNames,
@@ -385,9 +385,8 @@ void main() {
       // PR #33: existing rows yang dibuat user di device ini sebelum
       // upgrade harus dapat dataset_id = NULL (= "data milik user
       // sendiri"), bukan random / corrupt value.
-      final markerRows = await db
-          .customSelect("SELECT dataset_id FROM markers")
-          .get();
+      final markerRows =
+          await db.customSelect("SELECT dataset_id FROM markers").get();
       // Trip-1 + Haul-1 di-seed di setUp.
       final tripRows = await db
           .customSelect("SELECT dataset_id FROM trips WHERE id = 'trip-1'")
@@ -438,13 +437,11 @@ void main() {
 
 /// Asserts a table with [name] exists in `sqlite_master`.
 Future<void> _expectTableExists(AppDatabase db, String name) async {
-  final rows = await db
-      .customSelect(
-        'SELECT name FROM sqlite_master '
-        "WHERE type='table' AND name = ?",
-        variables: [Variable.withString(name)],
-      )
-      .get();
+  final rows = await db.customSelect(
+    'SELECT name FROM sqlite_master '
+    "WHERE type='table' AND name = ?",
+    variables: [Variable.withString(name)],
+  ).get();
   expect(
     rows,
     hasLength(1),
