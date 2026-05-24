@@ -14,7 +14,7 @@ import '../../../core/widgets/glass_card.dart';
 import '../../export_import/data/imported_dataset_repository.dart';
 import '../../onboarding/data/user_profile_repository.dart';
 import '../../onboarding/domain/entities/user_profile.dart';
-import 'widgets/battery_optimization_tile.dart';
+import 'widgets/device_status_card.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -55,6 +55,12 @@ class SettingsScreen extends ConsumerWidget {
     final items = <Widget>[
       Text(AppStrings.tabSettings, style: text.headlineLarge),
       const SizedBox(height: AppSizes.sp5),
+      // PR #41: card "Status Perangkat" promote ke posisi paling
+      // atas (di atas Profile) supaya user langsung lihat status
+      // permission saat buka Settings. Background warning kalau
+      // ada permission wajib yang denied.
+      const DeviceStatusCard(),
+      const SizedBox(height: AppSizes.sp3),
       _buildProfileCard(context, profile),
       const SizedBox(height: AppSizes.sp3),
       _buildThemeCard(context, ref, mode),
@@ -253,12 +259,9 @@ class SettingsScreen extends ConsumerWidget {
             subtitle: 'Lihat & atur penanda lokasi di peta',
             onTap: () => context.push(AppRoutes.markerList),
           ),
-          Divider(color: tokens.border, height: 1, indent: 16, endIndent: 16),
-          // PR #27 R3: tile permission battery optimization
-          // supaya nelayan bisa atur ulang akurasi-saat-layar-mati
-          // tanpa harus mulai tarikan dulu. Tile self-hide
-          // di iOS / desktop.
-          const BatteryOptimizationTile(),
+          // PR #41: BatteryOptimizationTile dihapus dari sini.
+          // Permission battery sekarang ada di card "Status
+          // Perangkat" di atas Profile, bareng Lokasi & Notifikasi.
         ],
       ),
     );

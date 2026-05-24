@@ -8,6 +8,7 @@ import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/glass_card.dart';
+import '../../../map/presentation/widgets/tracking_status_chip.dart';
 import '../../application/tracking_controller.dart';
 
 /// Top-bar glass panel shown during active haul recording.
@@ -106,6 +107,12 @@ class _LiveStatsPanelState extends ConsumerState<LiveStatsPanel>
                 ),
               ),
               const Spacer(),
+              // PR #41: chip status background tracking. Self-hide
+              // kalau tracking tidak aktif (di sini selalu aktif —
+              // panel cuma render saat haul running). Tap = buka
+              // PermissionChecklistSheet untuk fix permission.
+              const TrackingStatusChip(),
+              const SizedBox(width: AppSizes.sp2),
               Icon(PhosphorIconsBold.ruler,
                   size: 14, color: tokens.textTertiary),
               const SizedBox(width: 4),
