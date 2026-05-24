@@ -67,7 +67,6 @@ import 'widgets/location_permission_sheet.dart';
 import 'widgets/map_attribution.dart';
 import 'widgets/map_controls.dart';
 import 'widgets/map_layers_expandable.dart';
-import 'widgets/map_overflow_menu.dart';
 import 'widgets/marker_pick_tooltip.dart';
 import 'widgets/offline_regions_layer.dart';
 import 'widgets/pick_location_overlay.dart';
@@ -1272,16 +1271,16 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
             // --- Right-side floating controls ---
             //
-            // PR #40 — kolom kanan dirombak:
-            // - Tombol toggle layer (markers, all-history, offline,
-            //   dataset filter) dijahit ke MapLayersExpandable supaya
-            //   kolom tidak sesak dan ukurannya seragam.
-            // - Kompas calibration pindah ke MapOverflowMenu.
-            // - GpsAccuracyChip dipindah ke top bar (lihat
-            //   Positioned top di bawah).
-            // Sekarang kolom kanan permanen: Layers + Overflow +
-            // Center-on-me. MiniTrackingButton tetap kondisional saat
-            // navigasi aktif.
+            // PR #41 — kolom kanan disederhanakan lagi:
+            // - Three-dot MapOverflowMenu dihapus. Action unik
+            //   (Tambah penanda, Kelola penanda, Kalibrasi kompas)
+            //   dipindah ke section "Aksi" di MapLayersExpandable.
+            //   Toggle "Riwayat" yang sebelumnya duplikat di kedua
+            //   popup dikonsolidasi.
+            // - GpsAccuracyChip tetap di top bar (PR #40).
+            // Kolom kanan permanen sekarang: Layers + Center-on-me.
+            // MiniTrackingButton tetap kondisional saat navigasi
+            // aktif.
             Positioned(
               right: AppSizes.sp4,
               bottom: (mode == MapMode.idle ||
@@ -1313,9 +1312,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   const SizedBox(height: AppSizes.sp2),
                   MapLayersExpandable(
                     onOpenDatasetFilter: () => _showDatasetFilterSheet(context),
-                  ),
-                  const SizedBox(height: AppSizes.sp2),
-                  MapOverflowMenu(
                     onAddMarkerHere: () => _onAddMarkerPressed(context, ref),
                   ),
                 ],
