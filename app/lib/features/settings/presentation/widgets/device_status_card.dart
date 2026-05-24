@@ -10,24 +10,31 @@ import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/glass_card.dart';
 
-/// Card "Status Perangkat" di Settings yang menggabungkan status &
-/// toggle untuk 3 permission tracking-related: Lokasi, Notifikasi,
+/// Card "Status Perangkat" di Settings yang menampilkan status &
+/// aksi untuk 3 permission tracking-related: Lokasi, Notifikasi,
 /// Hemat Daya.
 ///
-/// PR #41 — sebelumnya cuma ada `BatteryOptimizationTile` standalone
-/// di tengah-tengah Tools card, dan tidak ada surface sama sekali
-/// untuk Notifikasi. User komplain tidak ada feedback jelas apakah
-/// permission sudah diizinkan atau belum.
+/// PR #41 — first version pakai toggle switch per permission.
 ///
-/// Card ini:
-/// - Render switch toggle per permission. Saat granted, tombol
-///   posisi ON (tap → buka Settings sistem untuk revoke); saat
-///   denied/permanentlyDenied, posisi OFF (tap → trigger request
-///   atau buka Settings).
-/// - Background warning (orange-ish surface) saat ada permission
-///   wajib (Lokasi/Notifikasi) yang belum granted.
-/// - Reactive ke `trackingPermissionsProvider` — update otomatis
-///   saat user balik dari Settings sistem.
+/// PR #42 — toggle switch diganti **badge status + tombol aksi**.
+/// Alasan: OS Android & iOS tidak izinkan app revoke permission yang
+/// sudah granted (tidak ada API). Toggle switch implies "tap = beralih
+/// instan" — itu misleading karena yang sebenarnya terjadi adalah
+/// app me-redirect ke Settings sistem. Sekarang representasi visual
+/// lebih jujur:
+///
+/// - **Granted**: badge hijau "Aktif" + tombol "Atur" → dialog
+///   konfirmasi cabut, lalu `openAppSettings()`.
+/// - **Denied**: badge kuning "Belum" + tombol "Izinkan" → dialog
+///   OS native muncul.
+/// - **PermanentlyDenied**: badge merah "Diblokir" + tombol
+///   "Buka Settings" → langsung redirect (dialog OS sudah tidak
+///   muncul setelah permanent deny).
+///
+/// Card otomatis di-warn (background orange) saat ada permission
+/// wajib (Lokasi/Notifikasi) atau opsional (Battery di Android)
+/// yang belum granted. Reactive ke `trackingPermissionsProvider` —
+/// auto-update saat user balik dari Settings sistem.
 class DeviceStatusCard extends ConsumerWidget {
   const DeviceStatusCard({super.key});
 
@@ -144,8 +151,8 @@ class _PermissionRow extends StatelessWidget {
     final tokens = context.tokens;
     final colors = context.colors;
     final text = context.text;
-    final granted = status.isGranted;
-    final permanentlyDenied = status.isPermanentlyDenied;
+    final granted = status == PermissionStatus.granted;
+    final permanentlyDenied = status == PermissionStatus.permanentlyDenied;
 
     final iconColor = granted
         ? colors.primary
@@ -175,7 +182,13 @@ class _PermissionRow extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Text(title, style: text.labelMedium),
+                  Flexible(
+                    child: Text(
+                      title,
+                      style: text.labelMedium,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                   if (required) ...[
                     const SizedBox(width: 6),
                     Text(
@@ -186,11 +199,13 @@ class _PermissionRow extends StatelessWidget {
                       ),
                     ),
                   ],
+                  const SizedBox(width: AppSizes.sp2),
+                  _StatusBadge(status: status),
                 ],
               ),
               const SizedBox(height: 2),
               Text(
-                _statusSubtitle(status, description),
+                description,
                 style: text.bodySmall?.copyWith(
                   color: tokens.textTertiary,
                   fontSize: 11,
@@ -200,83 +215,295 @@ class _PermissionRow extends StatelessWidget {
           ),
         ),
         const SizedBox(width: AppSizes.sp2),
-        _PermissionToggle(
+        _ActionButton(
           status: status,
-          onTap: () async {
-            if (status.isPermanentlyDenied || status.isGranted) {
-              // Permanent denied → harus dari Settings sistem.
-              // Granted → user mungkin mau cabut, juga lewat Settings.
-              await openAppSettings();
-            } else {
-              await onRequest();
-            }
-          },
+          permissionLabel: title,
+          onRequest: onRequest,
         ),
       ],
     );
   }
+}
 
-  String _statusSubtitle(PermissionStatus status, String description) {
-    if (status.isGranted) return 'Aktif — $description';
-    if (status.isPermanentlyDenied) {
-      return 'Diblokir di pengaturan — ketuk untuk membuka';
+/// Badge kecil yang menunjukkan status permission (Aktif / Belum /
+/// Diblokir) dengan icon + warna sesuai.
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.status});
+
+  final PermissionStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final colors = context.colors;
+    final granted = status == PermissionStatus.granted;
+    final permanentlyDenied = status == PermissionStatus.permanentlyDenied;
+
+    final IconData icon;
+    final Color color;
+    final String label;
+
+    if (granted) {
+      icon = PhosphorIconsFill.checkCircle;
+      color = colors.primary;
+      label = 'Aktif';
+    } else if (permanentlyDenied) {
+      icon = PhosphorIconsFill.xCircle;
+      color = tokens.danger;
+      label = 'Diblokir';
+    } else {
+      icon = PhosphorIconsFill.warningCircle;
+      color = tokens.warning;
+      label = 'Belum';
     }
-    return description;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: color),
+        const SizedBox(width: 3),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
+        ),
+      ],
+    );
   }
 }
 
-class _PermissionToggle extends StatelessWidget {
-  const _PermissionToggle({
+/// Tombol aksi kontekstual sesuai status:
+/// - Granted → "Atur" (buka dialog konfirmasi cabut, lalu redirect)
+/// - Denied → "Izinkan" (langsung trigger request OS)
+/// - PermanentlyDenied → "Buka Settings" (langsung redirect, dialog
+///   OS sudah tidak muncul karena user pernah pilih "Don't ask")
+class _ActionButton extends StatelessWidget {
+  const _ActionButton({
     required this.status,
-    required this.onTap,
+    required this.permissionLabel,
+    required this.onRequest,
   });
 
   final PermissionStatus status;
-  final VoidCallback onTap;
+
+  /// Label permission untuk dipakai di copy dialog konfirmasi.
+  /// Mis. "Lokasi GPS", "Notifikasi", "Hemat Daya".
+  final String permissionLabel;
+
+  final Future<PermissionStatus> Function() onRequest;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final tokens = context.tokens;
-    final granted = status.isGranted;
+    final granted = status == PermissionStatus.granted;
+    final permanentlyDenied = status == PermissionStatus.permanentlyDenied;
 
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeInOut,
-        width: 44,
-        height: 26,
-        padding: const EdgeInsets.all(2),
-        decoration: BoxDecoration(
-          color: granted ? colors.primary : tokens.surface1,
-          borderRadius: BorderRadius.circular(AppSizes.radiusPill),
-          border: Border.all(
-            color: granted ? colors.primary : tokens.border,
-            width: 1,
+    final String label;
+    if (granted) {
+      label = 'Atur';
+    } else if (permanentlyDenied) {
+      label = 'Buka Settings';
+    } else {
+      label = 'Izinkan';
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _handleTap(context),
+        borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSizes.sp3,
+            vertical: 6,
           ),
-        ),
-        child: AnimatedAlign(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeInOut,
-          alignment: granted ? Alignment.centerRight : Alignment.centerLeft,
-          child: Container(
-            width: 20,
-            height: 20,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.15),
-                  blurRadius: 3,
-                  offset: const Offset(0, 1),
-                ),
-              ],
+          decoration: BoxDecoration(
+            // Granted = outlined (less attention-grabbing).
+            // Denied / permanentlyDenied = filled primary (CTA).
+            color: granted ? Colors.transparent : colors.primary,
+            borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+            border: Border.all(
+              color: granted ? tokens.border : colors.primary,
+              width: 1,
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: granted ? tokens.textSecondary : Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 11,
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Future<void> _handleTap(BuildContext context) async {
+    final granted = status == PermissionStatus.granted;
+    final permanentlyDenied = status == PermissionStatus.permanentlyDenied;
+
+    if (granted) {
+      // Tap "Atur" pada permission granted = user mau cabut. Tampilkan
+      // dialog konfirmasi dulu supaya user paham akan ke Settings
+      // sistem (tidak ada API in-app untuk revoke).
+      final confirmed = await _RevokePermissionDialog.show(
+        context,
+        permissionLabel: permissionLabel,
+      );
+      if (confirmed && context.mounted) {
+        await openAppSettings();
+      }
+    } else if (permanentlyDenied) {
+      // PermanentlyDenied = user pernah pilih "Don't ask again".
+      // Dialog OS sudah tidak akan muncul lagi. Langsung redirect
+      // tanpa konfirmasi karena tombol "Buka Settings" sudah cukup
+      // self-explanatory.
+      await openAppSettings();
+    } else {
+      // Denied biasa = user belum pernah respond, atau pilih "Deny"
+      // tanpa "Don't ask again". Trigger request OS — dialog akan
+      // muncul.
+      await onRequest();
+    }
+  }
+}
+
+/// Dialog konfirmasi sebelum redirect ke Settings sistem untuk
+/// mencabut permission yang sudah granted.
+///
+/// Reusable: terima `permissionLabel` untuk personalize copy.
+/// Return `true` kalau user tap "Buka Settings", `false` kalau
+/// "Batal" atau dismiss.
+class _RevokePermissionDialog extends StatelessWidget {
+  const _RevokePermissionDialog({required this.permissionLabel});
+
+  final String permissionLabel;
+
+  static Future<bool> show(
+    BuildContext context, {
+    required String permissionLabel,
+  }) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (_) => _RevokePermissionDialog(
+        permissionLabel: permissionLabel,
+      ),
+    );
+    return result ?? false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final text = context.text;
+
+    return AlertDialog(
+      backgroundColor: tokens.surface3,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+      ),
+      icon: Icon(
+        PhosphorIconsFill.warningCircle,
+        size: 36,
+        color: tokens.warning,
+      ),
+      title: Text(
+        'Cabut Izin $permissionLabel?',
+        style: text.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+        textAlign: TextAlign.center,
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Aplikasi tidak bisa mencabut izin secara langsung — ini '
+            'aturan dari sistem operasi.',
+            style: text.bodyMedium?.copyWith(color: tokens.textSecondary),
+          ),
+          const SizedBox(height: AppSizes.sp3),
+          Text(
+            'Anda akan dialihkan ke Settings sistem. Cara mencabut '
+            'di sana:',
+            style: text.bodyMedium?.copyWith(color: tokens.textSecondary),
+          ),
+          const SizedBox(height: AppSizes.sp2),
+          _Step(number: '1', text: 'Tap menu "Permissions" / "Izin"'),
+          _Step(number: '2', text: 'Pilih "$permissionLabel"'),
+          _Step(number: '3', text: 'Tap "Don\'t allow" / "Tolak"'),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: Text(
+            'Batal',
+            style: text.labelMedium?.copyWith(color: tokens.textSecondary),
+          ),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          style: FilledButton.styleFrom(
+            backgroundColor: context.colors.primary,
+          ),
+          child: const Text('Buka Settings'),
+        ),
+      ],
+    );
+  }
+}
+
+class _Step extends StatelessWidget {
+  const _Step({required this.number, required this.text});
+
+  final String number;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final theme = context.text;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 18,
+            height: 18,
+            margin: const EdgeInsets.only(top: 2),
+            decoration: BoxDecoration(
+              color: tokens.primarySoft,
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                number,
+                style: TextStyle(
+                  color: context.colors.primary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSizes.sp2),
+          Expanded(
+            child: Text(
+              text,
+              style: theme.bodySmall?.copyWith(
+                color: tokens.textSecondary,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
