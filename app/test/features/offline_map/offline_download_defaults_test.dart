@@ -1,12 +1,17 @@
-// PR #40 — tests untuk default zoom range download offline.
+// Tests untuk default zoom range download offline.
 //
-// Sebelumnya user pilih zoom range sendiri lewat RangeSlider 3-16
-// dengan default max 14. Itu menyebabkan banyak user dapat blank tile
-// saat zoom > 14 padahal app menampilkan sampai zoom 19. Sekarang
-// hardcode 8-18 supaya selalu cocok dengan kebutuhan navigasi laut.
+// PR #40 — pertama kali hardcode-kan range default ke 8-18 supaya
+// user tidak dapat blank tile saat zoom > download_max.
 //
-// Test ini lock value-nya supaya kalau ada developer yang ubah tanpa
-// koordinasi dengan max zoom live map, CI gagal duluan.
+// PR #41 — turunkan max ke 16 setelah audit menemukan 8-18
+// menghasilkan download ±4 GB untuk area 50×50 km dan ±17 GB di
+// HP retina (karena retina +1 compensation). Tidak realistis untuk
+// mobile. Trade-off: di display zoom > 16 saat offline, tile akan
+// stretched dari z=16 (mild blur).
+//
+// Test ini lock value-nya supaya developer yang ubah tanpa
+// koordinasi dengan estimasi storage / live maxNativeZoom dapat
+// CI fail duluan.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:langgeng_sea/features/offline_map/data/tile_cache_service.dart';
@@ -17,21 +22,23 @@ void main() {
       expect(OfflineDownloadDefaults.minZoom, 8);
     });
 
-    test('maxZoom is 18 (close enough to maxNativeZoom 19 di map_screen)', () {
-      // Live TileLayer di map_screen pakai maxNativeZoom: 19. Download
-      // pakai 18 supaya retina simulation (+1) sampai 19. Kalau
-      // maxNativeZoom dinaikkan, default ini juga harus naik.
-      expect(OfflineDownloadDefaults.maxZoom, 18);
+    test('maxZoom is 16 (sweet spot antara detail vs ukuran download)', () {
+      // PR #41: 16 dipilih supaya download area medium (50×50 km)
+      // muat di ±280 MB. Untuk display zoom 17-20 saat offline,
+      // flutter_map akan stretched tile dari z=16 (blur ringan).
+      // Live TileLayer maxNativeZoom: 19 — saat online tetap fetch
+      // tile sharp dari network.
+      expect(OfflineDownloadDefaults.maxZoom, 16);
     });
 
     test('range tidak terlalu lebar (efek storage size manageable)', () {
       final range =
           OfflineDownloadDefaults.maxZoom - OfflineDownloadDefaults.minZoom;
-      // 10 zoom levels = 4^10 = ~1M tiles untuk full earth (di luar
-      // bounds tentu jauh lebih kecil). Cukup untuk port-level detail
-      // tanpa membuat download multi-GB untuk area medium.
-      expect(range, lessThanOrEqualTo(12));
-      expect(range, greaterThanOrEqualTo(8));
+      // 8 levels = 4^8 = ~65K tiles untuk full earth (di luar bounds
+      // tentu jauh lebih kecil). Cukup untuk coast/channel detail
+      // tanpa membuat download multi-GB.
+      expect(range, lessThanOrEqualTo(10));
+      expect(range, greaterThanOrEqualTo(6));
     });
   });
 }

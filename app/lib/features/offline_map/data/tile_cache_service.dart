@@ -31,16 +31,24 @@ class TileEndpoints {
 /// Default zoom range yang dipakai saat user download offline region.
 ///
 /// PR #40 — sebelumnya user pilih sendiri lewat RangeSlider 3-16.
-/// Audit pasca rilis menemukan slider hanya bikin user bingung dan
-/// banyak yang download dengan zoom max 14 padahal app menampilkan
-/// sampai zoom 19. Sekarang hardcode supaya selalu cocok dengan
-/// kebutuhan navigasi laut: min 8 (regional view) sampai 18
-/// (detail pelabuhan/mooring). Total ±10 level cukup untuk semua
-/// skenario fishing tanpa membuat download terlalu besar.
+/// Sekarang hardcode supaya selalu cocok dengan kebutuhan navigasi
+/// laut.
+///
+/// PR #41 — max zoom diturunkan dari 18 ke **16**, dan retina +1
+/// compensation dihapus. Audit menemukan default 8-18 menghasilkan
+/// download ±4 GB untuk area 50×50 km, dan di-double lagi jadi
+/// ±17 GB di HP retina karena retinaMode minta tile zoom +1.
+/// Tidak realistis untuk mobile.
+///
+/// Trade-off: di display zoom > 16 saat offline, tile akan
+/// **stretched** dari z=16 (mild blur 2x di z=17, 4x di z=18-20).
+/// User di pelabuhan saat online tetap dapat tile sharp via
+/// `MapOptions.maxZoom: 20`. Untuk 50×50 km, ukuran download
+/// turun dari ±4 GB ke ±280 MB — masuk akal di koneksi 4G.
 class OfflineDownloadDefaults {
   const OfflineDownloadDefaults._();
   static const int minZoom = 8;
-  static const int maxZoom = 18;
+  static const int maxZoom = 16;
 }
 
 /// Live progress snapshot for a running tile download.
@@ -93,11 +101,18 @@ abstract class TileCacheService {
   /// Kick off a bulk download of every tile covering [region] between
   /// its [OfflineRegion.minZoom] and [OfflineRegion.maxZoom].
   ///
-  /// PR #40 — [retina] menentukan apakah perlu download tile zoom
-  /// `maxZoom + 1` extra supaya match dengan retinaMode di live
-  /// [TileLayer] (flutter_map mensimulasikan retina dengan request
-  /// tile zoom yang lebih tinggi). [downloadSeamark] mengontrol
-  /// apakah layer rambu navigasi ikut di-cache (default true).
+  /// PR #40 — [retina] dulu menentukan apakah perlu download tile
+  /// zoom `maxZoom + 1` extra supaya match dengan retinaMode di
+  /// live [TileLayer].
+  ///
+  /// PR #41 — kompensasi retina dihapus karena melipatgandakan
+  /// ukuran download (4x lebih besar). Trade-off: di display zoom >
+  /// maxZoom saat retina + offline, tile akan stretched dari maxZoom.
+  /// Parameter [retina] dipertahankan untuk backward compat tapi
+  /// tidak lagi mengubah zoom range.
+  ///
+  /// [downloadSeamark] mengontrol apakah layer rambu navigasi ikut
+  /// di-cache (default true).
   ///
   /// Emits progress snapshots gabungan untuk OSM + seamark. Stream
   /// closes saat semua download selesai (success atau failure).
@@ -171,11 +186,12 @@ class FmtcTileCacheService implements TileCacheService {
     bool retina = false,
     bool downloadSeamark = true,
   }) async* {
-    // PR #40 — kompensasi retina simulation: live TileLayer dengan
-    // retinaMode aktif minta tile di zoom +1 dari display zoom. Kalau
-    // download tidak ikut menaikkan max zoom, user retina device
-    // akan tetap dapat blank tile padahal sudah download.
-    final effectiveMaxZoom = retina ? region.maxZoom + 1 : region.maxZoom;
+    // PR #41 — drop retina +1 compensation. Sebelumnya:
+    //   final effectiveMaxZoom = retina ? region.maxZoom + 1 : ...;
+    // Itu melipatgandakan ukuran download 4x untuk gain marginal
+    // (tile sharp hanya di display zoom == download max). Sekarang
+    // semua user dapat zoom range identik sesuai region.maxZoom.
+    final effectiveMaxZoom = region.maxZoom;
 
     // PR #40 — inflate bounds 1 tile margin di max zoom supaya
     // keepBuffer/panBuffer di live layer tidak melewati area
@@ -220,7 +236,7 @@ class FmtcTileCacheService implements TileCacheService {
     if (!downloadSeamark) return;
 
     // Step 2: download seamark overlay layer ke store terpisah.
-    // Pakai zoom range yang sama plus retina compensation.
+    // Pakai zoom range yang sama (no retina compensation sejak PR #41).
     final seamarkStore = const FMTCStore(TileEndpoints.seamarkStore);
     final seamarkRect = RectangleRegion(inflatedBounds).toDownloadable(
       minZoom: region.minZoom,
