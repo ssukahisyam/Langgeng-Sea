@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:permission_handler/permission_handler.dart'
+    show PermissionStatus;
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart' show ServiceStatus;
@@ -11,6 +14,7 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../core/constants/app_strings.dart';
 import '../../../core/observability/logger.dart';
+import '../../../core/permissions/tracking_permissions_provider.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/services/gps_reading.dart';
 import '../../../core/services/gps_service.dart';
@@ -45,6 +49,7 @@ import '../../tracking/domain/entities/trip.dart';
 import '../../tracking/presentation/widgets/active_haul_polyline.dart';
 import '../../tracking/presentation/widgets/haul_summary_sheet.dart';
 import '../../tracking/presentation/widgets/live_stats_panel.dart';
+import '../../tracking/presentation/widgets/permission_checklist_sheet.dart';
 import '../application/all_history_visible_provider.dart';
 import '../application/compass_heading_provider.dart';
 import '../application/current_reading_provider.dart';
@@ -67,7 +72,6 @@ import 'widgets/location_permission_sheet.dart';
 import 'widgets/map_attribution.dart';
 import 'widgets/map_controls.dart';
 import 'widgets/map_layers_expandable.dart';
-import 'widgets/map_overflow_menu.dart';
 import 'widgets/marker_pick_tooltip.dart';
 import 'widgets/offline_regions_layer.dart';
 import 'widgets/pick_location_overlay.dart';
@@ -620,6 +624,21 @@ class _MapScreenState extends ConsumerState<MapScreen>
     if (permState != LocationPermissionState.ready) {
       await _showPermissionSheet();
       return;
+    }
+
+    // PR #41: gating notifikasi + battery exemption sebelum start.
+    // Refresh status dulu (mungkin user sudah grant lewat Settings
+    // tanpa pernah balik ke screen ini), lalu kalau ada yang masih
+    // missing tampilkan PermissionChecklistSheet supaya user paham
+    // permission mana yang perlu di-grant. Wajib (notif) di-block
+    // dengan disabled CTA; opsional (battery) tidak.
+    await ref.read(trackingPermissionsProvider.notifier).refresh();
+    final perms = ref.read(trackingPermissionsProvider);
+    final batteryGranted = perms.battery == PermissionStatus.granted;
+    if (!perms.allRequired || (Platform.isAndroid && !batteryGranted)) {
+      final proceed = await PermissionChecklistSheet.show(context);
+      if (!mounted) return;
+      if (!proceed) return;
     }
 
     // PR #32: kalau user sedang dalam mode pick marker, reset dulu
@@ -1272,16 +1291,16 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
             // --- Right-side floating controls ---
             //
-            // PR #40 — kolom kanan dirombak:
-            // - Tombol toggle layer (markers, all-history, offline,
-            //   dataset filter) dijahit ke MapLayersExpandable supaya
-            //   kolom tidak sesak dan ukurannya seragam.
-            // - Kompas calibration pindah ke MapOverflowMenu.
-            // - GpsAccuracyChip dipindah ke top bar (lihat
-            //   Positioned top di bawah).
-            // Sekarang kolom kanan permanen: Layers + Overflow +
-            // Center-on-me. MiniTrackingButton tetap kondisional saat
-            // navigasi aktif.
+            // PR #41 — kolom kanan disederhanakan lagi:
+            // - Three-dot MapOverflowMenu dihapus. Action unik
+            //   (Tambah penanda, Kelola penanda, Kalibrasi kompas)
+            //   dipindah ke section "Aksi" di MapLayersExpandable.
+            //   Toggle "Riwayat" yang sebelumnya duplikat di kedua
+            //   popup dikonsolidasi.
+            // - GpsAccuracyChip tetap di top bar (PR #40).
+            // Kolom kanan permanen sekarang: Layers + Center-on-me.
+            // MiniTrackingButton tetap kondisional saat navigasi
+            // aktif.
             Positioned(
               right: AppSizes.sp4,
               bottom: (mode == MapMode.idle ||
@@ -1313,9 +1332,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   const SizedBox(height: AppSizes.sp2),
                   MapLayersExpandable(
                     onOpenDatasetFilter: () => _showDatasetFilterSheet(context),
-                  ),
-                  const SizedBox(height: AppSizes.sp2),
-                  MapOverflowMenu(
                     onAddMarkerHere: () => _onAddMarkerPressed(context, ref),
                   ),
                 ],

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
+import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/glass_card.dart';
@@ -12,38 +14,44 @@ import '../../application/markers_overlay_provider.dart';
 import 'map_action_button.dart';
 import 'offline_regions_layer.dart' show offlineRegionsOverlayProvider;
 
-/// Tombol expandable yang membungkus semua toggle layer/overlay map.
+/// Tombol expandable yang membungkus toggle layer + action map.
 ///
-/// PR #40 — sebelumnya 4 toggle terpisah memenuhi kolom kanan
-/// (markers, all history, offline regions, dataset filter). Itu
-/// bikin kolom kanan terlalu padat dan ukuran tidak konsisten dengan
-/// tombol lain. Sekarang semua toggle dijahit ke satu tombol
-/// `stack` yang expand vertikal saat ditap.
+/// PR #41 — sebelumnya kolom kanan punya dua popup terpisah:
+/// `MapLayersExpandable` (4 toggle layer) dan `MapOverflowMenu`
+/// (titik tiga dengan 4 action). User komplain redundant + ada
+/// duplikat (toggle "Riwayat" muncul di dua tempat). Sekarang
+/// digabung jadi satu popup dengan dua section:
+///
+/// - **Layer Peta** (toggle) — Penanda, Riwayat tarikan,
+///   Area peta offline, Filter data impor.
+/// - **Aksi** (action) — Tambah penanda di sini, Kelola penanda,
+///   Kalibrasi kompas.
 ///
 /// Behavior:
-/// - Collapsed: satu [MapActionButton] 44×44 dengan ikon [stack].
-///   Kalau ada toggle aktif, tombol menampilkan dot indicator
-///   ([MapActionButton.active]).
-/// - Expanded: list vertikal entries dengan animasi 200ms slide-down
-///   + fade. Tap di luar (Barrier) atau tap trigger lagi = collapse.
-/// - Self-hide entries: dataset filter & offline regions otomatis
-///   sembunyi kalau provider data-nya kosong (sama seperti behavior
-///   lama). Markers + AllHistory selalu tampil.
-///
-/// Tap pada entry tidak otomatis menutup expandable — supaya user
-/// bisa toggle beberapa overlay sekaligus tanpa expand-close-expand.
-/// User explicitly tap trigger atau area lain untuk collapse.
+/// - Collapsed: satu [MapActionButton] 44×44 dengan ikon `stack`.
+///   Kalau ada toggle aktif, tombol menampilkan dot indicator.
+/// - Expanded: panel vertikal dengan animasi 200ms slide-down +
+///   fade. Tap trigger lagi = collapse.
+/// - Toggle entry: tap tidak menutup expandable (multi-select).
+/// - Action entry: tap auto-collapse setelah action dijalankan
+///   (push route / open sheet / tambah marker).
 class MapLayersExpandable extends ConsumerStatefulWidget {
   const MapLayersExpandable({
     super.key,
     required this.onOpenDatasetFilter,
+    required this.onAddMarkerHere,
   });
 
-  /// Callback saat user tap entry "Filter dataset". Caller buka
+  /// Callback saat user tap entry "Filter data impor". Caller buka
   /// modal sheet untuk pilih dataset mana yang visible. Tetap
   /// di-handle di [MapScreen] supaya logic resolusi `BuildContext`
   /// + `_showModalBottomSheet` tetap kohesif dengan widget lain.
   final VoidCallback onOpenDatasetFilter;
+
+  /// Callback saat user tap entry "Tambah penanda di sini". Caller
+  /// resolve current GPS reading (atau map center) dan buka dialog
+  /// add marker. Sebelumnya entry ini ada di MapOverflowMenu.
+  final VoidCallback onAddMarkerHere;
 
   @override
   ConsumerState<MapLayersExpandable> createState() =>
@@ -56,6 +64,14 @@ class _MapLayersExpandableState extends ConsumerState<MapLayersExpandable>
 
   void _toggleExpanded() {
     setState(() => _expanded = !_expanded);
+  }
+
+  /// Action entries collapse panel setelah dijalankan supaya user
+  /// langsung kembali ke peta. Toggle entries TIDAK panggil ini —
+  /// user mungkin mau hidup-matikan beberapa overlay sekaligus.
+  void _runActionAndCollapse(VoidCallback action) {
+    action();
+    if (_expanded) setState(() => _expanded = false);
   }
 
   @override
@@ -125,7 +141,18 @@ class _MapLayersExpandableState extends ConsumerState<MapLayersExpandable>
                       hasDatasets: hasDatasets,
                       datasetVisibleCount: visibleCount,
                       datasetTotalCount: totalCount,
-                      onDatasetFilterTap: widget.onOpenDatasetFilter,
+                      onDatasetFilterTap: () => _runActionAndCollapse(
+                        widget.onOpenDatasetFilter,
+                      ),
+                      onAddMarkerHere: () => _runActionAndCollapse(
+                        widget.onAddMarkerHere,
+                      ),
+                      onManageMarkers: () => _runActionAndCollapse(
+                        () => context.push(AppRoutes.markerList),
+                      ),
+                      onCalibrateCompass: () => _runActionAndCollapse(
+                        () => context.push(AppRoutes.compass),
+                      ),
                     ),
                   ),
           ),
@@ -154,6 +181,9 @@ class _LayersPanel extends StatelessWidget {
     required this.datasetVisibleCount,
     required this.datasetTotalCount,
     required this.onDatasetFilterTap,
+    required this.onAddMarkerHere,
+    required this.onManageMarkers,
+    required this.onCalibrateCompass,
   });
 
   final bool markersOn;
@@ -167,11 +197,13 @@ class _LayersPanel extends StatelessWidget {
   final int datasetVisibleCount;
   final int datasetTotalCount;
   final VoidCallback onDatasetFilterTap;
+  final VoidCallback onAddMarkerHere;
+  final VoidCallback onManageMarkers;
+  final VoidCallback onCalibrateCompass;
 
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    final text = context.text;
 
     return GlassCard(
       level: GlassLevel.level2,
@@ -184,15 +216,7 @@ class _LayersPanel extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Layer Peta',
-            style: text.labelSmall?.copyWith(
-              color: tokens.textTertiary,
-              fontWeight: FontWeight.w700,
-              fontSize: 10,
-              letterSpacing: 0.6,
-            ),
-          ),
+          const _SectionHeading(label: 'Layer Peta'),
           const SizedBox(height: AppSizes.sp2),
           _LayerEntry(
             icon:
@@ -227,7 +251,56 @@ class _LayersPanel extends StatelessWidget {
               onTap: onDatasetFilterTap,
               showTrailingArrow: true,
             ),
+          // Divider antara group toggle dan group action.
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSizes.sp1),
+            child: Divider(height: 1, color: tokens.border),
+          ),
+          const _SectionHeading(label: 'Aksi'),
+          const SizedBox(height: AppSizes.sp2),
+          _LayerEntry(
+            icon: PhosphorIconsBold.mapPinPlus,
+            label: 'Tambah penanda di sini',
+            on: false,
+            onTap: onAddMarkerHere,
+            isAction: true,
+          ),
+          _LayerEntry(
+            icon: PhosphorIconsBold.mapPin,
+            label: 'Kelola penanda',
+            on: false,
+            onTap: onManageMarkers,
+            isAction: true,
+          ),
+          _LayerEntry(
+            icon: PhosphorIconsBold.compass,
+            label: 'Kalibrasi kompas',
+            on: false,
+            onTap: onCalibrateCompass,
+            isAction: true,
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _SectionHeading extends StatelessWidget {
+  const _SectionHeading({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final text = context.text;
+    return Text(
+      label,
+      style: text.labelSmall?.copyWith(
+        color: tokens.textTertiary,
+        fontWeight: FontWeight.w700,
+        fontSize: 10,
+        letterSpacing: 0.6,
       ),
     );
   }
@@ -241,6 +314,7 @@ class _LayerEntry extends StatelessWidget {
     required this.onTap,
     this.trailingText,
     this.showTrailingArrow = false,
+    this.isAction = false,
   });
 
   final IconData icon;
@@ -250,13 +324,27 @@ class _LayerEntry extends StatelessWidget {
   final String? trailingText;
   final bool showTrailingArrow;
 
+  /// PR #41: tandai entry sebagai action (bukan toggle). Saat true,
+  /// state [on] diabaikan untuk styling — entry selalu di-render
+  /// dengan warna textSecondary, plus caretRight trailing arrow
+  /// supaya user paham ini akan trigger sesuatu (push route / buka
+  /// sheet / dialog).
+  final bool isAction;
+
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final text = context.text;
     final colors = context.colors;
-    final iconColor = on ? colors.primary : tokens.textSecondary;
-    final labelColor = on ? colors.primary : tokens.textSecondary;
+    final iconColor = isAction
+        ? tokens.textSecondary
+        : (on ? colors.primary : tokens.textSecondary);
+    final labelColor = isAction
+        ? tokens.textSecondary
+        : (on ? colors.primary : tokens.textSecondary);
+    final labelWeight =
+        isAction ? FontWeight.w500 : (on ? FontWeight.w700 : FontWeight.w500);
+    final showCaret = showTrailingArrow || isAction;
 
     return Material(
       color: Colors.transparent,
@@ -277,7 +365,7 @@ class _LayerEntry extends StatelessWidget {
                 label,
                 style: text.labelMedium?.copyWith(
                   color: labelColor,
-                  fontWeight: on ? FontWeight.w700 : FontWeight.w500,
+                  fontWeight: labelWeight,
                 ),
               ),
               if (trailingText != null) ...[
@@ -290,7 +378,7 @@ class _LayerEntry extends StatelessWidget {
                   ),
                 ),
               ],
-              if (showTrailingArrow) ...[
+              if (showCaret) ...[
                 const SizedBox(width: AppSizes.sp1),
                 Icon(
                   PhosphorIconsRegular.caretRight,

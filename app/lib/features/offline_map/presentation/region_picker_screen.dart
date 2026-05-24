@@ -27,8 +27,8 @@ import '../data/tile_cache_service.dart';
 /// Screen 13 prototype layout.
 ///
 /// PR #40 — flow disederhanakan:
-/// - Tidak ada lagi RangeSlider zoom; range hardcoded ke 8-18
-///   (lihat [OfflineDownloadDefaults]).
+/// - Tidak ada lagi RangeSlider zoom; range hardcoded ke 8-16
+///   sejak PR #41 (lihat [OfflineDownloadDefaults]).
 /// - Nama region opsional; kalau user tidak isi, auto-generate
 ///   "Wilayah N" (N = jumlah region existing + 1).
 /// - Layer seamark ikut didownload otomatis.
@@ -563,8 +563,10 @@ class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
             ),
             const SizedBox(height: AppSizes.sp4),
             // PR #40: zoom slider dihapus. Range hardcoded di
-            // OfflineDownloadDefaults (8-18). Tampilkan info statis
-            // supaya user paham apa yang akan didownload.
+            // OfflineDownloadDefaults (8-16 sejak PR #41 — diturunkan
+            // dari 18 supaya download tidak membengkak ke GB).
+            // Tampilkan info statis supaya user paham apa yang
+            // akan didownload.
             GlassCard(
               level: GlassLevel.level1,
               padding: const EdgeInsets.symmetric(
