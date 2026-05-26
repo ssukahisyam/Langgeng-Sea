@@ -88,6 +88,14 @@ dependencies:
   collection: ^1.18.0
   logger: ^2.4.0
 
+  # Android intents — pakai untuk deep-link ke halaman permission
+  # spesifik di Settings sistem (ACTION_APP_NOTIFICATION_SETTINGS,
+  # ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS). openAppSettings()
+  # dari permission_handler hanya buka halaman App Info umum;
+  # android_intent_plus memungkinkan kita lompat langsung ke section
+  # yang relevan.
+  android_intent_plus: ^5.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
