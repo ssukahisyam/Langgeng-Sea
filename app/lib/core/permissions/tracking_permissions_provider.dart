@@ -9,7 +9,7 @@ import '../observability/logger.dart';
 import '../services/gps_service.dart';
 
 /// Snapshot dari tiga permission yang relevan untuk tracking di
-/// Langgeng Sea.
+/// Styra.
 ///
 /// PR #41 — sebelumnya status permission dicek lokal di tiap tile
 /// dengan `WidgetsBindingObserver` masing-masing. Itu menyebabkan

@@ -51,10 +51,10 @@ class LseaJsonImporter {
     }
 
     final format = decoded['format'];
-    if (format != 'langgeng-sea-v1') {
+    if (format != 'langgeng-sea-v1' && format != 'styra-v1') {
       throw FormatException(
-        'Format tidak didukung: $format. '
-        'Hanya "langgeng-sea-v1" yang bisa diimpor.',
+        'Format tidak dikenali: "$format". '
+        'Hanya "langgeng-sea-v1" atau "styra-v1" yang bisa diimpor.',
       );
     }
 

@@ -5,7 +5,7 @@
 // platform channel real.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:langgeng_sea/features/map/presentation/widgets/marker_pick_tooltip.dart';
+import 'package:styra/features/map/presentation/widgets/marker_pick_tooltip.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {

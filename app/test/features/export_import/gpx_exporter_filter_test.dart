@@ -10,14 +10,14 @@
 //   self-closing root.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:langgeng_sea/features/export_import/data/gpx_exporter.dart';
-import 'package:langgeng_sea/features/export_import/domain/entities/date_range.dart';
-import 'package:langgeng_sea/features/export_import/domain/entities/export_filter.dart';
-import 'package:langgeng_sea/features/marker/domain/entities/marker.dart';
-import 'package:langgeng_sea/features/onboarding/domain/entities/user_profile.dart';
-import 'package:langgeng_sea/features/tracking/domain/entities/haul.dart';
-import 'package:langgeng_sea/features/tracking/domain/entities/track_point.dart';
-import 'package:langgeng_sea/features/tracking/domain/entities/trip.dart';
+import 'package:styra/features/export_import/data/gpx_exporter.dart';
+import 'package:styra/features/export_import/domain/entities/date_range.dart';
+import 'package:styra/features/export_import/domain/entities/export_filter.dart';
+import 'package:styra/features/marker/domain/entities/marker.dart';
+import 'package:styra/features/onboarding/domain/entities/user_profile.dart';
+import 'package:styra/features/tracking/domain/entities/haul.dart';
+import 'package:styra/features/tracking/domain/entities/track_point.dart';
+import 'package:styra/features/tracking/domain/entities/trip.dart';
 import 'package:xml/xml.dart';
 
 void main() {
@@ -169,7 +169,7 @@ void main() {
       );
       final doc = XmlDocument.parse(gpx);
 
-      // <author><name> falls back to "Langgeng Sea".
+      // <author><name> falls back to "Styra".
       final authorName = doc
           .findAllElements('metadata')
           .single
@@ -178,7 +178,7 @@ void main() {
           .findElements('name')
           .single
           .innerText;
-      expect(authorName, 'Langgeng Sea');
+      expect(authorName, 'Styra');
 
       // Placeholder lsea:exporter block exists but with hasUserProfile=false.
       final placeholder = doc

@@ -1,11 +1,11 @@
-# Langgeng Sea 🎣🛰️
+# Styra 🎣🛰️
 
 > 🎉 **v1.0 Released** — MVP siap diuji di lapangan. Lihat
 > [`CHANGELOG.md`](./CHANGELOG.md) untuk daftar fitur rilis.
 
 > **Jejak Setia di Lautan** — Aplikasi tracking GPS khusus nelayan trawl Indonesia.
 
-Langgeng Sea adalah aplikasi mobile Android (Flutter) yang membantu nelayan
+Styra adalah aplikasi mobile Android (Flutter) yang membantu nelayan
 trawl mencatat jejak alat tangkap secara **offline** — tanpa internet,
 bahkan di mode pesawat — menggunakan chip GPS HP tanpa perangkat tambahan.
 
@@ -67,7 +67,7 @@ fitur di [`CHANGELOG.md`](./CHANGELOG.md).
 
 ## 📦 Install APK
 
-Ada 3 cara install Langgeng Sea — pilih yang paling sesuai.
+Ada 3 cara install Styra — pilih yang paling sesuai.
 
 ### 1. Google Play Store (direkomendasikan)
 

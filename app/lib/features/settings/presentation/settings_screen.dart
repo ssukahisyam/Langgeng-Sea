@@ -288,7 +288,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: AppSizes.sp2),
           Text(
-            'Langgeng Sea v0.1.0 (M8)',
+            'Styra v1.1.0',
             style: text.labelSmall?.copyWith(
               color: tokens.textSecondary,
               fontWeight: FontWeight.w700,

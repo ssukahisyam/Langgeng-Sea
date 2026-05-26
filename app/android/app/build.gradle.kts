@@ -33,7 +33,7 @@ if (hasReleaseSigning) {
 }
 
 android {
-    namespace = "id.co.langgengsea"
+    namespace = "com.styra"
     // flutter_tts 4.2.x bumped its Android target and requires
     // compileSdk 36. Override Flutter's default (currently 35) so
     // release builds stop failing with:
@@ -54,7 +54,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "id.co.langgengsea"
+        applicationId = "com.styra"
         // Min SDK 26 (Android 8.0) per PRD NFR-04
         minSdk = 26
         // Target SDK 34 (Android 14) — pinned explicitly so the

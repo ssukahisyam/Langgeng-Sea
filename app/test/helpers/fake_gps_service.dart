@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:geolocator/geolocator.dart';
-import 'package:langgeng_sea/core/services/gps_reading.dart';
-import 'package:langgeng_sea/core/services/gps_service.dart';
+import 'package:styra/core/services/gps_reading.dart';
+import 'package:styra/core/services/gps_service.dart';
 
 /// In-memory GpsService for widget and unit tests.
 /// Lets tests drive GPS state without hitting the OS.

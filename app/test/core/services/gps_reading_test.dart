@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:langgeng_sea/core/services/gps_reading.dart';
+import 'package:styra/core/services/gps_reading.dart';
 
 void main() {
   GpsReading make({

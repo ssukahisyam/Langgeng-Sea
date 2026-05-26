@@ -43,7 +43,7 @@ class LocationPermissionSheet extends ConsumerWidget {
         switch (state) {
       LocationPermissionState.serviceDisabled => (
           'Aktifkan Lokasi',
-          'Langgeng Sea butuh GPS aktif untuk merekam jejak trawl. '
+          'Styra butuh GPS aktif untuk merekam jejak trawl. '
               'Nyalakan layanan lokasi di pengaturan perangkat Anda.',
           'Buka Pengaturan',
           PhosphorIconsBold.gearSix,
@@ -70,7 +70,7 @@ class LocationPermissionSheet extends ConsumerWidget {
       LocationPermissionState.denied || LocationPermissionState.unknown => (
           'Izinkan Lokasi',
           'Agar bisa merekam jejak kapal dan trawl secara akurat, '
-              'Langgeng Sea memerlukan akses ke GPS.\n\n'
+              'Styra memerlukan akses ke GPS.\n\n'
               'Data Anda disimpan lokal di HP. Tidak ada server, tidak dibagikan.',
           'Izinkan Akses Lokasi',
           PhosphorIconsBold.mapPinArea,

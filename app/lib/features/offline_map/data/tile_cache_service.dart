@@ -15,17 +15,17 @@ class TileEndpoints {
   static const String osm = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
   static const String openSeaMap =
       'https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png';
-  static const String userAgent = 'id.co.langgengsea';
+  static const String userAgent = 'com.styra';
 
   /// Name of the FMTC store yang menampung tile OSM base layer.
-  static const String osmStore = 'langgeng_sea_osm';
+  static const String osmStore = 'styra_osm';
 
   /// PR #40: store kedua untuk overlay seamark (rambu navigasi laut
   /// dari OpenSeaMap). Sebelumnya layer ini pakai NetworkTileProvider
   /// default — tidak pernah di-cache, jadi rambu navigasi selalu
   /// blank saat offline. Store terpisah supaya tidak saling
   /// mempengaruhi cleanup OSM base.
-  static const String seamarkStore = 'langgeng_sea_seamark';
+  static const String seamarkStore = 'styra_seamark';
 }
 
 /// Default zoom range yang dipakai saat user download offline region.

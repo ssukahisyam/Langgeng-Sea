@@ -76,7 +76,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
                             const SizedBox(height: 2),
                             Text(
                               'Cari file GPX dari aplikasi peta lain '
-                              'atau hasil ekspor Langgeng Sea',
+                              'atau hasil ekspor Styra',
                               style: context.text.bodySmall?.copyWith(
                                 color: context.tokens.textSecondary,
                               ),

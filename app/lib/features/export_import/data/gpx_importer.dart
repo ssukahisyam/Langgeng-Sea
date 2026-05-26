@@ -66,7 +66,7 @@ class GpxImportPreview {
   /// True bila ada data yang valid untuk diimpor.
   bool get hasAny => trackCount > 0 || waypointCount > 0;
 
-  /// True kalau metadata exporter Langgeng Sea tersedia (file dari
+  /// True kalau metadata exporter Styra tersedia (file dari
   /// ekspor PR #27, bukan dari aplikasi GPX lain seperti OsmAnd).
   bool get hasExporterInfo =>
       exporterName != null || vesselName != null || homePort != null;
@@ -167,7 +167,7 @@ class PendingTrackPoint {
   final double? elevation;
 }
 
-/// Parses GPX 1.1 files (with optional Langgeng Sea `lsea`
+/// Parses GPX 1.1 files (with optional Styra `lsea`
 /// extensions) and persists the data into `imported_datasets` plus
 /// child rows.
 ///
@@ -217,14 +217,14 @@ class GpxImporter {
       }
       final extensions = metadata.getElement('extensions');
       if (extensions != null) {
-        final exporterEl = _findLseaElement(extensions, 'exporter');
+        final exporterEl = _findExtensionElement(extensions, 'exporter');
         if (exporterEl != null) {
-          vesselName = _lseaText(exporterEl, 'vesselName');
-          exporterName = _lseaText(exporterEl, 'ownerName');
-          homePort = _lseaText(exporterEl, 'homePort');
+          vesselName = _extensionText(exporterEl, 'vesselName');
+          exporterName = _extensionText(exporterEl, 'ownerName');
+          homePort = _extensionText(exporterEl, 'homePort');
         }
         final exportedAtStr =
-            _findLseaElement(extensions, 'exportedAt')?.innerText.trim();
+            _findExtensionElement(extensions, 'exportedAt')?.innerText.trim();
         if (exportedAtStr != null && exportedAtStr.isNotEmpty) {
           exportedAt = DateTime.tryParse(exportedAtStr) ?? exportedAt;
         }
@@ -243,7 +243,7 @@ class GpxImporter {
       MarkerCategory category = MarkerCategory.other;
       final extensions = wpt.getElement('extensions');
       if (extensions != null) {
-        final markerEl = _findLseaElement(extensions, 'marker');
+        final markerEl = _findExtensionElement(extensions, 'marker');
         if (markerEl != null) {
           final raw = markerEl.getAttribute('category');
           category = MarkerCategory.fromGpxValue(raw);
@@ -312,14 +312,14 @@ class GpxImporter {
       double? haulAvgHeadingDegrees;
       final extensions = trk.getElement('extensions');
       if (extensions != null) {
-        final tripEl = _findLseaElement(extensions, 'trip');
+        final tripEl = _findExtensionElement(extensions, 'trip');
         if (tripEl != null) {
           tripId = tripEl.getAttribute('id');
           tripName = tripEl.getAttribute('name');
           tripColorValue =
               _parseHexInt(tripEl.getAttribute('colorValue'));
         }
-        final haulEl = _findLseaElement(extensions, 'haul');
+        final haulEl = _findExtensionElement(extensions, 'haul');
         if (haulEl != null) {
           haulId = haulEl.getAttribute('id');
           haulName = name;
@@ -565,7 +565,12 @@ class GpxImporter {
   /// Cari child element dengan `localName == name` tanpa peduli
   /// namespace prefix. Pakai walk manual karena `findElements` di
   /// xml package match by `name`, bukan localName.
-  XmlElement? _findLseaElement(XmlElement parent, String name) {
+  ///
+  /// PR #44 (rebrand): pendekatan localName ini secara otomatis
+  /// menerima both prefix `lsea:` (legacy Styra pre-rebrand)
+  /// dan `styra:` (Styra rebrand+). File GPX dari versi app lama
+  /// tetap bisa di-import tanpa perubahan apapun di sini.
+  XmlElement? _findExtensionElement(XmlElement parent, String name) {
     for (final child in parent.children.whereType<XmlElement>()) {
       if (child.localName == name) return child;
     }
@@ -574,8 +579,8 @@ class GpxImporter {
 
   /// Read text content dari child element dengan `localName == name`,
   /// trim, return null kalau kosong / absent.
-  String? _lseaText(XmlElement parent, String name) {
-    final el = _findLseaElement(parent, name);
+  String? _extensionText(XmlElement parent, String name) {
+    final el = _findExtensionElement(parent, name);
     if (el == null) return null;
     final text = el.innerText.trim();
     return text.isEmpty ? null : text;

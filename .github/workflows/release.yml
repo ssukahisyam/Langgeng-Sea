@@ -83,9 +83,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: Langgeng Sea ${{ github.ref_name }}
+          name: Styra ${{ github.ref_name }}
           body: |
-            Langgeng Sea release `${{ github.ref_name }}`.
+            Styra release `${{ github.ref_name }}`.
 
             See [CHANGELOG.md](../blob/main/CHANGELOG.md) for what's new.
 

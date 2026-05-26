@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:langgeng_sea/features/marker/domain/entities/marker.dart';
+import 'package:styra/features/marker/domain/entities/marker.dart';
 
 void main() {
   final testMarkers = [

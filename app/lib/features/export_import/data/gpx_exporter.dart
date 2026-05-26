@@ -45,7 +45,7 @@ import '../domain/entities/export_filter.dart';
 /// - `<lsea:filterDescription>` so the receiver knows whether the file
 ///   is a slice (e.g. "7 hari terakhir") or full data.
 ///
-/// GPX namespace + Langgeng Sea custom extensions (`xmlns:lsea`) make
+/// GPX namespace + Styra custom extensions (`xmlns:styra`) make
 /// it possible to round-trip extra fields without breaking
 /// compatibility with generic GPX consumers like Google Earth, Garmin
 /// BaseCamp, or QGIS — they just ignore the unknown extension
@@ -53,12 +53,17 @@ import '../domain/entities/export_filter.dart';
 class GpxExporter {
   static const String _gpxNs = 'http://www.topografix.com/GPX/1/1';
   static const String _xsiNs = 'http://www.w3.org/2001/XMLSchema-instance';
-  static const String _lseaNs = 'https://langgengsea.id/gpx/extensions/v1';
+
+  /// PR #44 (rebrand): namespace + prefix berubah dari `lsea:` ke
+  /// `styra:` seiring rebrand Styra → Styra. GPX importer
+  /// menerima both prefix supaya file lama dari versi pre-rebrand
+  /// tetap bisa di-import.
+  static const String _styraNs = 'https://styra.app/gpx/extensions/v1';
   static const String _xsiSchemaLocation =
       'http://www.topografix.com/GPX/1/1 '
       'http://www.topografix.com/GPX/1/1/gpx.xsd';
 
-  static const String _creator = 'Langgeng Sea';
+  static const String _creator = 'Styra';
 
   /// Export a single haul as a GPX track. Useful when sharing one haul
   /// in isolation (e.g. from haul detail).
@@ -126,7 +131,7 @@ class GpxExporter {
   ///   Re-filter defensif dilakukan.
   /// - [exporter]: profil pengekspor (nelayan + kapal). `null` = tidak
   ///   tulis blok `<lsea:exporter>`, `<author><name>` fallback ke
-  ///   "Langgeng Sea".
+  ///   "Styra".
   ///
   /// Selalu menghasilkan dokumen yang well-formed — minimal
   /// `<gpx><metadata/></gpx>` walau filter menghasilkan 0 trip / 0
@@ -230,7 +235,7 @@ class GpxExporter {
     builder.attribute('creator', _creator);
     builder.attribute('xmlns', _gpxNs);
     builder.attribute('xmlns:xsi', _xsiNs);
-    builder.attribute('xmlns:lsea', _lseaNs);
+    builder.attribute('xmlns:styra', _styraNs);
     builder.attribute('xsi:schemaLocation', _xsiSchemaLocation);
   }
 
@@ -255,8 +260,8 @@ class GpxExporter {
       builder.element('author', nest: () {
         builder.element('name', nest: authorName);
         builder.element('link', nest: () {
-          builder.attribute('href', 'https://langgengsea.id');
-          builder.element('text', nest: 'Langgeng Sea');
+          builder.attribute('href', 'https://styra.app');
+          builder.element('text', nest: 'Styra');
         });
       });
       builder.element('time', nest: exportTimestamp.toIso8601String());
@@ -286,14 +291,14 @@ class GpxExporter {
           } else if (filter != null) {
             // Even tanpa user profile, kita tetap surface
             // filterDescription standalone supaya penerima tahu.
-            builder.element('lsea:exporter', nest: () {
+            builder.element('styra:exporter', nest: () {
               builder.attribute('hasUserProfile', 'false');
               builder.element(
-                'lsea:exportedAt',
+                'styra:exportedAt',
                 nest: exportTimestamp.toIso8601String(),
               );
               builder.element(
-                'lsea:filterDescription',
+                'styra:filterDescription',
                 nest: filter.describe(),
               );
             });
@@ -312,35 +317,35 @@ class GpxExporter {
     required DateTime exportedAt,
     ExportFilter? filter,
   }) {
-    builder.element('lsea:exporter', nest: () {
-      builder.element('lsea:vesselName', nest: exporter.vesselName);
-      builder.element('lsea:ownerName', nest: exporter.name);
+    builder.element('styra:exporter', nest: () {
+      builder.element('styra:vesselName', nest: exporter.vesselName);
+      builder.element('styra:ownerName', nest: exporter.name);
       if (exporter.homePortOptional != null &&
           exporter.homePortOptional!.isNotEmpty) {
-        builder.element('lsea:homePort', nest: exporter.homePortOptional!);
+        builder.element('styra:homePort', nest: exporter.homePortOptional!);
       }
       if (exporter.vesselGtOptional != null) {
         builder.element(
-          'lsea:vesselGt',
+          'styra:vesselGt',
           nest: exporter.vesselGtOptional!.toStringAsFixed(2),
         );
       }
       builder.element(
-        'lsea:trawlWidthMeters',
+        'styra:trawlWidthMeters',
         nest: exporter.trawlWidthMeters.toStringAsFixed(2),
       );
       builder.element(
-        'lsea:exportedAt',
+        'styra:exportedAt',
         nest: exportedAt.toIso8601String(),
       );
       if (filter != null) {
-        builder.element('lsea:filterDescription', nest: filter.describe());
+        builder.element('styra:filterDescription', nest: filter.describe());
       }
     });
   }
 
   void _writeSummaryBlock(XmlBuilder builder, _ExportSummary summary) {
-    builder.element('lsea:summary', nest: () {
+    builder.element('styra:summary', nest: () {
       builder.attribute('tripCount', summary.tripCount.toString());
       builder.attribute('haulCount', summary.haulCount.toString());
       builder.attribute('markerCount', summary.markerCount.toString());
@@ -374,7 +379,7 @@ class GpxExporter {
       builder.element('sym', nest: _symbolForCategory(marker.category));
       builder.element('type', nest: marker.category.displayLabel);
       builder.element('extensions', nest: () {
-        builder.element('lsea:marker', nest: () {
+        builder.element('styra:marker', nest: () {
           builder.attribute('id', marker.id);
           builder.attribute('category', marker.category.storageKey);
           builder.attribute(
@@ -434,16 +439,16 @@ class GpxExporter {
             // an lsea:trkpt extension for round-tripping.
             if (pt.headingDegrees != null || pt.accuracyMeters != null) {
               builder.element('extensions', nest: () {
-                builder.element('lsea:trkpt', nest: () {
+                builder.element('styra:trkpt', nest: () {
                   if (pt.headingDegrees != null) {
                     builder.element(
-                      'lsea:headingDegrees',
+                      'styra:headingDegrees',
                       nest: pt.headingDegrees!.toStringAsFixed(1),
                     );
                   }
                   if (pt.accuracyMeters != null) {
                     builder.element(
-                      'lsea:accuracyMeters',
+                      'styra:accuracyMeters',
                       nest: pt.accuracyMeters!.toStringAsFixed(2),
                     );
                   }
@@ -457,7 +462,7 @@ class GpxExporter {
   }
 
   void _writeTripExtensionAttrs(XmlBuilder builder, Trip trip) {
-    builder.element('lsea:trip', nest: () {
+    builder.element('styra:trip', nest: () {
       builder.attribute('id', trip.id);
       if (trip.name != null && trip.name!.isNotEmpty) {
         builder.attribute('name', trip.name!);
@@ -484,7 +489,7 @@ class GpxExporter {
   }
 
   void _writeHaulExtensionAttrs(XmlBuilder builder, Haul haul) {
-    builder.element('lsea:haul', nest: () {
+    builder.element('styra:haul', nest: () {
       builder.attribute('id', haul.id);
       builder.attribute('orderIndex', haul.orderIndex.toString());
       builder.attribute('status', haul.status.name);
@@ -539,15 +544,15 @@ class GpxExporter {
 
   String _titleForFilter(ExportFilter filter) {
     if (filter.includeTracks && filter.includeMarkers) {
-      return 'Data Langgeng Sea (Lengkap)';
+      return 'Data Styra (Lengkap)';
     }
     if (filter.includeTracks) {
-      return 'Jalur Tarikan Langgeng Sea';
+      return 'Jalur Tarikan Styra';
     }
     if (filter.includeMarkers) {
-      return 'Penanda Langgeng Sea';
+      return 'Penanda Styra';
     }
-    return 'Data Langgeng Sea';
+    return 'Data Styra';
   }
 
   String _descriptionForSummary(_ExportSummary s) {
@@ -722,16 +727,16 @@ class GpxExporter {
 
     final dir = await getTemporaryDirectory();
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final file = File('${dir.path}/langgeng_sea_$timestamp.gpx');
+    final file = File('${dir.path}/styra_$timestamp.gpx');
     await file.writeAsString(content);
     return file;
   }
 
   String _exportAllTitle(bool includeTracks, bool includeMarkers) {
-    if (includeTracks && includeMarkers) return 'Data Langgeng Sea (Lengkap)';
-    if (includeTracks) return 'Jalur Tarikan Langgeng Sea';
-    if (includeMarkers) return 'Penanda Langgeng Sea';
-    return 'Langgeng Sea';
+    if (includeTracks && includeMarkers) return 'Data Styra (Lengkap)';
+    if (includeTracks) return 'Jalur Tarikan Styra';
+    if (includeMarkers) return 'Penanda Styra';
+    return 'Styra';
   }
 
   String _exportAllDescription(int haulCount, int pointCount, int markerCount) {

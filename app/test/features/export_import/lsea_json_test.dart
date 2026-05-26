@@ -1,13 +1,13 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:langgeng_sea/features/export_import/data/lsea_json_exporter.dart';
-import 'package:langgeng_sea/features/export_import/data/lsea_json_importer.dart';
-import 'package:langgeng_sea/features/logbook/domain/entities/catch_item.dart';
-import 'package:langgeng_sea/features/logbook/domain/entities/log_book_entry.dart';
-import 'package:langgeng_sea/features/tracking/domain/entities/haul.dart';
-import 'package:langgeng_sea/features/tracking/domain/entities/track_point.dart';
-import 'package:langgeng_sea/features/tracking/domain/entities/trip.dart';
+import 'package:styra/features/export_import/data/lsea_json_exporter.dart';
+import 'package:styra/features/export_import/data/lsea_json_importer.dart';
+import 'package:styra/features/logbook/domain/entities/catch_item.dart';
+import 'package:styra/features/logbook/domain/entities/log_book_entry.dart';
+import 'package:styra/features/tracking/domain/entities/haul.dart';
+import 'package:styra/features/tracking/domain/entities/track_point.dart';
+import 'package:styra/features/tracking/domain/entities/trip.dart';
 
 void main() {
   group('LseaJsonExporter', () {

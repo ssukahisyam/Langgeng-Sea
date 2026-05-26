@@ -14,10 +14,10 @@ import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:langgeng_sea/data/database/app_database.dart';
-import 'package:langgeng_sea/features/export_import/data/gpx_importer.dart';
-import 'package:langgeng_sea/features/export_import/data/imported_dataset_repository.dart';
-import 'package:langgeng_sea/features/marker/domain/entities/marker.dart';
+import 'package:styra/data/database/app_database.dart';
+import 'package:styra/features/export_import/data/gpx_importer.dart';
+import 'package:styra/features/export_import/data/imported_dataset_repository.dart';
+import 'package:styra/features/marker/domain/entities/marker.dart';
 
 const _gpxWithLseaExtensions = '''
 <?xml version="1.0" encoding="UTF-8"?>

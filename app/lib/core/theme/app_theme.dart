@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'app_colors.dart';
 import 'app_typography.dart';
 
-/// ThemeData for Langgeng Sea - Clean Liquid Glass.
+/// ThemeData for Styra - Clean Liquid Glass.
 /// Contains light + dark variants, plus helpers to access custom tokens.
 class AppTheme {
   AppTheme._();

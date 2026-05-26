@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Typography for Langgeng Sea using Plus Jakarta Sans.
+/// Typography for Styra using Plus Jakarta Sans.
 /// Tabular numerals enabled for metrics (distance, speed, area).
 class AppTypography {
   AppTypography._();

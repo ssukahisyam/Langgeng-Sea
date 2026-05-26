@@ -31,6 +31,10 @@ class LseaJsonExporter {
     List<AppMarker> markers = const [],
   }) {
     final data = <String, dynamic>{
+      // PR #44 (rebrand): format string sengaja dipertahankan sebagai
+      // 'langgeng-sea-v1' supaya Importer Styra dan Langgeng Sea
+      // legacy bisa baca file yang sama tanpa perubahan magic. Kalau
+      // ada breaking change format kelak, bump ke 'styra-v1'.
       'format': 'langgeng-sea-v1',
       'exportedAt': DateTime.now().toUtc().toIso8601String(),
       'exportedBy': {

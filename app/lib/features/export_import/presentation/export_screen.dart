@@ -582,8 +582,8 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
               onPressed: () async {
                 await Share.shareXFiles(
                   [XFile(file.path)],
-                  subject: 'Data Langgeng Sea',
-                  text: 'Data ekspor dari aplikasi Langgeng Sea',
+                  subject: 'Data Styra',
+                  text: 'Data ekspor dari aplikasi Styra',
                 );
               },
             ),
@@ -593,8 +593,8 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
         // Save dialog di-cancel atau gagal — fallback langsung ke share.
         await Share.shareXFiles(
           [XFile(file.path)],
-          subject: 'Data Langgeng Sea',
-          text: 'Data ekspor dari aplikasi Langgeng Sea',
+          subject: 'Data Styra',
+          text: 'Data ekspor dari aplikasi Styra',
         );
       }
     } catch (e) {

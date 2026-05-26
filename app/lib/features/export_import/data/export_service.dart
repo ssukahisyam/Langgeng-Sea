@@ -220,7 +220,7 @@ class ExportService {
     final tempDir = await getTemporaryDirectory();
     final datePart = trip.startedAt.toIso8601String().substring(0, 10);
     final tripName = trip.name?.replaceAll(RegExp(r'[^\w]'), '_') ?? 'trip';
-    final fileName = 'langgeng_sea_${tripName}_$datePart.lsea.json';
+    final fileName = 'styra_${tripName}_$datePart.lsea.json';
     final file = File('${tempDir.path}/$fileName');
     await file.writeAsString(content);
     return file;

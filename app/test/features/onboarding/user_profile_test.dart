@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:langgeng_sea/features/onboarding/domain/entities/user_profile.dart';
+import 'package:styra/features/onboarding/domain/entities/user_profile.dart';
 
 void main() {
   UserProfile makeProfile({

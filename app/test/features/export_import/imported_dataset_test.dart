@@ -1,7 +1,7 @@
 // Unit test untuk [ImportedDataset] entity (PR #33 Phase 1).
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:langgeng_sea/features/export_import/domain/entities/imported_dataset.dart';
+import 'package:styra/features/export_import/domain/entities/imported_dataset.dart';
 
 void main() {
   group('ImportedDataset.displayLabel', () {

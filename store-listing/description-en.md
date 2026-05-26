@@ -8,7 +8,7 @@ reviewers) can assess the app._
 ## App Title (30 chars)
 
 ```
-Langgeng Sea: Trawl GPS
+Styra: Trawl GPS
 ```
 
 ## Short Description (80 chars)
@@ -23,9 +23,9 @@ _(76 characters.)_
 
 ## Full Description (max 4000 chars)
 
-**Langgeng Sea — Loyal Trail at Sea.**
+**Styra — Loyal Trail at Sea.**
 
-Langgeng Sea is a GPS tracking app built specifically for Indonesian
+Styra is a GPS tracking app built specifically for Indonesian
 trawl fishers. Use your Android phone to record the trail of your
 trawl gear at sea, even with zero signal. No extra GPS hardware, no
 subscription, no account required.
@@ -64,7 +64,7 @@ subscription, no account required.
 
 - **📤 Export / Import**
   GPX format (readable by every GPS tool on the planet) and a native
-  `.lsea.json` format for sharing between Langgeng Sea users with
+  `.lsea.json` format for sharing between Styra users with
   sender name attribution.
 
 ---
@@ -78,14 +78,14 @@ subscription, no account required.
   battery.
 - **Hauling up** — tap "Angkat Trawl" (Haul Up). Summary appears
   immediately: distance, duration, swept area.
-- **Next deploy** — tap "Mulai Tebar" again. Langgeng Sea auto-knows
+- **Next deploy** — tap "Mulai Tebar" again. Styra auto-knows
   this is haul #2 of the same trip.
 - **Back on shore** — review trip in History. Fill out the log book
   if you want. Export to GPX for archive.
 
 ---
 
-### ✨ Why Langgeng Sea?
+### ✨ Why Styra?
 
 **🇮🇩 Built for Indonesian Fishers**
 Not a repurposed Western sports tracker. Terminology, workflow, and
@@ -151,7 +151,7 @@ Nautical overlay: OpenSeaMap (https://www.openseamap.org/).
 ### 📧 Contact & Bug Reports
 
 - GitHub Issues: https://github.com/ssukahisyam/Langgeng-Sea/issues
-- Email: hello@langgengsea.id _(placeholder)_
+- Email: hello@styra.app _(placeholder)_
 - WhatsApp beta group: reach out via email to be invited
 
 Feedback straight from fishers is most welcome — this app is made for

@@ -14,7 +14,7 @@
 // CI fail duluan.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:langgeng_sea/features/offline_map/data/tile_cache_service.dart';
+import 'package:styra/features/offline_map/data/tile_cache_service.dart';
 
 void main() {
   group('OfflineDownloadDefaults', () {
