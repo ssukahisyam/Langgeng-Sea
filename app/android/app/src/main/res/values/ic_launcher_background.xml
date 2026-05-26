@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Deep ocean blue, matches the app's brand primary. -->
-    <color name="ic_launcher_background">#0277BD</color>
+    <!--
+      Sky blue, matches Styra brand primary (PR #44 rebrand).
+      Dipakai sebagai background layer di adaptive icon Android 8.0+
+      (lihat mipmap-anydpi-v26/ic_launcher.xml).
+    -->
+    <color name="ic_launcher_background">#0EA5E9</color>
 </resources>
