@@ -106,6 +106,12 @@ dev_dependencies:
   mocktail: ^1.0.4
   fake_async: ^1.3.1
 
+  # Launcher icon generator (PR #44 rebrand) — bikin sekali untuk
+  # populate semua mipmap density Android dari source PNG 1024x1024.
+  # Setelah icon stabil, bisa di-pin atau dihapus dari deps; output
+  # mipmap di android/app/src/main/res/ sudah committed.
+  flutter_launcher_icons: ^0.14.1
+
   # Code generation
   build_runner: ^2.4.12
   freezed: ^3.0.0
@@ -123,3 +129,22 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
+    - assets/icon/
+
+# -----------------------------------------------------------------------------
+# Launcher icon generation config (flutter_launcher_icons)
+# -----------------------------------------------------------------------------
+# Run: dart run flutter_launcher_icons
+#
+# Source: assets/icon/icon.png (1024x1024). Generator akan auto-resize ke
+# semua mipmap density Android (mdpi 48, hdpi 72, xhdpi 96, xxhdpi 144,
+# xxxhdpi 192). Adaptive icon (Android 8.0+) dipasang dengan foreground
+# transparan + background warna primary brand. Min Android 8.0 (API 26)
+# sudah pasti di Styra (lihat minSdk 26 di build.gradle.kts).
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/icon.png"
+  adaptive_icon_background: "#0EA5E9"
+  adaptive_icon_foreground: "assets/icon/icon.png"
+  remove_alpha_ios: true

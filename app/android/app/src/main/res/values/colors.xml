@@ -3,4 +3,5 @@
     <!-- Light theme -->
     <color name="splash_background">#F4F8FB</color>
     <color name="primary">#0277BD</color>
+	<color name="ic_launcher_background">#0EA5E9</color>
 </resources>
