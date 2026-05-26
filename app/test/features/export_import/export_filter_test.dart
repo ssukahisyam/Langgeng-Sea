@@ -318,10 +318,10 @@ void main() {
   group('ExportFilter.suggestFileName', () {
     final now = DateTime(2026, 5, 16);
 
-    test('all-data → langgeng_sea_lengkap_<today>', () {
+    test('all-data → styra_lengkap_<today>', () {
       expect(
         ExportFilter.allData.suggestFileName(now: now),
-        'langgeng_sea_lengkap_2026-05-16',
+        'styra_lengkap_2026-05-16',
       );
     });
 
@@ -331,7 +331,7 @@ void main() {
         includeMarkers: false,
         dateRange: DateRange.last7Days(now: now),
       );
-      expect(f.suggestFileName(now: now), 'langgeng_sea_jalur_7hari_2026-05-16');
+      expect(f.suggestFileName(now: now), 'styra_jalur_7hari_2026-05-16');
     });
 
     test('jalur saja, 30 hari → has 30hari slug', () {
@@ -342,15 +342,15 @@ void main() {
       );
       expect(
         f.suggestFileName(now: now),
-        'langgeng_sea_jalur_30hari_2026-05-16',
+        'styra_jalur_30hari_2026-05-16',
       );
     });
 
-    test('penanda saja → langgeng_sea_penanda_<today>', () {
+    test('penanda saja → styra_penanda_<today>', () {
       final f = ExportFilter(includeTracks: false, includeMarkers: true);
       expect(
         f.suggestFileName(now: now),
-        'langgeng_sea_penanda_2026-05-16',
+        'styra_penanda_2026-05-16',
       );
     });
 
@@ -365,7 +365,7 @@ void main() {
       );
       expect(
         f.suggestFileName(now: now),
-        'langgeng_sea_jalur_2026-04-01_2026-04-15_2026-05-16',
+        'styra_jalur_2026-04-01_2026-04-15_2026-05-16',
       );
     });
 
@@ -377,7 +377,7 @@ void main() {
       );
       expect(
         f.suggestFileName(now: now),
-        'langgeng_sea_lengkap_3trip_2026-05-16',
+        'styra_lengkap_3trip_2026-05-16',
       );
     });
   });

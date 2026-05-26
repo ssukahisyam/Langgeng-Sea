@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# Langgeng Sea — ProGuard / R8 rules for release builds
+# Styra — ProGuard / R8 rules for release builds
 # -----------------------------------------------------------------------------
 # When `isMinifyEnabled = true` R8 strips unused code and renames symbols.
 # Native / reflection-based code paths must be explicitly kept here, otherwise

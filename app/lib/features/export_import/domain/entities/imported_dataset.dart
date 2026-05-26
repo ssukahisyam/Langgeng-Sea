@@ -40,7 +40,7 @@ class ImportedDataset {
   final String? exporterName;
 
   /// Nama kapal (dari `<lsea:exporter><vesselName>`). Null untuk file
-  /// dari aplikasi non-Langgeng-Sea.
+  /// dari aplikasi non-Styra.
   final String? vesselName;
 
   /// Timestamp ekspor (dari `<lsea:exporter><exportedAt>`). Null untuk

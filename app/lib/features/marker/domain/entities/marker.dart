@@ -35,7 +35,7 @@ enum MarkerCategory {
   ///
   /// Fallback ke [MarkerCategory.other] kalau:
   /// - File dari aplikasi GPX lain (OsmAnd, dsb) tanpa extension
-  /// - Value tidak dikenal (versi Langgeng-Sea masa depan
+  /// - Value tidak dikenal (versi Styra masa depan
   ///   tambah kategori baru, atau kategori sudah deprecated)
   /// - Null / empty string
   static MarkerCategory fromGpxValue(String? value) {
