@@ -3,5 +3,10 @@
     <!-- Light theme -->
     <color name="splash_background">#F4F8FB</color>
     <color name="primary">#0277BD</color>
-	<color name="ic_launcher_background">#0EA5E9</color>
+    <!--
+      ic_launcher_background di-define di file standalone
+      values/ic_launcher_background.xml (PR #44 rebrand). Sengaja
+      tidak di sini supaya kalau flutter_launcher_icons di-rerun,
+      tidak menimbulkan duplicate resource di Gradle merge.
+    -->
 </resources>
