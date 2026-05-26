@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
+import '../../../../core/permissions/permission_settings_launcher.dart';
 import '../../../../core/permissions/tracking_permissions_provider.dart';
 import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -93,6 +94,7 @@ class DeviceStatusCard extends ConsumerWidget {
               title: 'Lokasi GPS',
               description: 'Wajib untuk merekam jejak tarikan',
               status: state.location,
+              permission: Permission.location,
               onRequest: () => ref
                   .read(trackingPermissionsProvider.notifier)
                   .requestLocation(),
@@ -104,6 +106,7 @@ class DeviceStatusCard extends ConsumerWidget {
               title: 'Notifikasi',
               description: 'Tampilkan indikator tracking aktif',
               status: state.notification,
+              permission: Permission.notification,
               onRequest: () => ref
                   .read(trackingPermissionsProvider.notifier)
                   .requestNotification(),
@@ -116,6 +119,7 @@ class DeviceStatusCard extends ConsumerWidget {
                 title: 'Hemat Daya',
                 description: 'Akurasi GPS saat layar mati',
                 status: state.battery,
+                permission: Permission.ignoreBatteryOptimizations,
                 onRequest: () => ref
                     .read(trackingPermissionsProvider.notifier)
                     .requestBattery(),
@@ -135,6 +139,7 @@ class _PermissionRow extends StatelessWidget {
     required this.title,
     required this.description,
     required this.status,
+    required this.permission,
     required this.onRequest,
     required this.required,
   });
@@ -143,6 +148,7 @@ class _PermissionRow extends StatelessWidget {
   final String title;
   final String description;
   final PermissionStatus status;
+  final Permission permission;
   final Future<PermissionStatus> Function() onRequest;
   final bool required;
 
@@ -217,6 +223,7 @@ class _PermissionRow extends StatelessWidget {
         const SizedBox(width: AppSizes.sp2),
         _ActionButton(
           status: status,
+          permission: permission,
           permissionLabel: title,
           onRequest: onRequest,
         ),
@@ -283,11 +290,17 @@ class _StatusBadge extends StatelessWidget {
 class _ActionButton extends StatelessWidget {
   const _ActionButton({
     required this.status,
+    required this.permission,
     required this.permissionLabel,
     required this.onRequest,
   });
 
   final PermissionStatus status;
+
+  /// Permission identity untuk dipakai pilih intent deep-link yang
+  /// tepat (notif → ACTION_APP_NOTIFICATION_SETTINGS, battery →
+  /// ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS, dll).
+  final Permission permission;
 
   /// Label permission untuk dipakai di copy dialog konfirmasi.
   /// Mis. "Lokasi GPS", "Notifikasi", "Hemat Daya".
@@ -355,16 +368,21 @@ class _ActionButton extends StatelessWidget {
       final confirmed = await _RevokePermissionDialog.show(
         context,
         permissionLabel: permissionLabel,
+        permission: permission,
       );
       if (confirmed && context.mounted) {
-        await openAppSettings();
+        // PR #43: pakai PermissionSettingsLauncher supaya user
+        // dilempar ke halaman permission spesifik (notif → halaman
+        // notifikasi, battery → halaman battery optimization).
+        // Untuk lokasi tetap fallback ke App Info umum karena
+        // Android tidak punya intent spesifik untuk itu.
+        await PermissionSettingsLauncher.open(permission);
       }
     } else if (permanentlyDenied) {
       // PermanentlyDenied = user pernah pilih "Don't ask again".
       // Dialog OS sudah tidak akan muncul lagi. Langsung redirect
-      // tanpa konfirmasi karena tombol "Buka Settings" sudah cukup
-      // self-explanatory.
-      await openAppSettings();
+      // ke halaman permission spesifik tanpa konfirmasi.
+      await PermissionSettingsLauncher.open(permission);
     } else {
       // Denied biasa = user belum pernah respond, atau pilih "Deny"
       // tanpa "Don't ask again". Trigger request OS — dialog akan
@@ -380,28 +398,68 @@ class _ActionButton extends StatelessWidget {
 /// Reusable: terima `permissionLabel` untuk personalize copy.
 /// Return `true` kalau user tap "Buka Settings", `false` kalau
 /// "Batal" atau dismiss.
+///
+/// PR #43 — copy step-by-step disesuaikan per [Permission] supaya
+/// instruksi-nya akurat. Untuk Notifikasi & Battery, deep-link
+/// langsung ke halaman yang relevan (user cuma perlu tap toggle).
+/// Untuk Lokasi (atau permission lain tanpa intent spesifik), user
+/// masih perlu navigasi via Permissions menu.
 class _RevokePermissionDialog extends StatelessWidget {
-  const _RevokePermissionDialog({required this.permissionLabel});
+  const _RevokePermissionDialog({
+    required this.permissionLabel,
+    required this.permission,
+  });
 
   final String permissionLabel;
+  final Permission permission;
 
   static Future<bool> show(
     BuildContext context, {
     required String permissionLabel,
+    required Permission permission,
   }) async {
     final result = await showDialog<bool>(
       context: context,
       builder: (_) => _RevokePermissionDialog(
         permissionLabel: permissionLabel,
+        permission: permission,
       ),
     );
     return result ?? false;
+  }
+
+  /// Steps yang ditampilkan tergantung deep-link availability.
+  ///
+  /// - Notifikasi → langsung ke halaman notifikasi app (1 step)
+  /// - Battery → langsung ke halaman battery optimization (2 step)
+  /// - Lokasi/lainnya → App Info umum, butuh navigasi tambahan
+  List<String> _stepsForPermission() {
+    switch (permission) {
+      case Permission.notification:
+        return [
+          'Tap toggle "Allow notifications" / "Tampilkan notifikasi"',
+          'Konfirmasi pilihan',
+        ];
+      case Permission.ignoreBatteryOptimizations:
+        return [
+          'Cari "Langgeng Sea" di daftar app',
+          'Pilih "Optimized" atau "Restricted"',
+        ];
+      default:
+        // Lokasi & lainnya — tidak ada intent spesifik.
+        return [
+          'Tap menu "Permissions" / "Izin"',
+          'Pilih "$permissionLabel"',
+          'Tap "Don\'t allow" / "Tolak"',
+        ];
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final text = context.text;
+    final steps = _stepsForPermission();
 
     return AlertDialog(
       backgroundColor: tokens.surface3,
@@ -429,14 +487,13 @@ class _RevokePermissionDialog extends StatelessWidget {
           ),
           const SizedBox(height: AppSizes.sp3),
           Text(
-            'Anda akan dialihkan ke Settings sistem. Cara mencabut '
-            'di sana:',
+            'Anda akan dialihkan ke halaman pengaturan yang relevan. '
+            'Cara mencabut di sana:',
             style: text.bodyMedium?.copyWith(color: tokens.textSecondary),
           ),
           const SizedBox(height: AppSizes.sp2),
-          _Step(number: '1', text: 'Tap menu "Permissions" / "Izin"'),
-          _Step(number: '2', text: 'Pilih "$permissionLabel"'),
-          _Step(number: '3', text: 'Tap "Don\'t allow" / "Tolak"'),
+          for (var i = 0; i < steps.length; i++)
+            _Step(number: '${i + 1}', text: steps[i]),
         ],
       ),
       actions: [

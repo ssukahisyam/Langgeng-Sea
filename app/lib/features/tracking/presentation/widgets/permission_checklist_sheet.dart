@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
+import '../../../../core/permissions/permission_settings_launcher.dart';
 import '../../../../core/permissions/tracking_permissions_provider.dart';
 import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -98,6 +99,7 @@ class PermissionChecklistSheet extends ConsumerWidget {
               title: 'Lokasi GPS',
               description: 'Untuk merekam jejak tarikan',
               status: state.location,
+              permission: Permission.location,
               required: true,
               onTap: () => ref
                   .read(trackingPermissionsProvider.notifier)
@@ -109,6 +111,7 @@ class PermissionChecklistSheet extends ConsumerWidget {
               title: 'Notifikasi',
               description: 'Indikator tracking aktif di status bar',
               status: state.notification,
+              permission: Permission.notification,
               required: true,
               onTap: () => ref
                   .read(trackingPermissionsProvider.notifier)
@@ -122,6 +125,7 @@ class PermissionChecklistSheet extends ConsumerWidget {
                 description: 'Akurasi GPS saat layar mati '
                     '(opsional tapi sangat dianjurkan)',
                 status: state.battery,
+                permission: Permission.ignoreBatteryOptimizations,
                 required: false,
                 onTap: () => ref
                     .read(trackingPermissionsProvider.notifier)
@@ -160,6 +164,7 @@ class _ChecklistRow extends StatelessWidget {
     required this.title,
     required this.description,
     required this.status,
+    required this.permission,
     required this.required,
     required this.onTap,
   });
@@ -168,6 +173,7 @@ class _ChecklistRow extends StatelessWidget {
   final String title;
   final String description;
   final PermissionStatus status;
+  final Permission permission;
   final bool required;
   final Future<PermissionStatus> Function() onTap;
 
@@ -253,7 +259,8 @@ class _ChecklistRow extends StatelessWidget {
               permanentlyDenied: permanentlyDenied,
               onTap: () async {
                 if (permanentlyDenied) {
-                  await openAppSettings();
+                  // PR #43: deep-link ke halaman permission spesifik.
+                  await PermissionSettingsLauncher.open(permission);
                 } else {
                   await onTap();
                 }
