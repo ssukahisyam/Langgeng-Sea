@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Color tokens for Langgeng Sea - Clean Liquid Glass design system.
+/// Color tokens for Styra - Clean Liquid Glass design system.
 /// Ported from prototype/styles.css to Flutter.
 class AppColors {
   AppColors._();

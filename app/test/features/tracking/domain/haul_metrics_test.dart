@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:langgeng_sea/features/tracking/domain/entities/haul_metrics.dart';
+import 'package:styra/features/tracking/domain/entities/haul_metrics.dart';
 
 void main() {
   group('HaulMetrics.empty', () {

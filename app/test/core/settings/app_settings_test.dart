@@ -4,10 +4,10 @@
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:langgeng_sea/core/settings/data/app_settings_repository.dart';
-import 'package:langgeng_sea/core/settings/domain/entities/app_settings.dart';
-import 'package:langgeng_sea/data/database/app_database.dart';
-import 'package:langgeng_sea/features/tracking/domain/entities/tracking_mode.dart';
+import 'package:styra/core/settings/data/app_settings_repository.dart';
+import 'package:styra/core/settings/domain/entities/app_settings.dart';
+import 'package:styra/data/database/app_database.dart';
+import 'package:styra/features/tracking/domain/entities/tracking_mode.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

@@ -1,4 +1,4 @@
-# Langgeng Sea — Flutter App
+# Styra — Flutter App
 
 Source Flutter project untuk aplikasi tracking GPS offline nelayan trawl
 Indonesia. Ini adalah **M0 Foundation** — fondasi proyek dengan theme,

@@ -1,4 +1,4 @@
-import 'package:langgeng_sea/features/navigation/data/navigation_alert_service.dart';
+import 'package:styra/features/navigation/data/navigation_alert_service.dart';
 
 /// In-memory alert service for tests. Records calls rather than
 /// hitting flutter_tts + HapticFeedback platform channels.

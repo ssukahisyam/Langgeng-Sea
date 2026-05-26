@@ -1,13 +1,38 @@
 # Changelog
 
-Semua perubahan penting pada proyek **Langgeng Sea** dicatat di sini.
+Semua perubahan penting pada proyek **Styra** dicatat di sini.
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/).
 Proyek ini menggunakan [Semantic Versioning](https://semver.org/lang/id/).
 
 ---
 
-## [1.0.0] — Unreleased (MVP)
+## [1.1.0] — 2026-05-26
+
+### Changed
+
+- **Rebrand**: Aplikasi diubah nama dari **Langgeng Sea** menjadi **Styra**.
+  - Display name di launcher: `Langgeng Sea` → `Styra`
+  - Android `applicationId`: `id.co.langgengsea` → `com.styra`
+  - Database file: `langgeng_sea.sqlite` → `styra.sqlite` (data lokal lama tidak ter-migrate; user perlu mulai fresh)
+  - FMTC tile cache stores: `langgeng_sea_osm` / `langgeng_sea_seamark` → `styra_osm` / `styra_seamark`
+  - GPX namespace: `https://langgengsea.id/gpx/extensions/v1` → `https://styra.app/gpx/extensions/v1`
+  - GPX prefix di element baru: `lsea:` → `styra:`
+  - Domain & email: `langgengsea.id` → `styra.app`
+
+### Backward Compatibility
+
+- **GPX importer**: tetap menerima both `lsea:` (legacy Langgeng Sea pre-rebrand) dan `styra:` (new). File GPX dari versi app lama tetap bisa di-import tanpa migrasi.
+- **LSEA-JSON importer**: menerima both format `langgeng-sea-v1` (legacy) dan `styra-v1` (reserved untuk future).
+
+### Notes
+
+- Karena `applicationId` berubah, user existing tidak akan dapat update otomatis via Play Store (tidak applicable saat ini — app belum di-release ke Play Store sebelum rebrand).
+- Database lokal di-rename, jadi user dengan APK lama yang upgrade ke versi ini akan mulai dengan database kosong.
+
+---
+
+
 
 **Tanggal rilis final:** _TBD_ (akan diisi saat tag `v1.0.0` di-push
 ke `main`)
@@ -16,7 +41,7 @@ Production.
 
 ### Highlights
 
-Rilis perdana Langgeng Sea. MVP lengkap dari M0 sampai M10 —
+Rilis perdana Styra. MVP lengkap dari M0 sampai M10 —
 offline-first GPS tracking untuk nelayan trawl Indonesia. Data 100%
 lokal, tanpa server, tanpa akun, tanpa iklan, 100% Bahasa Indonesia.
 
@@ -67,7 +92,7 @@ lokal, tanpa server, tanpa akun, tanpa iklan, 100% Bahasa Indonesia.
 - **M7 — Ekspor / Impor** ✅
   Format **GPX** (universal — kompatibel dengan semua GPS software).
   Format native **`.lsea.json`** dengan metadata lengkap untuk
-  share antar pengguna Langgeng Sea, termasuk nama pengirim. Round-
+  share antar pengguna Styra, termasuk nama pengirim. Round-
   trip import preserves ID stabil. Share via Android intent.
 
 - **M8 — Onboarding & Polish** ✅
@@ -141,4 +166,5 @@ lokal, tanpa server, tanpa akun, tanpa iklan, 100% Bahasa Indonesia.
 
 ---
 
+[1.1.0]: https://github.com/ssukahisyam/Langgeng-Sea/releases/tag/v1.1.0
 [1.0.0]: https://github.com/ssukahisyam/Langgeng-Sea/releases/tag/v1.0.0

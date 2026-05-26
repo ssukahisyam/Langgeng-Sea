@@ -21,7 +21,7 @@
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:langgeng_sea/data/database/app_database.dart';
+import 'package:styra/data/database/app_database.dart';
 
 const _v1CreateTrips = '''
 CREATE TABLE trips (

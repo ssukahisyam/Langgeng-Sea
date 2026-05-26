@@ -1,6 +1,6 @@
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:langgeng_sea/features/offline_map/domain/entities/offline_region.dart';
+import 'package:styra/features/offline_map/domain/entities/offline_region.dart';
 import 'package:latlong2/latlong.dart';
 
 OfflineRegion _region({

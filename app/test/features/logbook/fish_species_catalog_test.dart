@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:langgeng_sea/features/logbook/domain/fish_species_catalog.dart';
+import 'package:styra/features/logbook/domain/fish_species_catalog.dart';
 
 void main() {
   group('FishSpeciesCatalog', () {

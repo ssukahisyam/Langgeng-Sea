@@ -142,7 +142,7 @@ class ExportFilter {
   /// Saran nama file (tanpa direktori, tanpa ekstensi).
   ///
   /// Kombinasi filter umum diberi label pendek; sisanya pakai prefix
-  /// `langgeng_sea_` + tanggal hari ini.
+  /// `styra_` + tanggal hari ini.
   String suggestFileName({DateTime? now}) {
     final ref = now ?? DateTime.now();
     final today = _isoDate(ref);
@@ -182,7 +182,7 @@ class ExportFilter {
       }
     }
 
-    final pieces = <String>['langgeng_sea', contentSlug];
+    final pieces = <String>['styra', contentSlug];
     if (rangeSlug != null) pieces.add(rangeSlug);
     pieces.add(today);
     return pieces.join('_');

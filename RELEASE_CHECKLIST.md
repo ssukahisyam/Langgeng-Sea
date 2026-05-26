@@ -1,4 +1,4 @@
-# Langgeng Sea — Release Checklist
+# Styra — Release Checklist
 
 **Target versi:** `1.0.0` (versionCode 1)
 **Channel:** Google Play Store — Internal Testing → Closed Beta → Production
@@ -35,7 +35,7 @@ Format: `[ ]` belum · `[x]` selesai · `[N/A]` tidak relevan (jelaskan).
       (jika bukan first release, harus monotonic naik).
 - [ ] Git tag `v1.0.0` dibuat **setelah** PR rilis merge ke `main`:
       ```
-      git tag -a v1.0.0 -m "Langgeng Sea 1.0.0 — MVP release"
+      git tag -a v1.0.0 -m "Styra 1.0.0 — MVP release"
       git push origin v1.0.0
       ```
 - [ ] `CHANGELOG.md` ada entry untuk `1.0.0` dengan tanggal rilis
@@ -146,7 +146,7 @@ Format: `[ ]` belum · `[x]` selesai · `[N/A]` tidak relevan (jelaskan).
 
 ## 7. Store Listing — Play Console
 
-- [ ] App name: **Langgeng Sea: GPS Trawl** (max 30 char — cek
+- [ ] App name: **Styra: GPS Trawl** (max 30 char — cek
       `store-listing/description-id.md`).
 - [ ] Short description 80 char loaded (id + en).
 - [ ] Full description ≤ 4000 char (id + en).
@@ -172,7 +172,7 @@ Format: `[ ]` belum · `[x]` selesai · `[N/A]` tidak relevan (jelaskan).
 ### 7.2 Metadata
 - [ ] Website: `https://github.com/ssukahisyam/Langgeng-Sea`
       (permanent sampai punya domain resmi).
-- [ ] Email contact: `hello@langgengsea.id` _(placeholder —
+- [ ] Email contact: `hello@styra.app` _(placeholder —
       configure MX record dulu, atau ganti ke Gmail team)_.
 - [ ] Phone contact: optional, skip dulu.
 - [ ] Privacy policy URL: serve `store-listing/privacy-policy.md`
@@ -208,7 +208,7 @@ Format: `[ ]` belum · `[x]` selesai · `[N/A]` tidak relevan (jelaskan).
 - [ ] Terms of Service: OPSIONAL untuk v1.0. Kalau tidak ada,
       jelaskan di **About** bahwa aplikasi gratis "as-is" tanpa
       warranty.
-- [ ] Disclaimer navigasi: **"Langgeng Sea bukan aplikasi navigasi
+- [ ] Disclaimer navigasi: **"Styra bukan aplikasi navigasi
       resmi untuk menjamin keselamatan jiwa. Jangan gunakan sebagai
       satu-satunya alat navigasi."** Wajib tampil di onboarding
       terakhir dan di About.

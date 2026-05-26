@@ -3,10 +3,10 @@
 // Pure-Dart tests — tidak perlu Flutter binding atau database.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:langgeng_sea/features/export_import/domain/entities/date_range.dart';
-import 'package:langgeng_sea/features/export_import/domain/entities/export_filter.dart';
-import 'package:langgeng_sea/features/marker/domain/entities/marker.dart';
-import 'package:langgeng_sea/features/tracking/domain/entities/trip.dart';
+import 'package:styra/features/export_import/domain/entities/date_range.dart';
+import 'package:styra/features/export_import/domain/entities/export_filter.dart';
+import 'package:styra/features/marker/domain/entities/marker.dart';
+import 'package:styra/features/tracking/domain/entities/trip.dart';
 
 void main() {
   // ---------------------------------------------------------------------------

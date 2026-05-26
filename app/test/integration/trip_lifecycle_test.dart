@@ -13,13 +13,13 @@
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:langgeng_sea/core/services/gps_reading.dart';
-import 'package:langgeng_sea/core/services/gps_service.dart';
-import 'package:langgeng_sea/data/database/app_database.dart';
-import 'package:langgeng_sea/features/onboarding/data/user_profile_repository.dart';
-import 'package:langgeng_sea/features/tracking/application/tracking_controller.dart';
-import 'package:langgeng_sea/features/tracking/data/trip_repository.dart';
-import 'package:langgeng_sea/features/tracking/domain/entities/trip.dart';
+import 'package:styra/core/services/gps_reading.dart';
+import 'package:styra/core/services/gps_service.dart';
+import 'package:styra/data/database/app_database.dart';
+import 'package:styra/features/onboarding/data/user_profile_repository.dart';
+import 'package:styra/features/tracking/application/tracking_controller.dart';
+import 'package:styra/features/tracking/data/trip_repository.dart';
+import 'package:styra/features/tracking/domain/entities/trip.dart';
 
 import '../helpers/fake_gps_service.dart';
 

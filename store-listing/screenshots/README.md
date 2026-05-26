@@ -2,7 +2,7 @@
 
 Play Store membutuhkan minimal **2** dan maksimal **8** screenshot
 (phone). Kami ship **5** screenshot inti yang menggambarkan alur
-utama Langgeng Sea. Folder ini menjadi sumber kebenaran; hasil capture
+utama Styra. Folder ini menjadi sumber kebenaran; hasil capture
 aktual **tidak di-commit** (lihat `.gitignore`) — upload langsung ke
 Play Console.
 

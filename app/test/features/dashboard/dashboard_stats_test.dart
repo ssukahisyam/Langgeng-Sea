@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:langgeng_sea/features/dashboard/data/dashboard_stats_provider.dart';
+import 'package:styra/features/dashboard/data/dashboard_stats_provider.dart';
 
 void main() {
   group('DashboardStats', () {

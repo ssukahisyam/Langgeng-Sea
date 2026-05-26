@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:langgeng_sea/core/utils/geo_calculator.dart';
+import 'package:styra/core/utils/geo_calculator.dart';
 import 'package:latlong2/latlong.dart';
 
 void main() {

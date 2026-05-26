@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:langgeng_sea/core/utils/formatters.dart';
+import 'package:styra/core/utils/formatters.dart';
 
 void main() {
   group('Formatters.distance', () {

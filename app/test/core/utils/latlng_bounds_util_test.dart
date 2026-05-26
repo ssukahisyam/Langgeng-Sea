@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:langgeng_sea/core/utils/latlng_bounds_util.dart';
+import 'package:styra/core/utils/latlng_bounds_util.dart';
 import 'package:latlong2/latlong.dart';
 
 void main() {

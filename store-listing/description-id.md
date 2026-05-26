@@ -3,7 +3,7 @@
 ## Judul Aplikasi (30 karakter)
 
 ```
-Langgeng Sea: GPS Trawl
+Styra: GPS Trawl
 ```
 
 ## Deskripsi Singkat (80 karakter)
@@ -18,9 +18,9 @@ _(78 karakter — cocok dengan limit 80.)_
 
 ## Deskripsi Panjang (maks 4000 karakter)
 
-**Langgeng Sea — Jejak Setia di Lautan.**
+**Styra — Jejak Setia di Lautan.**
 
-Langgeng Sea adalah aplikasi tracking GPS khusus nelayan trawl Indonesia.
+Styra adalah aplikasi tracking GPS khusus nelayan trawl Indonesia.
 Pakai HP Android Anda untuk merekam jejak alat tangkap di tengah laut,
 bahkan tanpa sinyal sama sekali. Tidak butuh GPS tambahan, tidak butuh
 langganan, tidak butuh akun.
@@ -60,7 +60,7 @@ langganan, tidak butuh akun.
 
 - **📤 Ekspor / Impor Data**
   Format GPX (dibaca semua GPS software di dunia) dan format khusus
-  `.lsea.json` untuk share antar sesama pengguna Langgeng Sea dengan
+  `.lsea.json` untuk share antar sesama pengguna Styra dengan
   nama pengirim.
 
 ---
@@ -73,14 +73,14 @@ langganan, tidak butuh akun.
   belakang. Bisa matikan layar HP untuk hemat baterai.
 - **Angkat alat** — tekan "Angkat Trawl". Ringkasan langsung muncul:
   jarak, durasi, luas sapuan.
-- **Tebar berikutnya** — tekan "Mulai Tebar" lagi. Langgeng Sea otomatis
+- **Tebar berikutnya** — tekan "Mulai Tebar" lagi. Styra otomatis
   tau itu haul ke-2 dari trip yang sama.
 - **Pulang ke darat** — review trip di menu Riwayat. Isi log book
   kalau mau. Ekspor ke GPX untuk arsip.
 
 ---
 
-### ✨ Kenapa Pilih Langgeng Sea?
+### ✨ Kenapa Pilih Styra?
 
 **🇮🇩 Dibuat untuk Nelayan Indonesia**
 Bukan aplikasi tracking olahraga luar yang dipaksakan. Istilah, workflow,
@@ -145,7 +145,7 @@ Layer nautical: OpenSeaMap (https://www.openseamap.org/).
 ### 📧 Kontak & Bug Report
 
 - GitHub Issues: https://github.com/ssukahisyam/Langgeng-Sea/issues
-- Email: hello@langgengsea.id _(placeholder)_
+- Email: hello@styra.app _(placeholder)_
 - WhatsApp beta group: hubungi via email untuk di-invite
 
 Feedback dari nelayan langsung sangat dihargai — aplikasi ini dibuat

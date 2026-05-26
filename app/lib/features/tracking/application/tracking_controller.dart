@@ -122,7 +122,7 @@ class TrackingController extends Notifier<TrackingState> {
     try {
       await _bgService.start(
         haulId: haul.id,
-        notificationTitle: 'Langgeng Sea — Merekam',
+        notificationTitle: 'Styra — Merekam',
         notificationBody: '${haul.displayName()} sedang direkam',
         skipBatteryPermission: false,
       );
@@ -309,7 +309,7 @@ class TrackingController extends Notifier<TrackingState> {
     try {
       await _bgService.start(
         haulId: haul.id,
-        notificationTitle: 'Langgeng Sea — Merekam',
+        notificationTitle: 'Styra — Merekam',
         notificationBody: '${haul.displayName()} — dilanjutkan',
         skipBatteryPermission: true,
       );
@@ -550,7 +550,7 @@ class TrackingController extends Notifier<TrackingState> {
       try {
         await _bgService.start(
           haulId: haul.id,
-          notificationTitle: 'Langgeng Sea — Merekam',
+          notificationTitle: 'Styra — Merekam',
           notificationBody: '${haul.displayName()} — restart',
         );
       } catch (e) {

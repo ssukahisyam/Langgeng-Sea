@@ -129,7 +129,7 @@ class FlutterBackgroundTrackingService implements BackgroundTrackingService {
       autoStart: false,
       autoStartOnBoot: false,
       foregroundServiceNotificationId: _kForegroundNotificationId,
-      initialNotificationTitle: 'Langgeng Sea',
+      initialNotificationTitle: 'Styra',
       initialNotificationContent: 'Memulai tracking GPS…',
       foregroundServiceTypes: [AndroidForegroundType.location],
       notificationChannelId: _kNotificationChannelId,
@@ -638,7 +638,7 @@ Future<void> onBackgroundStart(ServiceInstance service) async {
                 ? '${haulId.substring(0, 8)}…'
                 : haulId;
             service.setForegroundNotificationInfo(
-              title: 'Langgeng Sea — Merekam',
+              title: 'Styra — Merekam',
               content: 'GPS aktif untuk $shortHaul',
             );
           }

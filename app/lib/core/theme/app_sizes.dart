@@ -1,4 +1,4 @@
-/// Spacing, radius, and size tokens for Langgeng Sea.
+/// Spacing, radius, and size tokens for Styra.
 /// Base unit: 4px. Pattern: geometric progression.
 class AppSizes {
   AppSizes._();

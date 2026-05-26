@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:langgeng_sea/features/export_import/data/gpx_exporter.dart';
-import 'package:langgeng_sea/features/marker/domain/entities/marker.dart';
-import 'package:langgeng_sea/features/tracking/domain/entities/haul.dart';
-import 'package:langgeng_sea/features/tracking/domain/entities/track_point.dart';
-import 'package:langgeng_sea/features/tracking/domain/entities/trip.dart';
+import 'package:styra/features/export_import/data/gpx_exporter.dart';
+import 'package:styra/features/marker/domain/entities/marker.dart';
+import 'package:styra/features/tracking/domain/entities/haul.dart';
+import 'package:styra/features/tracking/domain/entities/track_point.dart';
+import 'package:styra/features/tracking/domain/entities/trip.dart';
 import 'package:xml/xml.dart';
 
 void main() {
@@ -69,14 +69,14 @@ void main() {
 
       expect(root.name.local, 'gpx');
       expect(root.getAttribute('version'), '1.1');
-      expect(root.getAttribute('creator'), 'Langgeng Sea');
+      expect(root.getAttribute('creator'), 'Styra');
       expect(
         root.getAttribute('xmlns'),
         'http://www.topografix.com/GPX/1/1',
       );
       expect(
         root.getAttribute('xmlns:lsea'),
-        startsWith('https://langgengsea.id/gpx/extensions'),
+        startsWith('https://styra.app/gpx/extensions'),
       );
 
       // Always present even when output is otherwise minimal.

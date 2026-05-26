@@ -40,7 +40,7 @@ export 'tables.dart';
 
 part 'app_database.g.dart';
 
-/// The single Drift database for Langgeng Sea.
+/// The single Drift database for Styra.
 ///
 /// Local-only (per PRD §11 / NFR-05). Backed by a SQLite file in the
 /// app's documents directory. Schema version bumps must ship a migration
@@ -198,7 +198,7 @@ class AppDatabase extends _$AppDatabase {
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
     final dir = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dir.path, 'langgeng_sea.sqlite'));
+    final file = File(p.join(dir.path, 'styra.sqlite'));
 
     // Android workaround: some OEMs' build of SQLite is too old.
     if (Platform.isAndroid) {

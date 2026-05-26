@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:langgeng_sea/features/tracking/domain/entities/trip.dart';
-import 'package:langgeng_sea/features/tracking/domain/entities/trip_summary.dart';
+import 'package:styra/features/tracking/domain/entities/trip.dart';
+import 'package:styra/features/tracking/domain/entities/trip_summary.dart';
 
 Trip _trip(DateTime startedAt) => Trip(
       id: 't1',

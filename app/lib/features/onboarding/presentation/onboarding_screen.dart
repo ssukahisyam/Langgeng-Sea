@@ -30,7 +30,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _OnboardingSlide(
       icon: PhosphorIconsFill.sailboat,
       title: 'Jejak Setia di Lautan',
-      body: 'Selamat datang di Langgeng Sea — teman setia nelayan trawl '
+      body: 'Selamat datang di Styra — teman setia nelayan trawl '
           'Indonesia untuk mencatat setiap tarikan alat tangkap.',
     ),
     _OnboardingSlide(

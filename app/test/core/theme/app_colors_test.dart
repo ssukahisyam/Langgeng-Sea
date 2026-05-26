@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:langgeng_sea/core/theme/app_colors.dart';
+import 'package:styra/core/theme/app_colors.dart';
 
 void main() {
   group('AppColors.colorForHaul', () {

@@ -442,7 +442,7 @@ class _RevokePermissionDialog extends StatelessWidget {
         ];
       case Permission.ignoreBatteryOptimizations:
         return [
-          'Cari "Langgeng Sea" di daftar app',
+          'Cari "Styra" di daftar app',
           'Pilih "Optimized" atau "Restricted"',
         ];
       default:

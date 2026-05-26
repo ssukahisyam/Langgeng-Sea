@@ -7,7 +7,7 @@
 // `accurate`.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:langgeng_sea/features/tracking/domain/entities/tracking_mode.dart';
+import 'package:styra/features/tracking/domain/entities/tracking_mode.dart';
 
 void main() {
   group('TrackingMode (single-value sejak PR #40)', () {

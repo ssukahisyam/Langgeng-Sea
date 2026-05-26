@@ -106,7 +106,7 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
               children: [
                 Expanded(
                   child: _FormatItem(
-                    label: 'Langgeng Sea',
+                    label: 'Styra',
                     subtitle: '.lsea.json',
                     icon: PhosphorIconsBold.fileCode,
                     isActive: _selectedFormat == ExportFormat.lseaJson,
@@ -208,8 +208,8 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
 
       await Share.shareXFiles(
         [XFile(file.path)],
-        subject: 'Data Trip - Langgeng Sea',
-        text: 'Data trip dari Langgeng Sea',
+        subject: 'Data Trip - Styra',
+        text: 'Data trip dari Styra',
       );
     } catch (e) {
       if (!mounted) return;

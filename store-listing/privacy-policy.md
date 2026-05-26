@@ -1,14 +1,14 @@
-# Kebijakan Privasi Langgeng Sea
+# Kebijakan Privasi Styra
 
 **Versi:** 1.0
 **Berlaku efektif:** saat aplikasi pertama kali dirilis ke Google Play Store
-**Kontak:** privacy@langgengsea.id _(placeholder — ganti sebelum submission)_
+**Kontak:** privacy@styra.app _(placeholder — ganti sebelum submission)_
 
 ---
 
 ## 1. Ringkasan Singkat
 
-Langgeng Sea adalah aplikasi tracking GPS untuk nelayan trawl Indonesia.
+Styra adalah aplikasi tracking GPS untuk nelayan trawl Indonesia.
 **Semua data Anda disimpan di perangkat Anda sendiri.** Kami tidak memiliki
 server. Kami tidak mengumpulkan data pribadi. Kami tidak menjalankan iklan,
 analitik pihak ketiga, ataupun tracker perilaku pengguna.
@@ -22,7 +22,7 @@ melanjutkan. Dokumen ini memperinci hal yang sama secara formal.
 
 **Tidak ada.**
 
-Langgeng Sea tidak mengumpulkan, mengirim, atau menyimpan data Anda di
+Styra tidak mengumpulkan, mengirim, atau menyimpan data Anda di
 server mana pun. Hal ini berlaku untuk:
 
 - Identitas pribadi (nama, email, nomor telepon, foto).
@@ -34,13 +34,13 @@ server mana pun. Hal ini berlaku untuk:
 Seluruh data yang Anda masukkan — termasuk jejak GPS, log book, marker
 spot, catatan tangkap, dan profil kapal — disimpan secara lokal di
 database SQLite di dalam memori internal HP Anda. Database tersebut hanya
-dapat diakses oleh aplikasi Langgeng Sea.
+dapat diakses oleh aplikasi Styra.
 
 ---
 
 ## 3. Izin (Permission) yang Diminta
 
-Langgeng Sea meminta izin berikut dari sistem Android. Masing-masing izin
+Styra meminta izin berikut dari sistem Android. Masing-masing izin
 dipakai sebatas untuk fungsi yang dijelaskan di bawah.
 
 ### 3.1 Location (Lokasi) — WAJIB
@@ -143,19 +143,19 @@ in-app sebelum fitur terkait aktif.
 
 Pertanyaan, keluhan, atau permintaan penghapusan data:
 
-- **Email:** privacy@langgengsea.id _(placeholder)_
+- **Email:** privacy@styra.app _(placeholder)_
 - **GitHub:** https://github.com/ssukahisyam/Langgeng-Sea/issues
 - **WhatsApp:** +62-xxx-xxx-xxxx _(placeholder beta support)_
 
 Karena data Anda hanya tersimpan di HP Anda, penghapusan data
 dilakukan dengan meng-uninstall aplikasi atau menghapus data aplikasi
-lewat Settings → Apps → Langgeng Sea → Storage → Clear data.
+lewat Settings → Apps → Styra → Storage → Clear data.
 
 ---
 
 ## English Summary (Non-Authoritative)
 
-Langgeng Sea is a GPS tracking app for Indonesian trawl fishers. We do
+Styra is a GPS tracking app for Indonesian trawl fishers. We do
 **not** collect, transmit, or store any of your data on any server. All
 trip data — GPS tracks, log books, markers — lives only in the local
 SQLite database on your phone.
@@ -182,6 +182,6 @@ This policy will be updated before any behaviour change (e.g. adding a
 cloud sync feature or a crash reporter). You will be asked for explicit
 consent before any such feature becomes active.
 
-Contact: privacy@langgengsea.id _(placeholder; replace prior to Play
+Contact: privacy@styra.app _(placeholder; replace prior to Play
 Store submission)_ or file an issue at
 https://github.com/ssukahisyam/Langgeng-Sea/issues.

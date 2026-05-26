@@ -1,4 +1,4 @@
-package id.co.langgengsea
+package com.styra
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -3,7 +3,7 @@
 class AppStrings {
   AppStrings._();
 
-  static const String appName = 'Langgeng Sea';
+  static const String appName = 'Styra';
   static const String tagline = 'Jejak Setia di Lautan';
 
   // Navigation tabs

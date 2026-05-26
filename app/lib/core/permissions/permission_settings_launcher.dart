@@ -71,7 +71,7 @@ class PermissionSettingsLauncher {
     const intent = AndroidIntent(
       action: 'android.settings.APP_NOTIFICATION_SETTINGS',
       arguments: {
-        'android.provider.extra.APP_PACKAGE': 'id.co.langgengsea',
+        'android.provider.extra.APP_PACKAGE': 'com.styra',
       },
     );
     await intent.launch();

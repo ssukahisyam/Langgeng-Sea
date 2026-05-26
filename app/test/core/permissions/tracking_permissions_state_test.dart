@@ -5,7 +5,7 @@
 // allRequired / allOptimal benar.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:langgeng_sea/core/permissions/tracking_permissions_provider.dart';
+import 'package:styra/core/permissions/tracking_permissions_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 void main() {
